@@ -157,6 +157,11 @@ export const roundendScreen = {
             try {
                 await submitHands(gameId, currentPlayerIndex, value);
                 handsCollected[String(currentPlayerIndex)] = value;
+                // Last player — skip review, go straight to confirm
+                if (currentPlayerIndex === players.length - 1) {
+                    renderConfirm();
+                    return;
+                }
                 renderReview(currentPlayerIndex, value);
             } catch (error) {
                 const errorEl = container.querySelector('#hands-error');
