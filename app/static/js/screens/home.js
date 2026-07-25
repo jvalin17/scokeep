@@ -1,6 +1,6 @@
 // Home screen — create or join playground
 
-import { createPlayground, authPlayground } from '../api.js';
+import { createPlayground, authPlayground, listRecentPlaygrounds } from '../api.js';
 
 export const homeScreen = {
     mount(container, state, { navigate }) {
@@ -35,6 +35,7 @@ export const homeScreen = {
                 </form>
 
                 <form id="join-form" class="form hidden">
+                    <div id="recent-playgrounds"></div>
                     <input type="text" id="join-name" placeholder="Playground name"
                         maxlength="50" required autocomplete="off">
                     <input type="text" id="join-pin" placeholder="4-digit PIN"
@@ -44,6 +45,27 @@ export const homeScreen = {
                 </form>
             </div>
         `;
+
+        // Load recent playgrounds
+        async function loadRecent() {
+            try {
+                const { names } = await listRecentPlaygrounds();
+                const recentEl = container.querySelector('#recent-playgrounds');
+                if (names.length > 0) {
+                    recentEl.innerHTML = `
+                        <div class="recent-list">
+                            ${names.map(name => `<button type="button" class="recent-item">${name}</button>`).join('')}
+                        </div>
+                    `;
+                    recentEl.querySelectorAll('.recent-item').forEach(btn => {
+                        btn.addEventListener('click', () => {
+                            container.querySelector('#join-name').value = btn.textContent;
+                            container.querySelector('#join-pin').focus();
+                        });
+                    });
+                }
+            } catch { /* no recent */ }
+        }
 
         // Tab switching
         container.querySelectorAll('.tab').forEach(tab => {
@@ -55,6 +77,7 @@ export const homeScreen = {
                 container.querySelector('#create-form').classList.toggle('hidden', target !== 'create');
                 container.querySelector('#join-form').classList.toggle('visible', target === 'join');
                 container.querySelector('#join-form').classList.toggle('hidden', target !== 'join');
+                if (target === 'join') loadRecent();
             });
         });
 

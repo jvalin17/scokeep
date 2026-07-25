@@ -27,6 +27,12 @@ def _get_authenticated_playground_id(
         raise HTTPException(status_code=401, detail="Invalid session") from exc
 
 
+@router.get("/recent")
+async def list_recent_playgrounds(db: AsyncSession = Depends(get_db)):
+    names = await PlaygroundService.list_recent_names(db)
+    return {"names": names}
+
+
 @router.post("", status_code=201, response_model=PlaygroundResponse)
 async def create_playground(
     data: PlaygroundCreate,

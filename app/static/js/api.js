@@ -22,6 +22,10 @@ async function request(method, path, body = null) {
 }
 
 // Playground
+export function listRecentPlaygrounds() {
+    return request('GET', '/playground/recent');
+}
+
 export function createPlayground(name, pin, players) {
     return request('POST', '/playground', { name, pin, players });
 }

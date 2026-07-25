@@ -82,7 +82,7 @@ h3 { font-size: 1rem; font-weight: 600; color: var(--text-secondary); text-trans
 .btn-small { padding: 8px 16px; font-size: 0.9rem; border-radius: var(--radius-sm); }
 .btn-text { background: none; border: none; color: var(--text-secondary); font-size: 0.95rem; padding: 8px 0; cursor: pointer; }
 .btn-text:hover { color: var(--text-primary); }
-.btn-danger { background: #757575; color: #fff; border-color: #757575; }
+.btn-danger { background: #E57373; color: #fff; border-color: #E57373; }
 .btn-remove {
     background: none;
     border: none;
@@ -132,6 +132,19 @@ input::placeholder { color: var(--text-muted); }
     transition: all 0.15s;
 }
 .tab.active { background: var(--accent); color: #fff; }
+
+/* Recent playgrounds */
+.recent-list { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+.recent-item {
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: var(--bg-card);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.recent-item:active { background: var(--accent); color: #fff; }
 
 /* Player list (home) */
 .player-list { display: flex; flex-direction: column; gap: 8px; }

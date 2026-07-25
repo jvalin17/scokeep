@@ -61,3 +61,12 @@ class PlaygroundService:
             select(Playground).where(Playground.name == name)
         )
         return result.scalar_one_or_none()
+
+    @staticmethod
+    async def list_recent_names(db: AsyncSession, limit: int = 5) -> list[str]:
+        result = await db.execute(
+            select(Playground.name)
+            .order_by(Playground.updated_at.desc())
+            .limit(limit)
+        )
+        return [row[0] for row in result.all()]
