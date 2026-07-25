@@ -22,7 +22,8 @@ export const playScreen = {
             const suits = ['♠', '♦', '♣', '♥'];
             const names = ['Spades', 'Diamonds', 'Clubs', 'Hearts'];
             const index = (roundNum - 1) % 4;
-            return { symbol: suits[index], name: names[index] };
+            const isRed = index === 1 || index === 3;
+            return { symbol: suits[index], name: names[index], isRed };
         }
 
         const cardsDealt = getRoundCards(game.current_round);
@@ -56,7 +57,7 @@ export const playScreen = {
                 </div>
 
                 ${mode !== 'expert' ? `
-                    <div class="trump-display">
+                    <div class="trump-display ${trump.isRed ? 'trump-red' : ''}">
                         <span class="trump-symbol">${trump.symbol}</span>
                         <span class="trump-name">${trump.name}</span>
                     </div>

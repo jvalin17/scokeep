@@ -38,7 +38,9 @@ export const biddingScreen = {
 
         function getTrump(roundNum) {
             const suits = ['♠', '♦', '♣', '♥'];
-            return suits[(roundNum - 1) % 4];
+            const index = (roundNum - 1) % 4;
+            const isRed = index === 1 || index === 3; // diamonds, hearts
+            return { symbol: suits[index], isRed };
         }
 
         function getDisabledKeys() {
@@ -66,7 +68,7 @@ export const biddingScreen = {
                     <div class="round-info">
                         <span>Round ${game.current_round} of ${game.total_rounds}</span>
                         <span>${cardsDealt} card${cardsDealt > 1 ? 's' : ''}</span>
-                        ${mode !== 'expert' ? `<span class="trump">${getTrump(game.current_round)}</span>` : ''}
+                        ${mode !== 'expert' ? `<span class="trump ${getTrump(game.current_round).isRed ? 'trump-red' : ''}">${getTrump(game.current_round).symbol}</span>` : ''}
                     </div>
                     <div class="bid-player-name">${players[currentPlayerIndex]}</div>
                     <p class="bid-prompt">How many will you bid?</p>

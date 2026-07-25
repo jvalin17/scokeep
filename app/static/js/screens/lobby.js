@@ -61,8 +61,9 @@ export const lobbyScreen = {
 
                             <label>Review timer</label>
                             <select id="setting-timer">
+                                <option value="3" selected>3 seconds</option>
                                 <option value="5">5 seconds</option>
-                                <option value="10" selected>10 seconds</option>
+                                <option value="10">10 seconds</option>
                                 <option value="15">15 seconds</option>
                             </select>
 

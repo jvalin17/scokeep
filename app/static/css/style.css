@@ -223,6 +223,7 @@ input::placeholder { color: var(--text-muted); }
     margin-bottom: 16px;
 }
 .trump { font-size: 1.3rem; }
+.trump-red, .trump-red .trump-symbol, .trump-red .trump-name { color: #D32F2F; }
 
 /* Bidding */
 .bidding, .roundend { display: flex; flex-direction: column; gap: 12px; }
