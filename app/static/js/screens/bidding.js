@@ -67,6 +67,7 @@ export const biddingScreen = {
                     </div>
                     <div class="bid-player-name">${players[currentPlayerIndex]}</div>
                     <p class="bid-prompt">How many will you bid?</p>
+                    <p class="claimed-info">${Object.keys(bidsCollected).length > 0 ? `${Object.values(bidsCollected).reduce((s, v) => s + v, 0)} of ${cardsDealt} claimed` : ''}</p>
                     <div id="keypad-container"></div>
                     <p class="error hidden" id="bid-error"></p>
                 </div>
