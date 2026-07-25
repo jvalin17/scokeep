@@ -42,3 +42,7 @@ gates.json
 
 # Database files
 *.db
+
+# Project docs (kept locally, not in repo)
+*.md
+!README.md
