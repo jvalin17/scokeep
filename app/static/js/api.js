@@ -16,7 +16,9 @@ async function request(method, path, body = null) {
     const response = await fetch(`${BASE}${path}`, options);
     if (!response.ok) {
         const error = await response.json().catch(() => ({ detail: 'Request failed' }));
-        throw new Error(error.detail || `HTTP ${response.status}`);
+        const detail = error.detail;
+        const message = typeof detail === 'string' ? detail : JSON.stringify(detail);
+        throw new Error(message || `HTTP ${response.status}`);
     }
     return response.json();
 }

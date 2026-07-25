@@ -56,7 +56,7 @@ export const lobbyScreen = {
                             <label>Appearance</label>
                             <select id="setting-appearance">
                                 <option value="standard">Standard</option>
-                                <option value="interactive">Interactive</option>
+                                <option value="interactive" selected>Interactive</option>
                             </select>
 
                             <label>Review timer</label>
