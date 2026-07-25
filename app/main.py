@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
 from app.database import create_tables, engine
-from app.routes import playground
+from app.routes import game, playground
 
 logging.basicConfig(
     level=logging.INFO,
@@ -27,6 +27,7 @@ async def lifespan(application: FastAPI):
 app = FastAPI(title="Scokeep", version="0.1.0", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 app.include_router(playground.router)
+app.include_router(game.router)
 
 
 @app.get("/")
