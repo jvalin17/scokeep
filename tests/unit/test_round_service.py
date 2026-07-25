@@ -85,7 +85,7 @@ class TestMustLoseMode:
         with pytest.raises(ValueError, match="must-lose"):
             await RoundService.submit_bid(
                 db_session, round_obj, player_index=3, value=2,
-                must_lose=True, cards_dealt=8,
+                must_lose=True, cards_dealt=8, player_count=4,
             )
 
     async def test_allows_bid_that_doesnt_equal_cards(self, db_session: AsyncSession):
@@ -99,20 +99,36 @@ class TestMustLoseMode:
         # Bid 0 → total=6 ≠ 8, allowed
         await RoundService.submit_bid(
             db_session, round_obj, player_index=3, value=0,
-            must_lose=True, cards_dealt=8,
+            must_lose=True, cards_dealt=8, player_count=4,
         )
         assert round_obj.bids["3"] == 0
 
-    async def test_must_lose_applies_to_all_players(self, db_session: AsyncSession):
-        """Must-lose applies to ALL players, not just last bidder."""
+    async def test_must_lose_only_blocks_last_player(self, db_session: AsyncSession):
+        """Must-lose only applies to the last player to bid."""
         game = await _setup_game(db_session, must_lose=True)
         round_obj = await RoundService.create_round(db_session, game)
 
-        # With 8 cards, first player bids 8 → total=8=cards, blocked
+        # With 8 cards, first player bids 8 — allowed (not last player)
+        await RoundService.submit_bid(
+            db_session, round_obj, player_index=0, value=8,
+            must_lose=True, cards_dealt=8, player_count=4,
+        )
+        assert round_obj.bids["0"] == 8
+
+    async def test_must_lose_blocks_last_player(self, db_session: AsyncSession):
+        """Last player cannot make total equal cards dealt."""
+        game = await _setup_game(db_session, must_lose=True)
+        round_obj = await RoundService.create_round(db_session, game)
+
+        await RoundService.submit_bid(db_session, round_obj, player_index=0, value=2)
+        await RoundService.submit_bid(db_session, round_obj, player_index=1, value=3)
+        await RoundService.submit_bid(db_session, round_obj, player_index=2, value=1)
+
+        # Last player: bid 2 → total=8=cards, blocked
         with pytest.raises(ValueError, match="must-lose"):
             await RoundService.submit_bid(
-                db_session, round_obj, player_index=0, value=8,
-                must_lose=True, cards_dealt=8,
+                db_session, round_obj, player_index=3, value=2,
+                must_lose=True, cards_dealt=8, player_count=4,
             )
 
 

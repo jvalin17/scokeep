@@ -61,6 +61,7 @@ async def submit_bid(
             value=data.value,
             must_lose=must_lose,
             cards_dealt=round_obj.cards_dealt,
+            player_count=len(game.players),
         )
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
