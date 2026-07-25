@@ -1,4 +1,4 @@
-// Round end screen — hands won entry via keypad + timer
+// Round end screen — hands won entry via keypad + timer + confirm
 
 import { getGame, submitHands, endRound } from '../api.js';
 import { Keypad } from '../components/keypad.js';
@@ -25,6 +25,20 @@ export const roundendScreen = {
             return 8 - ((roundNum - 1) % 8);
         }
 
+        function getDisabledKeys() {
+            const isLastPlayer = currentPlayerIndex === players.length - 1;
+            if (!isLastPlayer) return [];
+            const cardsDealt = getRoundCards(game.current_round);
+            const totalHands = Object.values(handsCollected).reduce((s, v) => s + v, 0);
+            const remaining = cardsDealt - totalHands;
+            // Grey out all keys except the exact remaining amount
+            const disabled = [];
+            for (let i = 0; i <= cardsDealt; i++) {
+                if (i !== remaining) disabled.push(i);
+            }
+            return disabled;
+        }
+
         function renderCollecting() {
             if (currentPlayerIndex >= players.length) {
                 renderConfirm();
@@ -32,6 +46,9 @@ export const roundendScreen = {
             }
 
             const cardsDealt = getRoundCards(game.current_round);
+            const totalHands = Object.values(handsCollected).reduce((s, v) => s + v, 0);
+            const isLastPlayer = currentPlayerIndex === players.length - 1;
+
             container.innerHTML = `
                 <div class="roundend">
                     <div class="round-info">
@@ -40,6 +57,7 @@ export const roundendScreen = {
                     </div>
                     <div class="bid-player-name">${players[currentPlayerIndex]}</div>
                     <p class="bid-prompt">How many hands did they make?</p>
+                    <p class="claimed-info">${totalHands} of ${cardsDealt} hands accounted${isLastPlayer ? ` — must be ${cardsDealt - totalHands}` : ''}</p>
                     <div id="keypad-container"></div>
                     <p class="error hidden" id="hands-error"></p>
                 </div>
@@ -47,7 +65,7 @@ export const roundendScreen = {
 
             const keypad = Keypad({
                 max: cardsDealt,
-                disabled: [],
+                disabled: getDisabledKeys(),
                 onSelect: (value) => handleHandsSelect(value),
             });
             container.querySelector('#keypad-container').appendChild(keypad);
@@ -97,17 +115,31 @@ export const roundendScreen = {
                             <div class="bid-summary-row">
                                 <span>${name}</span>
                                 <span class="bid-summary-value">${handsCollected[String(index)] ?? '?'}</span>
+                                <button class="btn-small btn-edit" data-edit="${index}">Edit</button>
                             </div>
                         `).join('')}
                     </div>
                     <div class="bid-total ${mismatch ? 'mismatch-warn' : ''}">
                         Total: ${totalHands} / ${cardsDealt}
-                        ${mismatch ? '<span class="overbid-warn">⚠ Does not match cards dealt</span>' : ''}
+                        ${mismatch ? '<span class="overbid-warn">⚠ Does not match cards dealt</span>' : '✓'}
                     </div>
                     <button id="score-round" class="btn btn-primary">Score Round</button>
                     <p id="score-error" class="error hidden"></p>
                 </div>
             `;
+
+            // Edit buttons
+            container.querySelectorAll('[data-edit]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const index = parseInt(btn.dataset.edit);
+                    // Remove this and all subsequent hands
+                    for (let i = index; i < players.length; i++) {
+                        delete handsCollected[String(i)];
+                    }
+                    currentPlayerIndex = index;
+                    renderCollecting();
+                });
+            });
 
             container.querySelector('#score-round').addEventListener('click', async () => {
                 const errorEl = container.querySelector('#score-error');
