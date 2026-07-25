@@ -1,5 +1,12 @@
 // Scokeep — client-side router and state manager
-// Screens will be added in frontend slabs
+
+import { homeScreen } from './screens/home.js';
+import { lobbyScreen } from './screens/lobby.js';
+import { biddingScreen } from './screens/bidding.js';
+import { playScreen } from './screens/play.js';
+import { roundendScreen } from './screens/roundend.js';
+import { scoreboardScreen } from './screens/scoreboard.js';
+import { finalScreen } from './screens/final.js';
 
 const state = {
     playground: null,
@@ -7,13 +14,58 @@ const state = {
     currentEntry: null,
 };
 
-function renderApp() {
-    const appElement = document.getElementById("app");
-    appElement.innerHTML = `
-        <h1>Scokeep</h1>
-        <p>Score tracker for Kachuful</p>
-    `;
+const appElement = document.getElementById('app');
+let currentScreen = null;
+
+const routes = {
+    '': homeScreen,
+    'playground': lobbyScreen,
+    'bid': biddingScreen,
+    'play': playScreen,
+    'roundend': roundendScreen,
+    'scoreboard': scoreboardScreen,
+    'final': finalScreen,
+};
+
+function parseHash() {
+    const hash = window.location.hash.slice(1) || '';
+    const parts = hash.split('/').filter(Boolean);
+    return {
+        screen: parts[0] || '',
+        params: parts.slice(1),
+    };
 }
 
-window.addEventListener("hashchange", renderApp);
-renderApp();
+function navigate(path) {
+    window.location.hash = path;
+}
+
+async function render() {
+    const { screen, params } = parseHash();
+    const screenModule = routes[screen] || routes[''];
+
+    if (currentScreen && currentScreen.unmount) {
+        currentScreen.unmount();
+    }
+
+    currentScreen = screenModule;
+    appElement.innerHTML = '';
+
+    try {
+        await screenModule.mount(appElement, state, { navigate, params });
+    } catch (error) {
+        appElement.innerHTML = `
+            <div class="error-screen">
+                <h2>Something went wrong</h2>
+                <p>${error.message}</p>
+                <button onclick="location.hash=''" class="btn">Go Home</button>
+            </div>
+        `;
+    }
+}
+
+window.addEventListener('hashchange', render);
+render();
+
+// Export for screens to use
+window.scokeep = { state, navigate };
