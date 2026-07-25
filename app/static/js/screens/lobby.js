@@ -75,8 +75,8 @@ export const lobbyScreen = {
 
                             <label>Must-lose</label>
                             <label class="toggle">
-                                <input type="checkbox" id="setting-must-lose">
-                                <span class="toggle-label">Off</span>
+                                <input type="checkbox" id="setting-must-lose" checked>
+                                <span class="toggle-label">On</span>
                             </label>
                         </div>
                     </section>
