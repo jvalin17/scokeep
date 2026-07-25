@@ -9,6 +9,7 @@ from sqlalchemy import text
 
 from app.database import create_tables, engine
 from app.routes import game, playground
+from app.routes import round as round_routes
 
 logging.basicConfig(
     level=logging.INFO,
@@ -28,6 +29,7 @@ app = FastAPI(title="Scokeep", version="0.1.0", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 app.include_router(playground.router)
 app.include_router(game.router)
+app.include_router(round_routes.router)
 
 
 @app.get("/")
