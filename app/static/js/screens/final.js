@@ -11,6 +11,8 @@ export const finalScreen = {
         const players = game.players;
         const totals = scoreboard.totals;
 
+        document.body.setAttribute('data-phase', 'home');
+
         // Sort players by score descending
         const standings = players.map((name, index) => ({
             name,

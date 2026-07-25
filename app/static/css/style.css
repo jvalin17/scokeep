@@ -31,9 +31,10 @@ body {
 }
 
 /* Interactive appearance overrides */
-[data-appearance="interactive"][data-phase="bidding"] { --bg-page: #FFF9C4; }
-[data-appearance="interactive"][data-phase="playing"] { --bg-page: #C8E6C9; }
-[data-appearance="interactive"][data-phase="roundend"] { --bg-page: #BBDEFB; }
+[data-appearance="interactive"][data-phase="bidding"] { --bg-page: #FFF9C4; --accent: #E65100; }
+[data-appearance="interactive"][data-phase="playing"] { --bg-page: #C8E6C9; --accent: #2E7D32; }
+[data-appearance="interactive"][data-phase="roundend"] { --bg-page: #BBDEFB; --accent: #1565C0; }
+[data-appearance="interactive"][data-phase="home"] { --bg-page: #F3E5F5; --accent: #6A1B9A; }
 [data-appearance="interactive"] { font-size: 1.1em; }
 
 #app {
@@ -81,7 +82,7 @@ h3 { font-size: 1rem; font-weight: 600; color: var(--text-secondary); text-trans
 .btn-small { padding: 8px 16px; font-size: 0.9rem; border-radius: var(--radius-sm); }
 .btn-text { background: none; border: none; color: var(--text-secondary); font-size: 0.95rem; padding: 8px 0; cursor: pointer; }
 .btn-text:hover { color: var(--text-primary); }
-.btn-danger { background: var(--danger); color: #fff; border-color: var(--danger); }
+.btn-danger { background: #757575; color: #fff; border-color: #757575; }
 .btn-remove {
     background: none;
     border: none;
