@@ -12,6 +12,7 @@ venv/
 # Environment
 .env
 .env.*
+!.env.example
 
 # IDE
 .vscode/
@@ -31,5 +32,13 @@ htmlcov/
 # Node (if any)
 node_modules/
 
-# Session state
+# Session / toolkit state
 .session/
+.gate/
+.gates/
+.scratch/
+.agent-toolkit/
+gates.json
+
+# Database files
+*.db
