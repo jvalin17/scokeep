@@ -43,10 +43,13 @@ export const biddingScreen = {
 
         function getDisabledKeys() {
             if (!mustLose) return [];
+            // Only grey out for the last player to bid
+            const isLastPlayer = currentPlayerIndex === players.length - 1;
+            if (!isLastPlayer) return [];
             const cardsDealt = getRoundCards(game.current_round);
             const totalBids = Object.values(bidsCollected).reduce((sum, v) => sum + v, 0);
             const forbidden = cardsDealt - totalBids;
-            if (forbidden >= 0 && forbidden <= 8) return [forbidden];
+            if (forbidden >= 0 && forbidden <= cardsDealt) return [forbidden];
             return [];
         }
 

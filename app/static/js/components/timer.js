@@ -9,9 +9,9 @@ export function Timer({ seconds, onExpire, onCancel }) {
 
     function render() {
         el.innerHTML = `
-            <button type="button" class="btn btn-small timer-next">Next</button>
-            <div class="timer-display">${remaining}s</div>
             <button type="button" class="btn btn-small timer-cancel">Change</button>
+            <div class="timer-display">${remaining}s</div>
+            <button type="button" class="btn btn-small timer-next">Next</button>
         `;
         el.querySelector('.timer-next').addEventListener('click', () => {
             stop();
