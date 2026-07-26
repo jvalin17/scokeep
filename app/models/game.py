@@ -1,6 +1,6 @@
 """Game ORM model — one row per game session."""
 
-from datetime import UTC, datetime
+from datetime import datetime
 
 from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
@@ -23,6 +23,6 @@ class Game(Base):
     dealer_index: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
     started_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(UTC)
+        DateTime, default=datetime.utcnow
     )
     finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

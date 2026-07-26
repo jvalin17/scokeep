@@ -1,6 +1,6 @@
 """Game service — create, retrieve, advance rounds, end game."""
 
-from datetime import UTC, datetime
+from datetime import datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -55,7 +55,7 @@ class GameService:
         if game.current_round >= game.total_rounds:
             game.status = "finished"
             game.phase = "final"
-            game.finished_at = datetime.now(UTC)
+            game.finished_at = datetime.utcnow()
         else:
             player_count = len(game.players)
             game.current_round += 1
@@ -69,7 +69,7 @@ class GameService:
     async def end_game(db: AsyncSession, game: Game) -> None:
         game.status = "finished"
         game.phase = "final"
-        game.finished_at = datetime.now(UTC)
+        game.finished_at = datetime.utcnow()
         await db.commit()
         await db.refresh(game)
 

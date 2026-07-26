@@ -1,6 +1,6 @@
 """Round ORM model — one row per round per game."""
 
-from datetime import UTC, datetime
+from datetime import datetime
 
 from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
@@ -25,7 +25,7 @@ class Round(Base):
         String(20), nullable=False, default="bidding"
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(UTC)
+        DateTime, default=lambda: datetime.utcnow()
     )
 
     __table_args__ = (
