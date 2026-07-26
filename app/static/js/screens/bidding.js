@@ -36,13 +36,6 @@ export const biddingScreen = {
 
         function currentPlayer() { return biddingOrder[bidPosition]; }
 
-        function getKeypadMax() {
-            const cardsDealt = getRoundCards(game.current_round, rps);
-            if (!mustLose) return cardsDealt;
-            const totalBids = Object.values(bidsCollected).reduce((sum, v) => sum + v, 0);
-            return Math.max(0, cardsDealt - totalBids);
-        }
-
         function getDisabledKeys() {
             if (!mustLose) return [];
             const isLastPlayer = bidPosition === players.length - 1;
@@ -88,7 +81,7 @@ export const biddingScreen = {
             `;
 
             const keypad = Keypad({
-                max: getKeypadMax(),
+                max: getRoundCards(game.current_round, rps),
                 disabled: getDisabledKeys(),
                 onSelect: (value) => handleBidSelect(value),
             });

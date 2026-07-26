@@ -26,14 +26,13 @@ export const scoreboardScreen = {
 
         document.body.setAttribute('data-phase', 'scoreboard');
 
-        // Build cumulative score table
+        // Build score display
         let scoreTableHtml = '';
         if (rounds.length === 0 && isGameOver) {
             scoreTableHtml = `<p style="text-align:center;color:var(--text-muted);padding:24px 0;">No rounds played</p>`;
-        } else if (rounds.length > 0) {
-            // Calculate running totals per player per round
+        } else if (rounds.length > 0 && isGameOver) {
+            // Game over: full detailed scoresheet with all rounds
             const runningTotals = players.map(() => 0);
-
             scoreTableHtml = `
                 <div class="score-table score-table-full">
                     <table class="scoresheet">
@@ -68,6 +67,30 @@ export const scoreboardScreen = {
                             </tr>
                         </tfoot>
                     </table>
+                </div>
+            `;
+        } else if (rounds.length > 0) {
+            // Between rounds: show only last round's scores + running totals
+            const lastRound = rounds[rounds.length - 1];
+            scoreTableHtml = `
+                <div class="score-table">
+                    <div class="score-header">
+                        <span>Player</span>
+                        <span>Round ${lastRound.round_num}</span>
+                        <span>Total</span>
+                    </div>
+                    ${players.map((name, index) => {
+                        const key = String(index);
+                        const score = lastRound.scores[key] || 0;
+                        const total = totals[key] || 0;
+                        return `
+                            <div class="score-row">
+                                <span>${name}</span>
+                                <span class="score-value ${score < 0 ? 'score-negative' : ''}">${score > 0 ? '+' : ''}${score}</span>
+                                <span class="score-value"><strong>${total}</strong></span>
+                            </div>
+                        `;
+                    }).join('')}
                 </div>
             `;
         }
