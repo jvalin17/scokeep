@@ -38,6 +38,21 @@ async def index():
     return FileResponse(STATIC_DIR / "index.html")
 
 
+@app.get("/favicon.ico")
+async def favicon():
+    return FileResponse(STATIC_DIR / "favicon.ico")
+
+
+@app.get("/apple-touch-icon.png")
+async def apple_touch_icon():
+    return FileResponse(STATIC_DIR / "apple-touch-icon.png")
+
+
+@app.get("/apple-touch-icon-precomposed.png")
+async def apple_touch_icon_precomposed():
+    return FileResponse(STATIC_DIR / "apple-touch-icon.png")
+
+
 @app.get("/api/health")
 async def health():
     try:
