@@ -43,6 +43,9 @@ export function Keypad({ max = 8, disabled = [], onSelect }) {
             btn.addEventListener('click', () => {
                 haptic();
                 playTapSound();
+                // Highlight selected key briefly
+                el.querySelectorAll('.keypad-selected').forEach(k => k.classList.remove('keypad-selected'));
+                btn.classList.add('keypad-selected');
                 onSelect(num);
             });
         }

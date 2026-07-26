@@ -277,6 +277,7 @@ input::placeholder { color: var(--text-muted); }
     -webkit-tap-highlight-color: transparent;
 }
 .keypad-key:active { background: var(--accent); color: #fff; transform: scale(0.95); }
+.keypad-selected { background: var(--accent); color: #fff; transform: scale(1.05); box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
 .keypad-disabled { opacity: 0.25; cursor: not-allowed; }
 .keypad-disabled:active { background: var(--bg-card); color: var(--text-primary); transform: none; }
 
