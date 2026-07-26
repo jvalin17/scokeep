@@ -52,7 +52,7 @@ export const scoreboardScreen = {
                             ${isSetEnd ? 'Continue (Next Set)' : 'Next Round'}
                         </button>
                         <button id="end-game" class="btn btn-danger">End Game</button>
-                        <button id="undo-round" class="btn">Undo Last Round</button>
+                        <button id="undo-round" class="btn-text" style="margin-top: 32px;">Undo Last Round</button>
                     ` : `
                         <button onclick="location.hash=''" class="btn btn-primary">Home</button>
                     `}
