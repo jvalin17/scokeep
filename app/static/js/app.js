@@ -70,8 +70,8 @@ async function render() {
                 const resp = await fetch(`/api/game/${gameId}`, { credentials: 'same-origin' });
                 if (resp.ok) {
                     const game = await resp.json();
-                    logger.resync(gameId, screen, routeMap[game.phase] || 'scoreboard');
                     const routeMap = { bidding: 'bid', playing: 'play', round_end: 'roundend', scoreboard: 'scoreboard', final: 'final' };
+                    logger.resync(gameId, screen, routeMap[game.phase] || 'scoreboard');
                     const target = routeMap[game.phase] || 'scoreboard';
                     if (target !== screen) {
                         navigate(`${target}/${gameId}`);

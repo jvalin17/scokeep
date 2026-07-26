@@ -1,7 +1,9 @@
 """Playground API routes — create, authenticate, get."""
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Response
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response
 from itsdangerous import BadSignature, URLSafeSerializer
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -11,6 +13,7 @@ from app.services.analytics import AnalyticsService
 from app.services.playground import PlaygroundService
 
 router = APIRouter(prefix="/api/playground", tags=["playground"])
+limiter = Limiter(key_func=get_remote_address, enabled=settings.rate_limit_enabled)
 
 SESSION_COOKIE_NAME = "scokeep_session"
 signer = URLSafeSerializer(settings.secret_key)
@@ -49,7 +52,9 @@ async def create_playground(
 
 
 @router.post("/auth", response_model=PlaygroundResponse)
+@limiter.limit("5/minute")
 async def auth_playground(
+    request: Request,
     data: PlaygroundAuth,
     response: Response,
     db: AsyncSession = Depends(get_db),
@@ -68,6 +73,33 @@ async def auth_playground(
         httponly=True,
         samesite="lax",
         max_age=60 * 60 * 24 * 30,  # 30 days
+    )
+    return playground
+
+
+@router.post("/join/{share_code}", response_model=PlaygroundResponse)
+async def join_live_game(
+    share_code: str,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+):
+    """Join a live game by share code — no PIN needed if there's an active game."""
+    playground = await PlaygroundService.get_by_share_code(db, share_code)
+    if not playground:
+        raise HTTPException(status_code=404, detail="Playground not found")
+
+    from app.services.game import GameService
+    active = await GameService.get_active_for_playground(db, playground.id)
+    if not active:
+        raise HTTPException(status_code=404, detail="No active game to join")
+
+    session_token = signer.dumps({"playground_id": playground.id})
+    response.set_cookie(
+        key=SESSION_COOKIE_NAME,
+        value=session_token,
+        httponly=True,
+        samesite="lax",
+        max_age=60 * 60 * 2,  # 2 hours (shorter than PIN auth)
     )
     return playground
 

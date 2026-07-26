@@ -11,58 +11,74 @@ class AnalyticsService:
 
     @staticmethod
     async def get_playground_stats(db: AsyncSession, playground_id: int) -> dict:
-        # Get all finished games for this playground
+        games, all_rounds = await AnalyticsService._load_data(db, playground_id)
+        if not games:
+            return {
+                "leaderboard": [],
+                "game_history": [],
+                "head_to_head": [],
+                "total_games": 0,
+            }
+
+        rounds_by_game = AnalyticsService._group_rounds(all_rounds)
+        player_data, game_history = AnalyticsService._calc_player_stats(
+            games, rounds_by_game,
+        )
+        leaderboard = AnalyticsService._calc_leaderboard(player_data)
+        head_to_head = AnalyticsService._calc_head_to_head(
+            games, rounds_by_game,
+        )
+
+        return {
+            "leaderboard": leaderboard,
+            "game_history": game_history[:20],
+            "head_to_head": head_to_head,
+            "total_games": len(games),
+        }
+
+    @staticmethod
+    async def _load_data(db: AsyncSession, playground_id: int):
+        """Load all finished games and their scored rounds."""
         games_result = await db.execute(
             select(Game)
             .where(Game.playground_id == playground_id, Game.status == "finished")
             .order_by(Game.started_at.desc())
         )
         games = list(games_result.scalars().all())
-
         if not games:
-            return {
-                "leaderboard": [],
-                "game_history": [],
-                "player_stats": {},
-                "head_to_head": {},
-                "total_games": 0,
-            }
+            return [], []
 
-        # Get all rounds for these games
         game_ids = [g.id for g in games]
         rounds_result = await db.execute(
             select(Round)
             .where(Round.game_id.in_(game_ids), Round.status == "scored")
             .order_by(Round.game_id, Round.round_num)
         )
-        all_rounds = list(rounds_result.scalars().all())
+        return games, list(rounds_result.scalars().all())
 
-        # Build rounds lookup by game_id
-        rounds_by_game: dict[int, list] = {}
+    @staticmethod
+    def _group_rounds(all_rounds: list) -> dict[int, list]:
+        """Group rounds by game_id."""
+        by_game: dict[int, list] = {}
         for r in all_rounds:
-            rounds_by_game.setdefault(r.game_id, []).append(r)
+            by_game.setdefault(r.game_id, []).append(r)
+        return by_game
 
-        # Collect all unique player names across games
+    @staticmethod
+    def _calc_player_stats(games, rounds_by_game):
+        """Calculate per-player aggregates and game history."""
         all_players: set[str] = set()
         for g in games:
             all_players.update(g.players)
 
-        # Per-player aggregates
         player_data: dict[str, dict] = {}
         for name in all_players:
             player_data[name] = {
-                "games_played": 0,
-                "wins": 0,
-                "total_score": 0,
-                "total_rounds": 0,
-                "bids_made": 0,
-                "bids_total": 0,
-                "best_game_score": None,
-                "worst_game_score": None,
-                "round_scores": [],
+                "games_played": 0, "wins": 0, "total_score": 0,
+                "total_rounds": 0, "bids_made": 0, "bids_total": 0,
+                "best_game_score": None, "worst_game_score": None,
             }
 
-        # Game history + per-player stats
         game_history = []
         for game in games:
             players = game.players
@@ -70,24 +86,17 @@ class AnalyticsService:
             if not game_rounds:
                 continue
 
-            # Calculate game totals per player
-            game_totals: dict[str, int] = {}
-            for name in players:
-                game_totals[name] = 0
-
+            game_totals: dict[str, int] = dict.fromkeys(players, 0)
             for r in game_rounds:
                 for idx_str, score in r.scores.items():
                     idx = int(idx_str)
                     if idx < len(players):
                         name = players[idx]
                         game_totals[name] += score
-
                         pd = player_data[name]
                         pd["total_rounds"] += 1
                         pd["total_score"] += score
-                        pd["round_scores"].append(score)
 
-                        # Bid accuracy
                         bid = r.bids.get(idx_str)
                         hand = r.hands_won.get(idx_str)
                         if bid is not None and hand is not None:
@@ -95,8 +104,9 @@ class AnalyticsService:
                             if bid == hand:
                                 pd["bids_made"] += 1
 
-            # Determine winner
-            winner = max(game_totals, key=lambda n: game_totals[n]) if game_totals else None
+            winner = max(
+                game_totals, key=lambda n: game_totals[n],
+            ) if game_totals else None
 
             for name in players:
                 pd = player_data[name]
@@ -119,28 +129,35 @@ class AnalyticsService:
                 "mode": game.settings.get("mode", "expert"),
             })
 
-        # Build leaderboard (sorted by wins, then total score)
+        return player_data, game_history
+
+    @staticmethod
+    def _calc_leaderboard(player_data: dict) -> list[dict]:
+        """Build sorted leaderboard from player aggregates."""
         leaderboard = []
         for name, pd in player_data.items():
             if pd["games_played"] == 0:
                 continue
-            avg_score = pd["total_score"] / pd["total_rounds"] if pd["total_rounds"] else 0
-            bid_accuracy = pd["bids_made"] / pd["bids_total"] if pd["bids_total"] else 0
+            avg = pd["total_score"] / pd["total_rounds"] if pd["total_rounds"] else 0
+            acc = pd["bids_made"] / pd["bids_total"] if pd["bids_total"] else 0
             leaderboard.append({
                 "name": name,
                 "wins": pd["wins"],
                 "games_played": pd["games_played"],
                 "win_rate": round(pd["wins"] / pd["games_played"] * 100),
                 "total_score": pd["total_score"],
-                "avg_score_per_round": round(avg_score, 1),
-                "bid_accuracy": round(bid_accuracy * 100),
+                "avg_score_per_round": round(avg, 1),
+                "bid_accuracy": round(acc * 100),
                 "best_game": pd["best_game_score"],
                 "worst_game": pd["worst_game_score"],
             })
         leaderboard.sort(key=lambda x: (-x["wins"], -x["total_score"]))
+        return leaderboard
 
-        # Head-to-head: for each pair, count wins when both played
-        h2h: dict[str, dict[str, dict]] = {}
+    @staticmethod
+    def _calc_head_to_head(games, rounds_by_game) -> list[dict]:
+        """Calculate head-to-head records between player pairs."""
+        h2h: dict[tuple, dict] = {}
         for game in games:
             players = game.players
             game_rounds = rounds_by_game.get(game.id, [])
@@ -168,14 +185,4 @@ class AnalyticsService:
                     elif s2 > s1:
                         h2h[key][p2] += 1
 
-        head_to_head = [
-            {"players": list(k), "record": v}
-            for k, v in h2h.items()
-        ]
-
-        return {
-            "leaderboard": leaderboard,
-            "game_history": game_history[:20],  # last 20 games
-            "head_to_head": head_to_head,
-            "total_games": len(games),
-        }
+        return [{"players": list(k), "record": v} for k, v in h2h.items()]

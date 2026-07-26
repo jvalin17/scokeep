@@ -66,7 +66,7 @@ export const homeScreen = {
                         });
                     });
                 }
-            } catch { /* no recent */ }
+            } catch (e) { console.warn('Failed to load recent:', e.message); }
         }
 
         // Tab switching

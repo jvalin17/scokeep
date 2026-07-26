@@ -1,5 +1,8 @@
 import asyncio
+import os
 from collections.abc import AsyncGenerator
+
+os.environ["RATE_LIMIT_ENABLED"] = "false"
 
 import pytest
 from httpx import ASGITransport, AsyncClient

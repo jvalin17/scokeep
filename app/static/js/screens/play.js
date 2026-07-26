@@ -1,6 +1,7 @@
 // Play screen — trump display, round info, end round button
 
 import { getGame, getBids, enterRoundEnd, resyncGame, guardPhase } from '../api.js';
+import { getRoundCards, getTrump } from '../components/game-utils.js';
 
 export const playScreen = {
     async mount(container, state, { navigate, params }) {
@@ -14,18 +15,6 @@ export const playScreen = {
         const players = game.players;
 
         document.body.setAttribute('data-phase', 'playing');
-
-        function getRoundCards(roundNum) {
-            return 8 - ((roundNum - 1) % 8);
-        }
-
-        function getTrump(roundNum) {
-            const suits = ['♠', '♦', '♣', '♥'];
-            const names = ['Spades', 'Diamonds', 'Chidi', 'Hearts'];
-            const index = (roundNum - 1) % 4;
-            const isRed = index === 1 || index === 3;
-            return { symbol: suits[index], name: names[index], isRed };
-        }
 
         const cardsDealt = getRoundCards(game.current_round);
         const trump = getTrump(game.current_round);
@@ -47,7 +36,7 @@ export const playScreen = {
                         `).join('')}
                     </div>
                 `;
-            } catch { /* ignore */ }
+            } catch (e) { console.warn('Failed to load bids:', e.message); }
         }
 
         container.innerHTML = `

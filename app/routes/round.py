@@ -1,35 +1,20 @@
 """Round API routes — bidding, hands entry, round lifecycle."""
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException
-from itsdangerous import BadSignature, URLSafeSerializer
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
 from app.database import get_db
 from app.schemas.round import BidEdit, BidSubmit, HandsSubmit, RoundResponse
 from app.services.game import GameService
 from app.services.round import RoundService
+from app.utils.auth import get_game_with_auth, require_auth
 
 router = APIRouter(prefix="/api/game", tags=["round"])
 
-signer = URLSafeSerializer(settings.secret_key)
 
-
-def _require_auth(scokeep_session: str | None = Cookie(default=None)) -> int:
-    if not scokeep_session:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    try:
-        payload = signer.loads(scokeep_session)
-        return payload["playground_id"]
-    except (BadSignature, KeyError) as exc:
-        raise HTTPException(status_code=401, detail="Invalid session") from exc
-
-
-async def _get_game_and_round(db: AsyncSession, game_id: int):
-    """Get game and current round, creating round if needed."""
-    game = await GameService.get_by_id(db, game_id)
-    if not game:
-        raise HTTPException(status_code=404, detail="Game not found")
+async def _get_game_and_round(db: AsyncSession, game_id: int, playground_id: int):
+    """Get game (with auth check) and current round, creating round if needed."""
+    game = await get_game_with_auth(db, game_id, playground_id)
 
     round_obj = await RoundService.get_current_round(db, game.id, game.current_round)
     if not round_obj:
@@ -42,10 +27,10 @@ async def _get_game_and_round(db: AsyncSession, game_id: int):
 async def submit_bid(
     game_id: int,
     data: BidSubmit,
-    playground_id: int = Depends(_require_auth),
+    playground_id: int = Depends(require_auth),
     db: AsyncSession = Depends(get_db),
 ):
-    game, round_obj = await _get_game_and_round(db, game_id)
+    game, round_obj = await _get_game_and_round(db, game_id, playground_id)
 
     if game.phase != "bidding":
         raise HTTPException(
@@ -72,10 +57,10 @@ async def submit_bid(
 @router.get("/{game_id}/bids", response_model=RoundResponse)
 async def get_bids(
     game_id: int,
-    playground_id: int = Depends(_require_auth),
+    playground_id: int = Depends(require_auth),
     db: AsyncSession = Depends(get_db),
 ):
-    game, round_obj = await _get_game_and_round(db, game_id)
+    game, round_obj = await _get_game_and_round(db, game_id, playground_id)
     return round_obj
 
 
@@ -84,10 +69,10 @@ async def edit_bid(
     game_id: int,
     player_index: int,
     data: BidEdit,
-    playground_id: int = Depends(_require_auth),
+    playground_id: int = Depends(require_auth),
     db: AsyncSession = Depends(get_db),
 ):
-    game, round_obj = await _get_game_and_round(db, game_id)
+    game, round_obj = await _get_game_and_round(db, game_id, playground_id)
 
     try:
         await RoundService.edit_bid(db, round_obj, player_index=player_index, value=data.value)
@@ -100,10 +85,10 @@ async def edit_bid(
 @router.post("/{game_id}/start-round")
 async def start_round(
     game_id: int,
-    playground_id: int = Depends(_require_auth),
+    playground_id: int = Depends(require_auth),
     db: AsyncSession = Depends(get_db),
 ):
-    game, round_obj = await _get_game_and_round(db, game_id)
+    game, round_obj = await _get_game_and_round(db, game_id, playground_id)
 
     if game.phase != "bidding":
         raise HTTPException(
@@ -124,10 +109,10 @@ async def start_round(
 @router.post("/{game_id}/enter-round-end")
 async def enter_round_end(
     game_id: int,
-    playground_id: int = Depends(_require_auth),
+    playground_id: int = Depends(require_auth),
     db: AsyncSession = Depends(get_db),
 ):
-    game, round_obj = await _get_game_and_round(db, game_id)
+    game, round_obj = await _get_game_and_round(db, game_id, playground_id)
 
     if game.phase != "playing":
         raise HTTPException(status_code=409, detail=f"Game is in '{game.phase}', not 'playing'")
@@ -142,10 +127,10 @@ async def enter_round_end(
 async def submit_hands(
     game_id: int,
     data: HandsSubmit,
-    playground_id: int = Depends(_require_auth),
+    playground_id: int = Depends(require_auth),
     db: AsyncSession = Depends(get_db),
 ):
-    game, round_obj = await _get_game_and_round(db, game_id)
+    game, round_obj = await _get_game_and_round(db, game_id, playground_id)
 
     if game.phase != "round_end":
         raise HTTPException(
@@ -166,10 +151,10 @@ async def submit_hands(
 @router.post("/{game_id}/end-round", response_model=RoundResponse)
 async def end_round(
     game_id: int,
-    playground_id: int = Depends(_require_auth),
+    playground_id: int = Depends(require_auth),
     db: AsyncSession = Depends(get_db),
 ):
-    game, round_obj = await _get_game_and_round(db, game_id)
+    game, round_obj = await _get_game_and_round(db, game_id, playground_id)
     player_count = len(game.players)
     formula = game.settings.get("scoring_formula", "kachuful_standard")
 
@@ -178,6 +163,5 @@ async def end_round(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    # Show scoreboard — don't advance until user clicks Next Round
     await GameService.update_phase(db, game, "scoreboard")
     return round_obj

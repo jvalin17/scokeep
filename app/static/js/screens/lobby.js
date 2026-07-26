@@ -1,6 +1,7 @@
 // Lobby screen — player setup, settings, start game
 
 import { getPlayground, createGame, getActiveGame } from '../api.js';
+import { initDragReorder } from '../components/drag-reorder.js';
 import { isMuted, toggleMute } from '../components/sounds.js';
 
 export const lobbyScreen = {
@@ -23,7 +24,7 @@ export const lobbyScreen = {
         let activeGame = null;
         try {
             activeGame = await getActiveGame(playground.id);
-        } catch { /* no active game */ }
+        } catch (e) { console.warn('No active game:', e.message); }
 
         function renderLobby() {
             container.innerHTML = `
@@ -176,68 +177,7 @@ export const lobbyScreen = {
 
             // Touch drag to reorder
             const playerList = container.querySelector('#player-list');
-            let dragEl = null;
-            let dragIndex = null;
-            let startY = 0;
-            let currentY = 0;
-
-            container.querySelectorAll('.drag-handle').forEach(handle => {
-                handle.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                    dragIndex = parseInt(handle.dataset.drag);
-                    dragEl = handle.closest('.lobby-player');
-                    startY = e.touches[0].clientY;
-                    currentY = startY;
-                    dragEl.classList.add('dragging');
-                }, { passive: false });
-            });
-
-            document.addEventListener('touchmove', (e) => {
-                if (dragEl === null) return;
-                e.preventDefault();
-                currentY = e.touches[0].clientY;
-                dragEl.style.transform = `translateY(${currentY - startY}px)`;
-
-                // Find which player we're over
-                const items = [...playerList.querySelectorAll('.lobby-player')];
-                for (const item of items) {
-                    if (item === dragEl) continue;
-                    const rect = item.getBoundingClientRect();
-                    const mid = rect.top + rect.height / 2;
-                    if (currentY < mid && parseInt(item.dataset.index) < dragIndex) {
-                        item.style.transform = 'translateY(48px)';
-                    } else if (currentY > mid && parseInt(item.dataset.index) > dragIndex) {
-                        item.style.transform = 'translateY(-48px)';
-                    } else {
-                        item.style.transform = '';
-                    }
-                }
-            }, { passive: false });
-
-            document.addEventListener('touchend', () => {
-                if (dragEl === null) return;
-                // Find drop target
-                const items = [...playerList.querySelectorAll('.lobby-player')];
-                let dropIndex = dragIndex;
-                for (const item of items) {
-                    if (item === dragEl) continue;
-                    const rect = item.getBoundingClientRect();
-                    const mid = rect.top + rect.height / 2;
-                    const idx = parseInt(item.dataset.index);
-                    if (currentY < mid && idx < dragIndex) {
-                        dropIndex = Math.min(dropIndex, idx);
-                    } else if (currentY > mid && idx > dragIndex) {
-                        dropIndex = Math.max(dropIndex, idx);
-                    }
-                }
-                if (dropIndex !== dragIndex) {
-                    const moved = players.splice(dragIndex, 1)[0];
-                    players.splice(dropIndex, 0, moved);
-                }
-                dragEl = null;
-                dragIndex = null;
-                renderLobby();
-            });
+            initDragReorder(container, playerList, players, renderLobby);
 
             // Must-lose toggle label
             const mustLoseCheckbox = container.querySelector('#setting-must-lose');

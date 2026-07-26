@@ -5,6 +5,8 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from sqlalchemy import text
 
 from app.database import create_tables, engine
@@ -26,6 +28,8 @@ async def lifespan(application: FastAPI):
 
 
 app = FastAPI(title="Scokeep", version="0.1.0", lifespan=lifespan)
+app.state.limiter = playground.limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 app.include_router(playground.router)
 app.include_router(game.router)

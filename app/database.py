@@ -19,8 +19,6 @@ elif "postgresql" in database_url:
     # Strip query params asyncpg doesn't understand, use SSL context instead
     database_url = database_url.split("?")[0]
     ssl_context = ssl_module.create_default_context()
-    ssl_context.check_hostname = False
-    ssl_context.verify_mode = ssl_module.CERT_NONE
     connect_args = {"ssl": ssl_context}
 
 engine = create_async_engine(

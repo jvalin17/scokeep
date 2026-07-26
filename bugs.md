@@ -1,58 +1,62 @@
 # Known Bugs & Issues
 
-## Fixed This Session
+## Fixed This Session (Session 5)
 
-### BUG-001: start-round accepts duplicate calls (FIXED)
-- **Found by:** test_phase_transitions.py::test_double_start_round_rejected
-- **Input:** POST /api/game/{id}/start-round when game is already in 'playing' phase
-- **Expected:** 409 Conflict
-- **Got:** 200 OK (silently re-processed)
-- **Impact:** State corruption — could create duplicate rounds
+### BUG-001: start-round accepts duplicate calls (FIXED — Session 4)
 - **Fix:** Added `if game.phase != "bidding"` check in routes/round.py:106
 
-## Open Bugs
+### BUG-002: XSS via player names (FIXED — Session 5)
+- **Fix:** `html.escape()` at input boundary via `app/utils/sanitize.py`
+- **Applied in:** `services/playground.py:41`, `services/game.py:45`
+- **Tests:** `test_security.py::TestXSSPrevention` (2 tests), `test_sanitize.py` (14 unit tests)
 
-### BUG-002: XSS via player names
-- **Severity:** High
-- **Description:** Player names are interpolated raw into innerHTML across all game screens
-- **Attack:** Create player with name `<img onerror=alert(1)>`
-- **Affected files:** bidding.js:75, roundend.js:70, lobby.js:45, final.js:27, stats.js:77
-- **Fix needed:** HTML escape utility before interpolation
+### BUG-003: No cross-playground authorization (FIXED — Session 5)
+- **Fix:** `get_game_with_auth()` in `app/utils/auth.py` checks `game.playground_id == playground_id`, returns 403
+- **Applied in:** All game/round/score routes
+- **Tests:** `test_security.py::TestCrossPlaygroundAuth` (5 tests)
 
-### BUG-003: No cross-playground authorization
-- **Severity:** Medium
-- **Description:** Any authenticated user can operate on any game_id by guessing the integer ID
-- **Example:** User authed to playground 1 can POST /api/game/999/bid if game 999 exists
-- **Affected routes:** All game/round/score routes
-- **Fix needed:** Check `game.playground_id == session.playground_id` in every route
+### BUG-004: SSL verification disabled (FIXED — Session 5)
+- **Fix:** Removed `check_hostname=False` and `verify_mode=CERT_NONE` from `app/database.py`
+- Uses `ssl.create_default_context()` which verifies certificates by default
 
-### BUG-004: SSL verification disabled for database
-- **Severity:** Medium
-- **File:** app/database.py:23
-- **Description:** `ssl_context.verify_mode = ssl_module.CERT_NONE` — disables TLS certificate verification for Neon DB connection
-- **Risk:** Man-in-the-middle on DB connection
-- **Fix needed:** Use proper CA certs or Neon's CA bundle
+### BUG-005: No rate limiting on auth (FIXED — Session 5)
+- **Fix:** Added `slowapi` limiter: `5/minute` on `POST /api/playground/auth`
+- **Config:** `RATE_LIMIT_ENABLED` env var (disabled in tests)
+- **Files:** `app/routes/playground.py`, `app/main.py`
 
-### BUG-005: No rate limiting on auth endpoint
-- **Severity:** Medium
-- **Endpoint:** POST /api/playground/auth
-- **Description:** PIN is only 4 digits (10,000 combinations). No rate limiting means brute-force is trivial.
-- **Fix needed:** slowapi rate limiter on auth endpoint (slowapi is already in deps)
+### BUG-006: DRY — _require_auth duplicated (FIXED — Session 5)
+- **Fix:** Extracted to `app/utils/auth.py` — shared `require_auth` and `get_game_with_auth`
+- **Tests:** `test_auth.py` (6 unit tests)
 
-### BUG-006: DRY violation — _require_auth duplicated
+### BUG-007: DRY — getTrump/getRoundCards duplicated in JS (FIXED — Session 5)
+- **Fix:** Extracted to `app/static/js/components/game-utils.js`
+- Drag reorder also extracted to `app/static/js/components/drag-reorder.js`
+
+### BUG-008: routeMap used before declaration in app.js (FIXED — Session 5)
+- **Found by:** code quality agent during /evaluate
+- **File:** `app/static/js/app.js:73-74`
+- **Fix:** Moved `const routeMap = {...}` above the `logger.resync()` call that uses it
+
+## Open Issues
+
+### ISSUE-001: .env with production credentials tracked in git
+- **Severity:** Critical
+- **Description:** `.env` is in `.gitignore` but was committed before gitignore was added
+- **Fix needed:** `git rm --cached .env` and rotate Neon DB credentials
+- **Note:** Requires user action — credential rotation cannot be automated
+
+### ISSUE-002: Frontend screens don't use escapeHtml()
+- **Severity:** Low (mitigated by backend sanitization)
+- **Description:** `escapeHtml()` exists in `game-utils.js` but frontend screens still use raw template literals for player names
+- **Mitigation:** Backend sanitizes at input boundary, so stored names are already escaped
+- **Fix needed:** Defense-in-depth — use `escapeHtml()` in all innerHTML template literals
+
+### ISSUE-003: lobby.js still 245 lines
 - **Severity:** Low (code quality)
-- **Description:** `_require_auth()` function + `signer` instance duplicated identically in game.py, round.py, score.py
-- **Fix needed:** Extract to shared auth module
+- **Description:** Exceeds 200-line guideline. Drag reorder was extracted but remaining HTML template + event handlers are irreducible for a single screen.
 
-### BUG-007: DRY violation — getTrump/getRoundCards duplicated in JS
-- **Severity:** Low (code quality)
-- **Description:** `getTrump()` and `getRoundCards()` copy-pasted in bidding.js, play.js, roundend.js
-- **Fix needed:** Extract to shared utils module
+## Test Gaps (remaining)
 
-## Test Gaps (no dedicated tests)
-
-1. Free Score mode — scoring formula, game creation with free_rounds, full round flow
-2. Analytics service — leaderboard calculation, bid accuracy, head-to-head, game history
-3. Active game resume — TTL expiry, resume button logic
-4. Recent playgrounds endpoint — response format, limit
-5. Bid value validation for free mode (allows 0-999 but no server-side cards_dealt check)
+1. Analytics service — no dedicated test (user said to ignore)
+2. Free Score mode — no dedicated test (user said to ignore)
+3. Playground stats endpoint — no test

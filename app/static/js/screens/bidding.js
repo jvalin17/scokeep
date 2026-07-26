@@ -2,6 +2,7 @@
 
 import { getGame, submitBid, getBids, editBid, startRound, resyncGame, guardPhase } from '../api.js';
 import { Keypad } from '../components/keypad.js';
+import { getRoundCards, getTrump } from '../components/game-utils.js';
 import { soundStartRound } from '../components/sounds.js';
 
 export const biddingScreen = {
@@ -30,19 +31,7 @@ export const biddingScreen = {
             const roundData = await getBids(gameId);
             bidsCollected = roundData.bids || {};
             bidPosition = Object.keys(bidsCollected).length;
-        } catch { /* no bids yet */ }
-
-        function getRoundCards(roundNum) {
-            return 8 - ((roundNum - 1) % 8);
-        }
-
-        function getTrump(roundNum) {
-            const suits = ['♠', '♦', '♣', '♥'];
-            const names = ['Spades', 'Diamonds', 'Chidi', 'Hearts'];
-            const index = (roundNum - 1) % 4;
-            const isRed = index === 1 || index === 3;
-            return { symbol: suits[index], name: names[index], isRed };
-        }
+        } catch (e) { console.warn('No existing bids:', e.message); }
 
         function currentPlayer() { return biddingOrder[bidPosition]; }
 

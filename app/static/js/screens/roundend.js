@@ -2,6 +2,7 @@
 
 import { getGame, submitHands, endRound, resyncGame, guardPhase } from '../api.js';
 import { Keypad } from '../components/keypad.js';
+import { getRoundCards, getTrump } from '../components/game-utils.js';
 import { soundScoreRound } from '../components/sounds.js';
 
 export const roundendScreen = {
@@ -24,19 +25,8 @@ export const roundendScreen = {
 
         function currentPlayer() { return entryOrder[entryPosition]; }
 
-        function getTrump(roundNum) {
-            const suits = ['♠', '♦', '♣', '♥'];
-            const names = ['Spades', 'Diamonds', 'Chidi', 'Hearts'];
-            const index = (roundNum - 1) % 4;
-            const isRed = index === 1 || index === 3;
-            return { symbol: suits[index], name: names[index], isRed };
-        }
         const trumpInfo = getTrump(game.current_round);
         const mode = game.settings.mode || 'expert';
-
-        function getRoundCards(roundNum) {
-            return 8 - ((roundNum - 1) % 8);
-        }
 
         function getDisabledKeys() {
             const isLastPlayer = entryPosition === players.length - 1;

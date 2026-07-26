@@ -66,6 +66,8 @@ class TestJSModules:
         "/static/js/components/keypad.js",
         "/static/js/components/sounds.js",
         "/static/js/components/logger.js",
+        "/static/js/components/game-utils.js",
+        "/static/js/components/drag-reorder.js",
     ]
 
     async def test_all_js_modules_serve_200(self, client: AsyncClient):

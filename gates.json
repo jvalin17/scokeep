@@ -14,6 +14,8 @@
   "model": "auto",
   "gate_protect": true,
   "report_protect": true,
+  "test_command": ".venv/bin/python -m pytest -q",
+  "lint_command": ".venv/bin/python -m ruff check .",
   "profiles": {
     "minimal": {
       "commit_requires": [

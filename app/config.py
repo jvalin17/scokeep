@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     csrf_secret: str = secrets.token_urlsafe(32)
     debug: bool = False
     app_port: int = 8050
+    rate_limit_enabled: bool = True
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

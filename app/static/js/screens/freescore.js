@@ -21,7 +21,7 @@ export const freescoreScreen = {
             if (roundData.status === 'scored') {
                 phase = 'scoreboard';
             }
-        } catch { /* new round */ }
+        } catch (e) { console.warn('No existing round data:', e.message); }
 
         function renderEntry() {
             phase = 'entry';

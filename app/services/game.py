@@ -6,6 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.game import Game
+from app.utils.sanitize import sanitize_player_names
 from app.utils.trump import ROUNDS_PER_SET
 
 DEFAULT_NUM_SETS = 3
@@ -41,7 +42,7 @@ class GameService:
 
         game = Game(
             playground_id=playground_id,
-            players=players,
+            players=sanitize_player_names(players),
             settings=merged_settings,
             total_rounds=total_rounds,
         )
@@ -83,6 +84,15 @@ class GameService:
             game.dealer_index = (game.dealer_index + 1) % player_count
             game.phase = "bidding"
 
+        await db.commit()
+        await db.refresh(game)
+
+    @staticmethod
+    async def extend_game(db: AsyncSession, game: Game) -> None:
+        """Add another set (8 rounds) to the game."""
+        game.total_rounds += ROUNDS_PER_SET
+        num_sets = game.settings.get("num_sets", 3) + 1
+        game.settings = {**game.settings, "num_sets": num_sets}
         await db.commit()
         await db.refresh(game)
 
