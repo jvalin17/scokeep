@@ -32,7 +32,7 @@ body {
 
 /* Interactive appearance overrides */
 [data-appearance="interactive"][data-phase="bidding"] { --bg-page: #FFF9C4; --accent: #E65100; }
-[data-appearance="interactive"][data-phase="playing"] { --bg-page: #C8E6C9; --accent: #2E7D32; }
+[data-appearance="interactive"][data-phase="playing"] { --bg-page: #FCE4EC; --accent: #C2185B; }
 [data-appearance="interactive"][data-phase="roundend"] { --bg-page: #BBDEFB; --accent: #1565C0; }
 [data-appearance="interactive"][data-phase="scoreboard"] { --bg-page: #E8EAF6; --accent: #283593; }
 [data-appearance="interactive"][data-phase="home"] { --bg-page: #F3E5F5; --accent: #6A1B9A; }
@@ -226,16 +226,32 @@ input::placeholder { color: var(--text-muted); }
     gap: 12px;
 }
 
+/* Dealer/cards floating island */
+.game-island {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 20px;
+    background: var(--bg-card);
+    border-radius: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    margin: 0 auto 12px;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.game-island .island-sep { color: var(--border); }
+
 /* Round info bar */
 .round-info {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 0;
-    font-size: 0.9rem;
+    padding: 6px 0;
+    font-size: 0.85rem;
     color: var(--text-secondary);
-    border-bottom: 1px solid var(--border-light);
-    margin-bottom: 16px;
+    margin-bottom: 12px;
 }
 .trump { font-size: 1.3rem; }
 .trump-red, .trump-red .trump-symbol, .trump-red .trump-name { color: #D32F2F; }
@@ -257,9 +273,10 @@ input::placeholder { color: var(--text-muted); }
 }
 .btn-refresh:active { background: var(--border); }
 .btn-home {
-    background: none; border: 1px solid var(--border); border-radius: 16px;
-    padding: 4px 10px; font-size: 0.75rem; cursor: pointer;
-    color: var(--text-secondary); white-space: nowrap;
+    background: none; border: 1px solid var(--border); border-radius: 50%;
+    width: 32px; height: 32px; font-size: 1.1rem; cursor: pointer;
+    color: var(--text-secondary); display: flex; align-items: center; justify-content: center;
+    text-decoration: none; filter: grayscale(1);
 }
 .btn-home:active { background: var(--border); }
 .btn-danger {
@@ -413,6 +430,39 @@ input::placeholder { color: var(--text-muted); }
 .history-header { font-weight: 600; color: var(--text-secondary); }
 .history-header span, .history-row span { flex: 1; text-align: center; }
 .history-header span:first-child, .history-row span:first-child { flex: 0.5; text-align: left; }
+
+/* Full scoresheet table */
+.score-table-full { overflow-x: auto; }
+.scoresheet {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+.scoresheet th, .scoresheet td {
+    padding: 6px 8px;
+    text-align: center;
+    border-bottom: 1px solid var(--border-light);
+}
+.scoresheet th { font-weight: 600; color: var(--text-secondary); text-transform: uppercase; font-size: 0.75rem; }
+.scoresheet th:first-child, .scoresheet td:first-child { text-align: left; width: 32px; }
+.scoresheet .round-score { font-size: 0.75rem; color: var(--text-muted); display: block; }
+.scoresheet .running-total { font-weight: 700; font-size: 0.9rem; }
+.scoresheet .totals-row td { border-top: 2px solid var(--border); padding-top: 8px; }
+
+/* End game button (inline in round-info) */
+.btn-end-game {
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border: 1px solid var(--danger);
+    color: var(--danger);
+    border-radius: var(--radius);
+    background: transparent;
+    cursor: pointer;
+}
+
+/* Active game actions in lobby */
+.active-game-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.active-game-actions .btn { flex: 1; min-width: 120px; }
 
 .scoreboard-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
 

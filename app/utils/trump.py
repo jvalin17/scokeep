@@ -12,7 +12,13 @@ def get_trump_for_round(round_num: int) -> str:
 def get_cards_for_round(round_num: int, rounds_per_set: int = ROUNDS_PER_SET) -> int:
     """Get number of cards dealt for a given round.
 
-    Pattern: 8,7,6,5,4,3,2,1 repeating per set.
+    Pattern alternates: odd sets descend (8→1), even sets ascend (1→8).
     """
     position_in_set = (round_num - 1) % rounds_per_set
-    return rounds_per_set - position_in_set
+    set_number = (round_num - 1) // rounds_per_set  # 0-based
+    if set_number % 2 == 0:
+        # Odd sets (1st, 3rd, ...): descend 8→1
+        return rounds_per_set - position_in_set
+    else:
+        # Even sets (2nd, 4th, ...): ascend 1→8
+        return position_in_set + 1

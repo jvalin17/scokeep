@@ -4,8 +4,16 @@
  * Fixes BUG-002 (frontend: HTML escape for dynamic content)
  */
 
-export function getRoundCards(roundNum) {
-    return 8 - ((roundNum - 1) % 8);
+export function getRoundCards(roundNum, roundsPerSet = 8) {
+    const positionInSet = (roundNum - 1) % roundsPerSet;
+    const setNumber = Math.floor((roundNum - 1) / roundsPerSet); // 0-based
+    if (setNumber % 2 === 0) {
+        // Odd sets (1st, 3rd, ...): descend 8→1
+        return roundsPerSet - positionInSet;
+    } else {
+        // Even sets (2nd, 4th, ...): ascend 1→8
+        return positionInSet + 1;
+    }
 }
 
 export function getTrump(roundNum) {

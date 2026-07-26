@@ -118,6 +118,35 @@ class TestEndGame:
         assert body["status"] == "finished"
         assert body["phase"] == "final"
 
+    async def test_end_game_during_playing_phase(self, client: AsyncClient):
+        """End game should work from any phase including playing."""
+        pg = await _create_authenticated_playground(client)
+        create_response = await client.post("/api/game", json={
+            "playground_id": pg["id"],
+            "players": ["Alice", "Bob"],
+        }, cookies=pg["cookies"])
+        game_id = create_response.json()["id"]
+
+        # Submit bids and start round to get to playing phase
+        await client.post(f"/api/game/{game_id}/bid", json={
+            "player_index": 0, "value": 2,
+        }, cookies=pg["cookies"])
+        await client.post(f"/api/game/{game_id}/bid", json={
+            "player_index": 1, "value": 3,
+        }, cookies=pg["cookies"])
+        await client.post(f"/api/game/{game_id}/start-round", cookies=pg["cookies"])
+
+        # Verify we're in playing phase
+        game = await client.get(f"/api/game/{game_id}", cookies=pg["cookies"])
+        assert game.json()["phase"] == "playing"
+
+        # End game from playing phase
+        response = await client.post(
+            f"/api/game/{game_id}/end", cookies=pg["cookies"]
+        )
+        assert response.status_code == 200
+        assert response.json()["status"] == "finished"
+
     async def test_end_already_finished_returns_409(self, client: AsyncClient):
         pg = await _create_authenticated_playground(client)
         create_response = await client.post("/api/game", json={

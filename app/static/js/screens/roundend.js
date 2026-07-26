@@ -1,9 +1,9 @@
 // Round end screen — hands won entry via keypad + back button
 
-import { getGame, submitHands, endRound, resyncGame, guardPhase } from '../api.js';
+import { getGame, submitHands, endRound, endGame, resyncGame, guardPhase } from '../api.js';
 import { Keypad } from '../components/keypad.js';
 import { getRoundCards, getTrump } from '../components/game-utils.js';
-import { soundScoreRound } from '../components/sounds.js';
+import { soundScoreRound, soundEndGame } from '../components/sounds.js';
 
 export const roundendScreen = {
     async mount(container, state, { navigate, params }) {
@@ -52,14 +52,19 @@ export const roundendScreen = {
             const totalHands = Object.values(handsCollected).reduce((s, v) => s + v, 0);
             const isLastPlayer = entryPosition === players.length - 1;
 
+            const dealerName = players[game.dealer_index];
             container.innerHTML = `
                 <div class="roundend">
+                    <div class="game-island">
+                        <span>${dealerName} deals</span>
+                        <span class="island-sep">·</span>
+                        <span>${cardsDealt} card${cardsDealt > 1 ? 's' : ''}</span>
+                        <span class="island-sep">·</span>
+                        <span>R${game.current_round}/${game.total_rounds}</span>
+                    </div>
                     <div class="round-info">
-                        <span>Round ${game.current_round}</span>
-                        <span>Scoring</span>
-                        ${state.playground ? `<span class="share-code-mini">${state.playground.share_code}</span>` : ''}
-                        <button class="btn-refresh" onclick="window.dispatchEvent(new HashChangeEvent('hashchange'))">↻</button>
-                        ${state.playground ? `<button class="btn-home" onclick="location.hash='playground/${state.playground.share_code}'">← Lobby</button>` : ''}
+                        ${state.playground ? `<button class="btn-home" onclick="location.hash='playground/${state.playground.share_code}'">🏠</button>` : ''}
+                        <button class="btn-end-game" id="end-game-btn">End Game</button>
                     </div>
                     <div class="bid-player-name">${players[pi]}</div>
                     <p class="bid-prompt">How many hands did they make?</p>
@@ -87,6 +92,14 @@ export const roundendScreen = {
                     renderCollecting();
                 });
             }
+
+            container.querySelector('#end-game-btn').addEventListener('click', async () => {
+                if (confirm('End this game? Scores so far will be saved.')) {
+                    await endGame(gameId);
+                    soundEndGame();
+                    navigate(`scoreboard/${gameId}`);
+                }
+            });
         }
 
         function renderConfirm() {

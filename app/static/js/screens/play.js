@@ -1,7 +1,8 @@
 // Play screen — trump display, round info, end round button
 
-import { getGame, getBids, enterRoundEnd, resyncGame, guardPhase } from '../api.js';
+import { getGame, getBids, enterRoundEnd, endGame, resyncGame, guardPhase } from '../api.js';
 import { getRoundCards, getTrump } from '../components/game-utils.js';
+import { soundEndGame } from '../components/sounds.js';
 
 export const playScreen = {
     async mount(container, state, { navigate, params }) {
@@ -41,12 +42,16 @@ export const playScreen = {
 
         container.innerHTML = `
             <div class="play">
-                <div class="round-info">
-                    <span>Round ${game.current_round} of ${game.total_rounds}</span>
+                <div class="game-island">
+                    <span>${dealerName} deals</span>
+                    <span class="island-sep">·</span>
                     <span>${cardsDealt} card${cardsDealt > 1 ? 's' : ''}</span>
-                    ${state.playground ? `<span class="share-code-mini">${state.playground.share_code}</span>` : ''}
-                    <button class="btn-refresh" onclick="window.dispatchEvent(new HashChangeEvent('hashchange'))">↻</button>
-                    ${state.playground ? `<button class="btn-home" onclick="location.hash='playground/${state.playground.share_code}'">← Lobby</button>` : ''}
+                    <span class="island-sep">·</span>
+                    <span>R${game.current_round}/${game.total_rounds}</span>
+                </div>
+                <div class="round-info">
+                    ${state.playground ? `<button class="btn-home" onclick="location.hash='playground/${state.playground.share_code}'">🏠</button>` : ''}
+                    <button class="btn-end-game" id="end-game-btn">End Game</button>
                 </div>
 
                 ${mode !== 'expert' ? `
@@ -57,7 +62,6 @@ export const playScreen = {
                 ` : ''}
 
                 <div class="play-info">
-                    <p>Dealer: <strong>${dealerName}</strong></p>
                     ${mode === 'expert' ? '<p class="play-minimal">Play your round</p>' : ''}
                 </div>
 
@@ -73,6 +77,14 @@ export const playScreen = {
                 navigate(`roundend/${gameId}`);
             } catch {
                 await resyncGame(gameId);
+            }
+        });
+
+        container.querySelector('#end-game-btn').addEventListener('click', async () => {
+            if (confirm('End this game? Scores so far will be saved.')) {
+                await endGame(gameId);
+                soundEndGame();
+                navigate(`scoreboard/${gameId}`);
             }
         });
     },

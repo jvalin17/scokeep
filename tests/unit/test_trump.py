@@ -32,7 +32,7 @@ class TestGetTrumpForRound:
 
 
 class TestGetCardsForRound:
-    """Cards per round: 8,7,6,5,4,3,2,1 per set."""
+    """Cards per round: alternating sets (8→1, 1→8, 8→1, ...)."""
 
     def test_set_1_round_1_is_8_cards(self):
         assert get_cards_for_round(1) == 8
@@ -40,27 +40,43 @@ class TestGetCardsForRound:
     def test_set_1_round_8_is_1_card(self):
         assert get_cards_for_round(8) == 1
 
-    def test_set_2_round_9_resets_to_8(self):
-        assert get_cards_for_round(9) == 8
+    def test_set_2_round_9_is_1_card_ascending(self):
+        """Set 2 ascends: starts at 1."""
+        assert get_cards_for_round(9) == 1
 
-    def test_set_2_round_16_is_1_card(self):
-        assert get_cards_for_round(16) == 1
+    def test_set_2_round_16_is_8_cards(self):
+        """Set 2 ascends: ends at 8."""
+        assert get_cards_for_round(16) == 8
 
-    def test_full_set_sequence(self):
-        """One set = 8,7,6,5,4,3,2,1."""
+    def test_set_3_round_17_is_8_cards_descending(self):
+        """Set 3 descends again: starts at 8."""
+        assert get_cards_for_round(17) == 8
+
+    def test_full_set_1_sequence(self):
+        """Set 1 (odd) = 8,7,6,5,4,3,2,1."""
         expected = [8, 7, 6, 5, 4, 3, 2, 1]
         actual = [get_cards_for_round(r) for r in range(1, 9)]
         assert actual == expected
 
+    def test_full_set_2_sequence(self):
+        """Set 2 (even) = 1,2,3,4,5,6,7,8."""
+        expected = [1, 2, 3, 4, 5, 6, 7, 8]
+        actual = [get_cards_for_round(r) for r in range(9, 17)]
+        assert actual == expected
+
     def test_three_sets_sequence(self):
-        """3 sets = 24 rounds, pattern repeats."""
-        one_set = [8, 7, 6, 5, 4, 3, 2, 1]
-        expected = one_set * 3
+        """3 sets = 8→1, 1→8, 8→1."""
+        set_desc = [8, 7, 6, 5, 4, 3, 2, 1]
+        set_asc = [1, 2, 3, 4, 5, 6, 7, 8]
+        expected = set_desc + set_asc + set_desc
         actual = [get_cards_for_round(r) for r in range(1, 25)]
         assert actual == expected
 
     def test_custom_rounds_per_set(self):
-        """Support custom set sizes (e.g., 5 rounds per set: 5,4,3,2,1)."""
-        expected = [5, 4, 3, 2, 1]
-        actual = [get_cards_for_round(r, rounds_per_set=5) for r in range(1, 6)]
-        assert actual == expected
+        """Support custom set sizes (e.g., 5 rounds per set: 5,4,3,2,1 then 1,2,3,4,5)."""
+        expected_set1 = [5, 4, 3, 2, 1]
+        actual_set1 = [get_cards_for_round(r, rounds_per_set=5) for r in range(1, 6)]
+        assert actual_set1 == expected_set1
+        expected_set2 = [1, 2, 3, 4, 5]
+        actual_set2 = [get_cards_for_round(r, rounds_per_set=5) for r in range(6, 11)]
+        assert actual_set2 == expected_set2

@@ -1,8 +1,8 @@
 // Lobby screen — player setup, settings, start game
 
-import { getPlayground, createGame, getActiveGame } from '../api.js';
+import { getPlayground, createGame, getActiveGame, endGame } from '../api.js';
 import { initDragReorder } from '../components/drag-reorder.js';
-import { isMuted, toggleMute } from '../components/sounds.js';
+import { isMuted, toggleMute, soundEndGame } from '../components/sounds.js';
 
 export const lobbyScreen = {
     async mount(container, state, { navigate, params }) {
@@ -36,7 +36,10 @@ export const lobbyScreen = {
                     </div>
 
                     ${activeGame ? `
-                        <button id="resume-game" class="btn btn-primary btn-large">Resume Game (Round ${activeGame.current_round})</button>
+                        <div class="active-game-actions">
+                            <button id="resume-game" class="btn btn-primary btn-large">Resume Game (Round ${activeGame.current_round})</button>
+                            <button id="end-active-game" class="btn btn-large" style="background:var(--danger);color:#fff;">End Game</button>
+                        </div>
                     ` : ''}
 
                     <section class="lobby-section">
@@ -154,6 +157,19 @@ export const lobbyScreen = {
                 });
             }
 
+            // End active game from lobby
+            const endActiveBtn = container.querySelector('#end-active-game');
+            if (endActiveBtn) {
+                endActiveBtn.addEventListener('click', async () => {
+                    if (confirm('End this game? Scores so far will be saved.')) {
+                        const gameId = activeGame.id;
+                        await endGame(gameId);
+                        soundEndGame();
+                        navigate(`scoreboard/${gameId}`);
+                    }
+                });
+            }
+
             // Game type tabs
             let gameType = 'kachuful';
             container.querySelectorAll('.game-type-tab').forEach(tab => {
@@ -193,11 +209,13 @@ export const lobbyScreen = {
 
                 let settings;
                 if (gameType === 'kachuful') {
+                    const numSets = parseInt(container.querySelector('#setting-sets').value);
+                    if (!confirm(`Start game with ${numSets} set${numSets > 1 ? 's' : ''} (${numSets * 8} rounds)?`)) return;
                     settings = {
                         game_type: 'kachuful',
                         mode: container.querySelector('#setting-mode').value,
                         appearance: container.querySelector('#setting-appearance').value,
-                        num_sets: parseInt(container.querySelector('#setting-sets').value),
+                        num_sets: numSets,
                         must_lose: container.querySelector('#setting-must-lose').checked,
                     };
                 } else {

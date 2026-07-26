@@ -59,4 +59,4 @@
 
 1. Analytics service — no dedicated test (user said to ignore)
 2. Free Score mode — no dedicated test (user said to ignore)
-3. Playground stats endpoint — no test
+3. ~~Playground stats endpoint — no test~~ (Fixed: 6 tests in test_stats.py)

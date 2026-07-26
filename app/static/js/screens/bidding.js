@@ -1,9 +1,9 @@
 // Bidding screen — player queue + keypad + back button
 
-import { getGame, submitBid, getBids, editBid, startRound, resyncGame, guardPhase } from '../api.js';
+import { getGame, submitBid, getBids, editBid, startRound, endGame, resyncGame, guardPhase } from '../api.js';
 import { Keypad } from '../components/keypad.js';
 import { getRoundCards, getTrump } from '../components/game-utils.js';
-import { soundStartRound } from '../components/sounds.js';
+import { soundStartRound, soundEndGame } from '../components/sounds.js';
 
 export const biddingScreen = {
     async mount(container, state, { navigate, params }) {
@@ -35,6 +35,13 @@ export const biddingScreen = {
 
         function currentPlayer() { return biddingOrder[bidPosition]; }
 
+        function getKeypadMax() {
+            const cardsDealt = getRoundCards(game.current_round);
+            if (!mustLose) return cardsDealt;
+            const totalBids = Object.values(bidsCollected).reduce((sum, v) => sum + v, 0);
+            return Math.max(0, cardsDealt - totalBids);
+        }
+
         function getDisabledKeys() {
             if (!mustLose) return [];
             const isLastPlayer = bidPosition === players.length - 1;
@@ -58,26 +65,29 @@ export const biddingScreen = {
             const dealerName = players[game.dealer_index];
             container.innerHTML = `
                 <div class="bidding">
-                    <div class="round-info">
-                        <span>Round ${game.current_round} of ${game.total_rounds}</span>
+                    <div class="game-island">
+                        <span>${dealerName} deals</span>
+                        <span class="island-sep">·</span>
                         <span>${cardsDealt} card${cardsDealt > 1 ? 's' : ''}</span>
-                        ${state.playground ? `<span class="share-code-mini">${state.playground.share_code}</span>` : ''}
-                        <button class="btn-refresh" onclick="window.dispatchEvent(new HashChangeEvent('hashchange'))">↻</button>
-                        ${state.playground ? `<button class="btn-home" onclick="location.hash='playground/${state.playground.share_code}'">← Lobby</button>` : ''}
+                        <span class="island-sep">·</span>
+                        <span>R${game.current_round}/${game.total_rounds}</span>
+                    </div>
+                    <div class="round-info">
+                        ${state.playground ? `<button class="btn-home" onclick="location.hash='playground/${state.playground.share_code}'">🏠</button>` : ''}
+                        <button class="btn-end-game" id="end-game-btn">End Game</button>
                     </div>
                     <div class="bid-player-name">${players[pi]}</div>
                     <p class="bid-prompt">How many will you bid?</p>
                     ${mode === 'friendly' ? `<p class="claimed-info">${Object.values(bidsCollected).reduce((s, v) => s + v, 0)} of ${cardsDealt} hands claimed</p>` : ''}
                     <div id="keypad-container"></div>
                     ${mode !== 'expert' ? `<div class="trump-below ${trumpInfo.isRed ? 'trump-red' : ''}"><span class="trump-symbol-sm">${trumpInfo.symbol}</span><span class="trump-label">${trumpInfo.name}</span></div>` : ''}
-                    <p class="dealer-info">Dealer: <strong>${dealerName}</strong></p>
                     ${bidPosition > 0 ? '<button id="go-back" class="btn btn-back">← Previous Player</button>' : ''}
                     <p class="error hidden" id="bid-error"></p>
                 </div>
             `;
 
             const keypad = Keypad({
-                max: cardsDealt,
+                max: getKeypadMax(),
                 disabled: getDisabledKeys(),
                 onSelect: (value) => handleBidSelect(value),
             });
@@ -92,6 +102,14 @@ export const biddingScreen = {
                     renderCollecting();
                 });
             }
+
+            container.querySelector('#end-game-btn').addEventListener('click', async () => {
+                if (confirm('End this game? Scores so far will be saved.')) {
+                    await endGame(gameId);
+                    soundEndGame();
+                    navigate(`scoreboard/${gameId}`);
+                }
+            });
         }
 
         function renderConfirm() {
