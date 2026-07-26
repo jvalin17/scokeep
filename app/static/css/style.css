@@ -245,9 +245,9 @@ input::placeholder { color: var(--text-muted); }
 .bid-prompt { text-align: center; color: var(--text-secondary); font-size: 1rem; margin-bottom: 4px; }
 .claimed-info { text-align: center; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 8px; min-height: 1.2em; }
 .trump-below { text-align: center; margin-top: 16px; }
-.trump-symbol-sm { font-size: 3rem; display: block; }
-.trump-label { color: var(--text-secondary); font-size: 1rem; }
-.dealer-info { text-align: center; color: var(--text-muted); font-size: 0.85rem; }
+.trump-symbol-sm { font-size: 5rem; display: block; }
+.trump-label { color: var(--text-secondary); font-size: 1.2rem; display: block; font-weight: 600; }
+.dealer-info { text-align: center; color: var(--text-muted); font-size: 0.95rem; }
 .share-code-mini { font-family: monospace; font-size: 0.8rem; color: var(--text-muted); letter-spacing: 0.05em; }
 .bid-value-display {
     font-size: 4rem;
@@ -316,8 +316,8 @@ input::placeholder { color: var(--text-muted); }
     text-align: center;
     padding: 24px;
 }
-.trump-symbol { font-size: 6rem; display: block; }
-.trump-name { font-size: 1.1rem; color: var(--text-secondary); margin-top: 4px; display: block; }
+.trump-symbol { font-size: 8rem; display: block; }
+.trump-name { font-size: 1.4rem; color: var(--text-secondary); margin-top: 4px; display: block; font-weight: 600; }
 .play-info { text-align: center; }
 .play-info p { margin: 4px 0; }
 .play-minimal { color: var(--text-muted); font-style: italic; }

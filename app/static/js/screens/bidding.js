@@ -36,9 +36,10 @@ export const biddingScreen = {
 
         function getTrump(roundNum) {
             const suits = ['♠', '♦', '♣', '♥'];
+            const names = ['Spades', 'Diamonds', 'Chidi', 'Hearts'];
             const index = (roundNum - 1) % 4;
             const isRed = index === 1 || index === 3;
-            return { symbol: suits[index], isRed };
+            return { symbol: suits[index], name: names[index], isRed };
         }
 
         function currentPlayer() { return biddingOrder[bidPosition]; }
@@ -75,8 +76,8 @@ export const biddingScreen = {
                     <p class="bid-prompt">How many will you bid?</p>
                     ${mode === 'friendly' ? `<p class="claimed-info">${Object.values(bidsCollected).reduce((s, v) => s + v, 0)} of ${cardsDealt} hands claimed</p>` : ''}
                     <div id="keypad-container"></div>
-                    ${mode !== 'expert' ? `<div class="trump-below ${trumpInfo.isRed ? 'trump-red' : ''}"><span class="trump-symbol-sm">${trumpInfo.symbol}</span> <span class="trump-label">${trumpInfo.isRed ? (trumpInfo.symbol === '♦' ? 'Diamonds' : 'Hearts') : (trumpInfo.symbol === '♠' ? 'Spades' : 'Clubs')}</span></div>` : ''}
-                    <p class="dealer-info">Dealer: ${dealerName}</p>
+                    ${mode !== 'expert' ? `<div class="trump-below ${trumpInfo.isRed ? 'trump-red' : ''}"><span class="trump-symbol-sm">${trumpInfo.symbol}</span><span class="trump-label">${trumpInfo.name}</span></div>` : ''}
+                    <p class="dealer-info">Dealer: <strong>${dealerName}</strong></p>
                     ${bidPosition > 0 ? '<button id="go-back" class="btn btn-back">← Previous Player</button>' : ''}
                     <p class="error hidden" id="bid-error"></p>
                 </div>

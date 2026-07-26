@@ -20,7 +20,7 @@ export const playScreen = {
 
         function getTrump(roundNum) {
             const suits = ['♠', '♦', '♣', '♥'];
-            const names = ['Spades', 'Diamonds', 'Clubs', 'Hearts'];
+            const names = ['Spades', 'Diamonds', 'Chidi', 'Hearts'];
             const index = (roundNum - 1) % 4;
             const isRed = index === 1 || index === 3;
             return { symbol: suits[index], name: names[index], isRed };
