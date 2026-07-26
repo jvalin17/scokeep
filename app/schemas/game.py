@@ -10,6 +10,7 @@ class GameSettings(BaseModel):
     timer_seconds: int = Field(default=3, ge=1, le=30)
     scoring_formula: str = Field(default="kachuful_standard")
     num_sets: int = Field(default=3, ge=1, le=10)
+    rounds_per_set: int = Field(default=8, ge=4, le=8)
     must_lose: bool = Field(default=False)
     free_rounds: int = Field(default=10, ge=1, le=99)
     trump_rotation: list[str] = Field(

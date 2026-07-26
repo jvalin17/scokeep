@@ -123,6 +123,44 @@ class TestAlternatingSets:
         assert resp.status_code == 200
 
 
+class TestSetType:
+    """Test set with rounds_per_set=4 (cards: 4,3,2,1 then 1,2,3,4)."""
+
+    async def test_create_game_with_test_set(self, client: AsyncClient):
+        """Game with rounds_per_set=4 has 4 rounds per set."""
+        pg, cookies = await _setup(client, "Test Set Game")
+        resp = await client.post("/api/game", json={
+            "playground_id": pg["id"],
+            "players": ["Alice", "Bob"],
+            "settings": {"num_sets": 2, "rounds_per_set": 4},
+        }, cookies=cookies)
+        assert resp.status_code == 201
+        game = resp.json()
+        assert game["total_rounds"] == 8  # 2 sets × 4 rounds
+
+    async def test_test_set_cards_pattern(self, client: AsyncClient):
+        """Test set: 4,3,2,1,1,2,3,4 for 2 sets."""
+        from app.utils.trump import get_cards_for_round
+        cards = [get_cards_for_round(r, rounds_per_set=4) for r in range(1, 9)]
+        assert cards == [4, 3, 2, 1, 1, 2, 3, 4]
+
+    async def test_test_set_bid_respects_cards_dealt(self, client: AsyncClient):
+        """In test set round 1, max cards is 4 (not 8)."""
+        pg, cookies = await _setup(client, "Test Set Bid")
+        resp = await client.post("/api/game", json={
+            "playground_id": pg["id"],
+            "players": ["Alice", "Bob"],
+            "settings": {"num_sets": 1, "rounds_per_set": 4},
+        }, cookies=cookies)
+        game_id = resp.json()["id"]
+
+        # Bid 4 should succeed (max cards = 4)
+        resp = await client.post(f"/api/game/{game_id}/bid", json={
+            "player_index": 0, "value": 4,
+        }, cookies=cookies)
+        assert resp.status_code == 200
+
+
 class TestEndGameFromAnyPhase:
     """End game should work from bidding, playing, and round_end phases."""
 

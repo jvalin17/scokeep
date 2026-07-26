@@ -17,7 +17,8 @@ class RoundService:
             cards_dealt = 999
             trump_suit = "none"
         else:
-            cards_dealt = get_cards_for_round(game.current_round)
+            rounds_per_set = game.settings.get("rounds_per_set", 8)
+            cards_dealt = get_cards_for_round(game.current_round, rounds_per_set)
             trump_suit = get_trump_for_round(game.current_round)
 
         round_obj = Round(

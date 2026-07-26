@@ -16,6 +16,7 @@ export const biddingScreen = {
         const settings = game.settings;
         const mustLose = settings.must_lose || false;
         const mode = settings.mode || 'expert';
+        const rps = settings.rounds_per_set || 8;
         // Bidding order: start from player after dealer, wrap around
         const biddingOrder = [];
         for (let i = 1; i <= players.length; i++) {
@@ -36,7 +37,7 @@ export const biddingScreen = {
         function currentPlayer() { return biddingOrder[bidPosition]; }
 
         function getKeypadMax() {
-            const cardsDealt = getRoundCards(game.current_round);
+            const cardsDealt = getRoundCards(game.current_round, rps);
             if (!mustLose) return cardsDealt;
             const totalBids = Object.values(bidsCollected).reduce((sum, v) => sum + v, 0);
             return Math.max(0, cardsDealt - totalBids);
@@ -46,7 +47,7 @@ export const biddingScreen = {
             if (!mustLose) return [];
             const isLastPlayer = bidPosition === players.length - 1;
             if (!isLastPlayer) return [];
-            const cardsDealt = getRoundCards(game.current_round);
+            const cardsDealt = getRoundCards(game.current_round, rps);
             const totalBids = Object.values(bidsCollected).reduce((sum, v) => sum + v, 0);
             const forbidden = cardsDealt - totalBids;
             if (forbidden >= 0 && forbidden <= cardsDealt) return [forbidden];
@@ -60,7 +61,7 @@ export const biddingScreen = {
             }
 
             const pi = currentPlayer();
-            const cardsDealt = getRoundCards(game.current_round);
+            const cardsDealt = getRoundCards(game.current_round, rps);
             const trumpInfo = getTrump(game.current_round);
             const dealerName = players[game.dealer_index];
             container.innerHTML = `
@@ -113,7 +114,7 @@ export const biddingScreen = {
         }
 
         function renderConfirm() {
-            const cardsDealt = getRoundCards(game.current_round);
+            const cardsDealt = getRoundCards(game.current_round, rps);
             const totalBids = Object.values(bidsCollected).reduce((sum, v) => sum + v, 0);
 
             container.innerHTML = `

@@ -13,6 +13,7 @@ export const roundendScreen = {
         state.game = game;
 
         const players = game.players;
+        const rps = game.settings.rounds_per_set || 8;
         // Hands entry order: start from player after dealer, same as bidding
         const entryOrder = [];
         for (let i = 1; i <= players.length; i++) {
@@ -31,7 +32,7 @@ export const roundendScreen = {
         function getDisabledKeys() {
             const isLastPlayer = entryPosition === players.length - 1;
             if (!isLastPlayer) return [];
-            const cardsDealt = getRoundCards(game.current_round);
+            const cardsDealt = getRoundCards(game.current_round, rps);
             const totalHands = Object.values(handsCollected).reduce((s, v) => s + v, 0);
             const remaining = cardsDealt - totalHands;
             const disabled = [];
@@ -48,7 +49,7 @@ export const roundendScreen = {
             }
 
             const pi = currentPlayer();
-            const cardsDealt = getRoundCards(game.current_round);
+            const cardsDealt = getRoundCards(game.current_round, rps);
             const totalHands = Object.values(handsCollected).reduce((s, v) => s + v, 0);
             const isLastPlayer = entryPosition === players.length - 1;
 
@@ -103,7 +104,7 @@ export const roundendScreen = {
         }
 
         function renderConfirm() {
-            const cardsDealt = getRoundCards(game.current_round);
+            const cardsDealt = getRoundCards(game.current_round, rps);
             const totalHands = Object.values(handsCollected).reduce((sum, v) => sum + v, 0);
             const mismatch = totalHands !== cardsDealt;
 

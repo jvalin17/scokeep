@@ -17,7 +17,8 @@ export const playScreen = {
 
         document.body.setAttribute('data-phase', 'playing');
 
-        const cardsDealt = getRoundCards(game.current_round);
+        const rps = settings.rounds_per_set || 8;
+        const cardsDealt = getRoundCards(game.current_round, rps);
         const trump = getTrump(game.current_round);
         const dealerName = players[game.dealer_index];
 

@@ -81,10 +81,16 @@ export const lobbyScreen = {
                                 <option value="interactive" selected>Interactive</option>
                             </select>
 
+                            <label>Set type</label>
+                            <select id="setting-set-type">
+                                <option value="8" selected>Standard (8 cards)</option>
+                                <option value="4">Test (4 cards)</option>
+                            </select>
+
                             <label>Sets</label>
                             <select id="setting-sets">
                                 ${[1,2,3,4,5].map(n =>
-                                    `<option value="${n}" ${n === 3 ? 'selected' : ''}>${n} set${n > 1 ? 's' : ''} (${n * 8} rounds)</option>`
+                                    `<option value="${n}" ${n === 3 ? 'selected' : ''}>${n} set${n > 1 ? 's' : ''}</option>`
                                 ).join('')}
                             </select>
 
@@ -210,12 +216,15 @@ export const lobbyScreen = {
                 let settings;
                 if (gameType === 'kachuful') {
                     const numSets = parseInt(container.querySelector('#setting-sets').value);
-                    if (!confirm(`Start game with ${numSets} set${numSets > 1 ? 's' : ''} (${numSets * 8} rounds)?`)) return;
+                    const roundsPerSet = parseInt(container.querySelector('#setting-set-type').value);
+                    const totalRounds = numSets * roundsPerSet;
+                    if (!confirm(`Start game with ${numSets} set${numSets > 1 ? 's' : ''} (${totalRounds} rounds, ${roundsPerSet} cards max)?`)) return;
                     settings = {
                         game_type: 'kachuful',
                         mode: container.querySelector('#setting-mode').value,
                         appearance: container.querySelector('#setting-appearance').value,
                         num_sets: numSets,
+                        rounds_per_set: roundsPerSet,
                         must_lose: container.querySelector('#setting-must-lose').checked,
                     };
                 } else {
