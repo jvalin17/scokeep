@@ -2,6 +2,7 @@
 
 import { getGame, submitHands, endRound } from '../api.js';
 import { Keypad } from '../components/keypad.js';
+import { soundScoreRound } from '../components/sounds.js';
 
 export const roundendScreen = {
     async mount(container, state, { navigate, params }) {
@@ -141,6 +142,7 @@ export const roundendScreen = {
                 const errorEl = container.querySelector('#score-error');
                 try {
                     await endRound(gameId);
+                    soundScoreRound();
                     navigate(`scoreboard/${gameId}`);
                 } catch (error) {
                     errorEl.textContent = error.message;

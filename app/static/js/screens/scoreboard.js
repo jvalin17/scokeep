@@ -1,6 +1,7 @@
 // Scoreboard screen — cumulative scores, next round / end game
 
 import { getGame, getScoreboard, undoRound, endGame, nextRound } from '../api.js';
+import { soundNextRound, soundEndGame, soundUndo } from '../components/sounds.js';
 
 export const scoreboardScreen = {
     async mount(container, state, { navigate, params }) {
@@ -54,6 +55,7 @@ export const scoreboardScreen = {
                         </button>
                         <button id="end-game" class="btn-text" style="margin-top: 32px; color: var(--danger);">End Game</button>
                         <button id="undo-round" class="btn-text">Undo Last Round</button>
+                        <button class="btn-text" onclick="location.hash=''">Home</button>
                     ` : `
                         <button onclick="location.hash=''" class="btn btn-primary">Home</button>
                     `}
@@ -66,6 +68,7 @@ export const scoreboardScreen = {
             container.querySelector('#next-round').addEventListener('click', async () => {
                 try {
                     await nextRound(gameId);
+                    soundNextRound();
                     navigate(`bid/${gameId}`);
                 } catch (error) {
                     showError(error.message);
@@ -76,6 +79,7 @@ export const scoreboardScreen = {
                 if (confirm('End this game?')) {
                     try {
                         await endGame(gameId);
+                        soundEndGame();
                         navigate(`final/${gameId}`);
                     } catch (error) {
                         showError(error.message);
@@ -86,10 +90,15 @@ export const scoreboardScreen = {
             container.querySelector('#undo-round').addEventListener('click', async () => {
                 try {
                     await undoRound(gameId);
-                    // Re-render scoreboard
-                    navigate(`scoreboard/${gameId}`);
-                    // Force re-render since hash didn't change
-                    window.dispatchEvent(new HashChangeEvent('hashchange'));
+                    soundUndo();
+                    // Check if game went back to bidding (round 1 undo)
+                    const updated = await getGame(gameId);
+                    if (updated.phase === 'bidding') {
+                        navigate(`bid/${gameId}`);
+                    } else {
+                        navigate(`scoreboard/${gameId}`);
+                        window.dispatchEvent(new HashChangeEvent('hashchange'));
+                    }
                 } catch (error) {
                     showError(error.message);
                 }

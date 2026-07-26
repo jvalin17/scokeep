@@ -1,6 +1,7 @@
 // Lobby screen — player setup, settings, start game
 
 import { getPlayground, createGame, getActiveGame } from '../api.js';
+import { isMuted, toggleMute } from '../components/sounds.js';
 
 export const lobbyScreen = {
     async mount(container, state, { navigate, params }) {
@@ -104,7 +105,10 @@ export const lobbyScreen = {
                     </section>
 
                     <button id="start-game" class="btn btn-primary btn-large">Start Game</button>
-                    <button id="view-stats" class="btn btn-large" style="margin-top: 8px;">📊 Stats</button>
+                    <div style="display:flex;gap:8px;margin-top:8px;">
+                        <button id="view-stats" class="btn btn-large" style="flex:1;">📊 Stats</button>
+                        <button id="toggle-sound" class="btn btn-large" style="flex:0;">${isMuted() ? '🔇' : '🔊'}</button>
+                    </div>
                     <p id="lobby-error" class="error hidden"></p>
                 </div>
             `;
@@ -285,6 +289,11 @@ export const lobbyScreen = {
 
             container.querySelector('#view-stats').addEventListener('click', () => {
                 navigate(`stats/${playground.share_code}`);
+            });
+
+            container.querySelector('#toggle-sound').addEventListener('click', () => {
+                const muted = toggleMute();
+                container.querySelector('#toggle-sound').textContent = muted ? '🔇' : '🔊';
             });
 
         }

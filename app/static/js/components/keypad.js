@@ -1,28 +1,6 @@
 // Phone-style 0-8 keypad component with haptic + sound feedback
 
-// Lazy-init audio context on first tap (browsers require user gesture)
-let audioCtx = null;
-
-function playTapSound() {
-    try {
-        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        // iOS Safari suspends AudioContext until resumed during a user gesture
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.frequency.value = 1200;
-        gain.gain.value = 0.08;
-        osc.start();
-        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.06);
-        osc.stop(audioCtx.currentTime + 0.06);
-    } catch { /* silent fallback */ }
-}
-
-function haptic() {
-    if (navigator.vibrate) navigator.vibrate(15);
-}
+import { soundTap, haptic } from './sounds.js';
 
 export function Keypad({ max = 8, disabled = [], onSelect }) {
     const el = document.createElement('div');
@@ -42,7 +20,7 @@ export function Keypad({ max = 8, disabled = [], onSelect }) {
         } else {
             btn.addEventListener('click', () => {
                 haptic();
-                playTapSound();
+                soundTap();
                 // Highlight selected key briefly
                 el.querySelectorAll('.keypad-selected').forEach(k => k.classList.remove('keypad-selected'));
                 btn.classList.add('keypad-selected');

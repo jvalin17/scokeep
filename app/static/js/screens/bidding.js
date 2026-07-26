@@ -2,6 +2,7 @@
 
 import { getGame, submitBid, getBids, editBid, startRound } from '../api.js';
 import { Keypad } from '../components/keypad.js';
+import { soundStartRound } from '../components/sounds.js';
 
 export const biddingScreen = {
     async mount(container, state, { navigate, params }) {
@@ -144,6 +145,7 @@ export const biddingScreen = {
                 const errorEl = container.querySelector('#bid-error');
                 try {
                     await startRound(gameId);
+                    soundStartRound();
                     navigate(`play/${gameId}`);
                 } catch (error) {
                     errorEl.textContent = error.message;
