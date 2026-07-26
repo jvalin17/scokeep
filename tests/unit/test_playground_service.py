@@ -32,7 +32,7 @@ class TestCreatePlayground:
         assert playground.pin_hash != "5678"
         assert len(playground.pin_hash) > 50  # bcrypt hashes are ~60 chars
 
-    async def test_share_code_is_8_chars_alphanumeric(self, db_session: AsyncSession):
+    async def test_share_code_is_4_chars_alphanumeric(self, db_session: AsyncSession):
         playground = await PlaygroundService.create(
             db=db_session, name="Test", pin="1234", players=["A"]
         )

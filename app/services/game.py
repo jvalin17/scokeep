@@ -58,7 +58,7 @@ class GameService:
     @staticmethod
     async def get_active_for_playground(db: AsyncSession, playground_id: int) -> Game | None:
         """Return active game only if updated within the last 10 minutes."""
-        cutoff = datetime.utcnow() - timedelta(minutes=10)
+        cutoff = datetime.now(tz=None) - timedelta(minutes=10)  # noqa: DTZ005
         result = await db.execute(
             select(Game)
             .where(

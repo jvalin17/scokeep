@@ -1,22 +1,6 @@
 // Free Score screen — enter any score per player, no bids/trump
 
-import { getGame, getScoreboard, endGame, nextRound } from '../api.js';
-
-const BASE = '/api';
-
-async function request(method, path, body = null) {
-    const options = { method, headers: {}, credentials: 'same-origin' };
-    if (body) {
-        options.headers['Content-Type'] = 'application/json';
-        options.body = JSON.stringify(body);
-    }
-    const response = await fetch(`${BASE}${path}`, options);
-    if (!response.ok) {
-        const error = await response.json().catch(() => ({ detail: 'Request failed' }));
-        throw new Error(error.detail || `HTTP ${response.status}`);
-    }
-    return response.json();
-}
+import { getGame, getScoreboard, endGame, nextRound, submitBid, getBids, startRound, enterRoundEnd, submitHands, endRound } from '../api.js';
 
 export const freescoreScreen = {
     async mount(container, state, { navigate, params }) {
@@ -33,7 +17,7 @@ export const freescoreScreen = {
 
         // Check if round already has data (resuming)
         try {
-            const roundData = await request('GET', `/game/${gameId}/bids`);
+            const roundData = await getBids(gameId);
             if (roundData.status === 'scored') {
                 phase = 'scoreboard';
             }
@@ -132,21 +116,16 @@ export const freescoreScreen = {
                 try {
                     // bid = absolute value, hands = bid (positive) or 0 (negative)
                     for (const [idx, score] of Object.entries(scores)) {
-                        await request('POST', `/game/${gameId}/bid`, {
-                            player_index: parseInt(idx), value: Math.abs(score),
-                        });
+                        await submitBid(gameId, parseInt(idx), Math.abs(score));
                     }
-                    await request('POST', `/game/${gameId}/start-round`);
-                    await request('POST', `/game/${gameId}/enter-round-end`);
+                    await startRound(gameId);
+                    await enterRoundEnd(gameId);
                     for (const [idx, score] of Object.entries(scores)) {
                         const absVal = Math.abs(score);
-                        // hands = absVal means positive score, hands = absVal+1 means negative
                         const hands = score >= 0 ? absVal : absVal + 1;
-                        await request('POST', `/game/${gameId}/hands`, {
-                            player_index: parseInt(idx), value: hands,
-                        });
+                        await submitHands(gameId, parseInt(idx), hands);
                     }
-                    await request('POST', `/game/${gameId}/end-round`);
+                    await endRound(gameId);
                     renderScoreboard();
                 } catch (error) {
                     const el = container.querySelector('#free-error');
