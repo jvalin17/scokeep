@@ -85,6 +85,32 @@ class TestGetByShareCode:
         assert found is None
 
 
+class TestTimestampsAreNaive:
+    """Timestamps must be naive (no tzinfo) for asyncpg + TIMESTAMP WITHOUT TIME ZONE."""
+
+    async def test_created_at_is_naive_utc(self, db_session: AsyncSession):
+        playground = await PlaygroundService.create(
+            db=db_session, name="TZ Test", pin="1234", players=["A"]
+        )
+
+        assert playground.created_at is not None
+        assert playground.created_at.tzinfo is None, (
+            f"created_at must be naive (no tzinfo) for asyncpg compatibility, "
+            f"got tzinfo={playground.created_at.tzinfo}"
+        )
+
+    async def test_updated_at_is_naive_utc(self, db_session: AsyncSession):
+        playground = await PlaygroundService.create(
+            db=db_session, name="TZ Test 2", pin="1234", players=["A"]
+        )
+
+        assert playground.updated_at is not None
+        assert playground.updated_at.tzinfo is None, (
+            f"updated_at must be naive (no tzinfo) for asyncpg compatibility, "
+            f"got tzinfo={playground.updated_at.tzinfo}"
+        )
+
+
 class TestGetByName:
 
     async def test_returns_playground_when_found(self, db_session: AsyncSession):
