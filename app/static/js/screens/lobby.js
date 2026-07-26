@@ -17,20 +17,11 @@ export const lobbyScreen = {
         const playground = state.playground;
         let players = [...playground.players];
 
-        // Check for active game — resume instead of showing lobby
+        // Check for active game
+        let activeGame = null;
         try {
-            const activeGame = await getActiveGame(playground.id);
-            if (activeGame) {
-                state.game = activeGame;
-                document.body.setAttribute('data-appearance', activeGame.settings.appearance || 'standard');
-                const phase = activeGame.phase;
-                if (phase === 'bidding') { navigate(`bid/${activeGame.id}`); return; }
-                if (phase === 'playing') { navigate(`play/${activeGame.id}`); return; }
-                if (phase === 'round_end') { navigate(`roundend/${activeGame.id}`); return; }
-                if (phase === 'final') { navigate(`final/${activeGame.id}`); return; }
-                navigate(`scoreboard/${activeGame.id}`); return;
-            }
-        } catch { /* no active game — show lobby */ }
+            activeGame = await getActiveGame(playground.id);
+        } catch { /* no active game */ }
 
         function renderLobby() {
             container.innerHTML = `
@@ -39,6 +30,10 @@ export const lobbyScreen = {
                         <h2>${playground.name}</h2>
                         <p class="share-code">Code: <strong>${playground.share_code}</strong></p>
                     </div>
+
+                    ${activeGame ? `
+                        <button id="resume-game" class="btn btn-primary btn-large">Resume Game (Round ${activeGame.current_round})</button>
+                    ` : ''}
 
                     <section class="lobby-section">
                         <h3>Players</h3>
@@ -114,6 +109,21 @@ export const lobbyScreen = {
                     addBtn.click();
                 }
             });
+
+            // Resume active game
+            const resumeBtn = container.querySelector('#resume-game');
+            if (resumeBtn) {
+                resumeBtn.addEventListener('click', () => {
+                    state.game = activeGame;
+                    document.body.setAttribute('data-appearance', activeGame.settings.appearance || 'standard');
+                    const phase = activeGame.phase;
+                    if (phase === 'bidding') { navigate(`bid/${activeGame.id}`); return; }
+                    if (phase === 'playing') { navigate(`play/${activeGame.id}`); return; }
+                    if (phase === 'round_end') { navigate(`roundend/${activeGame.id}`); return; }
+                    if (phase === 'final') { navigate(`final/${activeGame.id}`); return; }
+                    navigate(`scoreboard/${activeGame.id}`);
+                });
+            }
 
             // Remove player
             container.querySelectorAll('[data-remove]').forEach(btn => {
