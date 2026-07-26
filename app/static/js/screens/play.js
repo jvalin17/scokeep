@@ -1,11 +1,12 @@
 // Play screen — trump display, round info, end round button
 
-import { getGame, getBids, enterRoundEnd, resyncGame } from '../api.js';
+import { getGame, getBids, enterRoundEnd, resyncGame, guardPhase } from '../api.js';
 
 export const playScreen = {
     async mount(container, state, { navigate, params }) {
         const gameId = params[0];
-        const game = await getGame(gameId);
+        const game = await guardPhase(gameId, 'playing');
+        if (!game) return;
         state.game = game;
 
         const settings = game.settings;

@@ -1,12 +1,18 @@
 // Scoreboard screen — cumulative scores, next round / end game
 
-import { getGame, getScoreboard, undoRound, endGame, nextRound } from '../api.js';
+import { getGame, getScoreboard, undoRound, endGame, nextRound, guardPhase } from '../api.js';
 import { soundNextRound, soundEndGame, soundUndo } from '../components/sounds.js';
 
 export const scoreboardScreen = {
     async mount(container, state, { navigate, params }) {
         const gameId = params[0];
         const game = await getGame(gameId);
+        // Scoreboard accepts both 'scoreboard' and 'final' phases
+        if (game.phase !== 'scoreboard' && game.status !== 'finished') {
+            const { guardPhase: gp } = await import('../api.js');
+            await gp(gameId, game.phase); // will redirect
+            return;
+        }
         state.game = game;
 
         const scoreboard = await getScoreboard(gameId);

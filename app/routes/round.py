@@ -104,8 +104,14 @@ async def start_round(
     db: AsyncSession = Depends(get_db),
 ):
     game, round_obj = await _get_game_and_round(db, game_id)
-    player_count = len(game.players)
 
+    if game.phase != "bidding":
+        raise HTTPException(
+            status_code=409,
+            detail=f"Game is in '{game.phase}' phase, not 'bidding'",
+        )
+
+    player_count = len(game.players)
     try:
         await RoundService.confirm_bids(db, round_obj, player_count)
     except ValueError as exc:

@@ -1,13 +1,14 @@
 // Round end screen — hands won entry via keypad + back button
 
-import { getGame, submitHands, endRound, resyncGame } from '../api.js';
+import { getGame, submitHands, endRound, resyncGame, guardPhase } from '../api.js';
 import { Keypad } from '../components/keypad.js';
 import { soundScoreRound } from '../components/sounds.js';
 
 export const roundendScreen = {
     async mount(container, state, { navigate, params }) {
         const gameId = params[0];
-        const game = await getGame(gameId);
+        const game = await guardPhase(gameId, 'round_end');
+        if (!game) return;
         state.game = game;
 
         const players = game.players;

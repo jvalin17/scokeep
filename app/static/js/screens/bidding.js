@@ -1,13 +1,14 @@
 // Bidding screen — player queue + keypad + back button
 
-import { getGame, submitBid, getBids, editBid, startRound, resyncGame } from '../api.js';
+import { getGame, submitBid, getBids, editBid, startRound, resyncGame, guardPhase } from '../api.js';
 import { Keypad } from '../components/keypad.js';
 import { soundStartRound } from '../components/sounds.js';
 
 export const biddingScreen = {
     async mount(container, state, { navigate, params }) {
         const gameId = params[0];
-        const game = await getGame(gameId);
+        const game = await guardPhase(gameId, 'bidding');
+        if (!game) return; // redirected
         state.game = game;
 
         const players = game.players;

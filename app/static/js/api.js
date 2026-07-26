@@ -28,18 +28,32 @@ async function request(method, path, body = null) {
     return data;
 }
 
+const PHASE_ROUTES = {
+    bidding: 'bid',
+    playing: 'play',
+    round_end: 'roundend',
+    scoreboard: 'scoreboard',
+    final: 'final',
+};
+
+// Guard: check backend phase matches expected. Redirects if mismatch.
+// Returns the game object if phase matches, null if redirected.
+export async function guardPhase(gameId, expectedPhase) {
+    const game = await request('GET', `/game/${gameId}`);
+    if (game.phase !== expectedPhase) {
+        const route = PHASE_ROUTES[game.phase] || 'scoreboard';
+        logger.resync(gameId, expectedPhase, game.phase);
+        window.location.hash = `${route}/${gameId}`;
+        return null;
+    }
+    return game;
+}
+
 // Re-sync: fetch game state and navigate to correct screen
 export async function resyncGame(gameId) {
     const game = await request('GET', `/game/${gameId}`);
-    const routes = {
-        bidding: `bid/${gameId}`,
-        playing: `play/${gameId}`,
-        round_end: `roundend/${gameId}`,
-        scoreboard: `scoreboard/${gameId}`,
-        final: `final/${gameId}`,
-    };
-    const route = routes[game.phase] || `scoreboard/${gameId}`;
-    window.location.hash = route;
+    const route = PHASE_ROUTES[game.phase] || 'scoreboard';
+    window.location.hash = `${route}/${gameId}`;
     return game;
 }
 
