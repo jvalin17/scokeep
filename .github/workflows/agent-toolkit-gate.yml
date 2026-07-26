@@ -25,9 +25,10 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install gate dependencies
+      - name: Install dependencies
         run: |
           pip install -r .agent-toolkit/gate/requirements.txt
+          pip install -e ".[dev]"
 
       - name: Seed skill reports
         run: |

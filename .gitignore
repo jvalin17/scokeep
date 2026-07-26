@@ -37,8 +37,9 @@ node_modules/
 .gate/
 .gates/
 .scratch/
-.agent-toolkit/
-gates.json
+.agent-toolkit/config.json
+.agent-toolkit/__pycache__/
+# gates.json — needed by CI gate
 
 # Database files
 *.db
