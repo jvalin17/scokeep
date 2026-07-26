@@ -250,6 +250,12 @@ input::placeholder { color: var(--text-muted); }
 .trump-label { color: var(--text-secondary); font-size: 1.5rem; display: block; font-weight: 600; }
 .dealer-info { text-align: center; color: var(--text-muted); font-size: 0.95rem; }
 .share-code-mini { font-family: monospace; font-size: 0.8rem; color: var(--text-muted); letter-spacing: 0.05em; }
+.btn-refresh {
+    background: none; border: 1px solid var(--border); border-radius: 50%;
+    width: 32px; height: 32px; font-size: 1.2rem; cursor: pointer;
+    color: var(--text-secondary); display: flex; align-items: center; justify-content: center;
+}
+.btn-refresh:active { background: var(--border); }
 .bid-value-display {
     font-size: 4rem;
     font-weight: 700;

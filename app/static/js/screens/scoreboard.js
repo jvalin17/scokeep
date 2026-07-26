@@ -25,6 +25,7 @@ export const scoreboardScreen = {
                 <div class="round-info">
                     <span>${isGameOver ? 'Game Over' : `After Round ${game.current_round - 1}`}</span>
                     ${state.playground ? `<span class="share-code-mini">${state.playground.share_code}</span>` : ''}
+                    <button class="btn-refresh" onclick="window.dispatchEvent(new HashChangeEvent('hashchange'))">↻</button>
                 </div>
 
                 ${lastRound ? `

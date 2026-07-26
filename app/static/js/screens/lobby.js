@@ -29,7 +29,6 @@ export const lobbyScreen = {
                 <div class="lobby">
                     <div class="lobby-header">
                         <button class="btn-text" onclick="location.hash=''" style="position:absolute;left:16px;">← Home</button>
-                        <button class="btn-text" id="refresh-btn" style="position:absolute;right:16px;">↻</button>
                         <h2>${playground.name}</h2>
                         <p class="share-code">Code: <strong>${playground.share_code}</strong></p>
                     </div>
@@ -288,15 +287,6 @@ export const lobbyScreen = {
                 navigate(`stats/${playground.share_code}`);
             });
 
-            container.querySelector('#refresh-btn').addEventListener('click', async () => {
-                try {
-                    state.playground = await getPlayground(shareCode);
-                    activeGame = null;
-                    try { activeGame = await getActiveGame(state.playground.id); } catch {}
-                    players = [...state.playground.players];
-                    renderLobby();
-                } catch { location.reload(); }
-            });
         }
 
         renderLobby();

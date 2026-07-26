@@ -71,6 +71,7 @@ export const biddingScreen = {
                         <span>Round ${game.current_round} of ${game.total_rounds}</span>
                         <span>${cardsDealt} card${cardsDealt > 1 ? 's' : ''}</span>
                         ${state.playground ? `<span class="share-code-mini">${state.playground.share_code}</span>` : ''}
+                        <button class="btn-refresh" onclick="window.dispatchEvent(new HashChangeEvent('hashchange'))">↻</button>
                     </div>
                     <div class="bid-player-name">${players[pi]}</div>
                     <p class="bid-prompt">How many will you bid?</p>

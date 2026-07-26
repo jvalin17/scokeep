@@ -66,6 +66,7 @@ export const roundendScreen = {
                         <span>Round ${game.current_round}</span>
                         <span>Scoring</span>
                         ${state.playground ? `<span class="share-code-mini">${state.playground.share_code}</span>` : ''}
+                        <button class="btn-refresh" onclick="window.dispatchEvent(new HashChangeEvent('hashchange'))">↻</button>
                     </div>
                     <div class="bid-player-name">${players[pi]}</div>
                     <p class="bid-prompt">How many hands did they make?</p>
