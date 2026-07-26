@@ -63,6 +63,7 @@ export const biddingScreen = {
                         <span>${cardsDealt} card${cardsDealt > 1 ? 's' : ''}</span>
                         ${state.playground ? `<span class="share-code-mini">${state.playground.share_code}</span>` : ''}
                         <button class="btn-refresh" onclick="window.dispatchEvent(new HashChangeEvent('hashchange'))">↻</button>
+                        ${state.playground ? `<button class="btn-home" onclick="location.hash='playground/${state.playground.share_code}'">← Lobby</button>` : ''}
                     </div>
                     <div class="bid-player-name">${players[pi]}</div>
                     <p class="bid-prompt">How many will you bid?</p>

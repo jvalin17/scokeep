@@ -256,6 +256,12 @@ input::placeholder { color: var(--text-muted); }
     color: var(--text-secondary); display: flex; align-items: center; justify-content: center;
 }
 .btn-refresh:active { background: var(--border); }
+.btn-home {
+    background: none; border: 1px solid var(--border); border-radius: 16px;
+    padding: 4px 10px; font-size: 0.75rem; cursor: pointer;
+    color: var(--text-secondary); white-space: nowrap;
+}
+.btn-home:active { background: var(--border); }
 .bid-value-display {
     font-size: 4rem;
     font-weight: 700;
