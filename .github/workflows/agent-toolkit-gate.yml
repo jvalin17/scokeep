@@ -45,6 +45,8 @@ jobs:
           python .agent-toolkit/gate/scripts/issue_token.py \
             --project-root . \
             --action push
+        env:
+          AGENT_TOOLKIT_GATE_SECRET: ${{ secrets.AGENT_TOOLKIT_GATE_SECRET }}
 
       - name: Verify token
         run: |
