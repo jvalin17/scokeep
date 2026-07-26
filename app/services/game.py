@@ -1,5 +1,7 @@
 """Game service — create, retrieve, advance rounds, end game."""
 
+from datetime import datetime, timedelta
+
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -50,9 +52,15 @@ class GameService:
 
     @staticmethod
     async def get_active_for_playground(db: AsyncSession, playground_id: int) -> Game | None:
+        """Return active game only if updated within the last 10 minutes."""
+        cutoff = datetime.utcnow() - timedelta(minutes=10)
         result = await db.execute(
             select(Game)
-            .where(Game.playground_id == playground_id, Game.status == "active")
+            .where(
+                Game.playground_id == playground_id,
+                Game.status == "active",
+                Game.updated_at > cutoff,
+            )
             .order_by(Game.id.desc())
             .limit(1)
         )

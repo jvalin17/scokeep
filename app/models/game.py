@@ -25,4 +25,7 @@ class Game(Base):
     started_at: Mapped[datetime] = mapped_column(
         DateTime, default=func.now()
     )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=func.now(), onupdate=func.now()
+    )
     finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
