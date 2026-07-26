@@ -29,8 +29,11 @@ export const lobbyScreen = {
                         <h3>Players</h3>
                         <div id="player-list" class="lobby-player-list">
                             ${players.map((name, index) => `
-                                <div class="lobby-player" draggable="true" data-index="${index}">
-                                    <span class="drag-handle">&#9776;</span>
+                                <div class="lobby-player" data-index="${index}">
+                                    <span class="reorder-buttons">
+                                        <button class="btn-move" data-move-up="${index}" ${index === 0 ? 'disabled' : ''}>&uarr;</button>
+                                        <button class="btn-move" data-move-down="${index}" ${index === players.length - 1 ? 'disabled' : ''}>&darr;</button>
+                                    </span>
                                     <span class="player-name-display">${name}</span>
                                     ${players.length > 2 ? `<button class="btn-remove" data-remove="${index}">&times;</button>` : ''}
                                 </div>
@@ -117,27 +120,21 @@ export const lobbyScreen = {
                 });
             });
 
-            // Drag to reorder
-            let dragIndex = null;
-            container.querySelectorAll('.lobby-player').forEach(el => {
-                el.addEventListener('dragstart', (event) => {
-                    dragIndex = parseInt(el.dataset.index);
-                    el.classList.add('dragging');
-                    event.dataTransfer.effectAllowed = 'move';
+            // Move up/down to reorder
+            container.querySelectorAll('[data-move-up]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const i = parseInt(btn.dataset.moveUp);
+                    if (i > 0) {
+                        [players[i - 1], players[i]] = [players[i], players[i - 1]];
+                        renderLobby();
+                    }
                 });
-                el.addEventListener('dragend', () => {
-                    el.classList.remove('dragging');
-                });
-                el.addEventListener('dragover', (event) => {
-                    event.preventDefault();
-                    event.dataTransfer.dropEffect = 'move';
-                });
-                el.addEventListener('drop', (event) => {
-                    event.preventDefault();
-                    const dropIndex = parseInt(el.dataset.index);
-                    if (dragIndex !== null && dragIndex !== dropIndex) {
-                        const moved = players.splice(dragIndex, 1)[0];
-                        players.splice(dropIndex, 0, moved);
+            });
+            container.querySelectorAll('[data-move-down]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const i = parseInt(btn.dataset.moveDown);
+                    if (i < players.length - 1) {
+                        [players[i], players[i + 1]] = [players[i + 1], players[i]];
                         renderLobby();
                     }
                 });

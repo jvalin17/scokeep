@@ -179,12 +179,16 @@ input::placeholder { color: var(--text-muted); }
     padding: 10px 8px;
     background: var(--bg-page);
     border-radius: var(--radius-sm);
-    cursor: grab;
     transition: background 0.1s;
 }
-.lobby-player:active { cursor: grabbing; }
-.lobby-player.dragging { opacity: 0.5; }
-.drag-handle { color: var(--text-muted); font-size: 1.1rem; }
+.reorder-buttons { display: flex; flex-direction: column; gap: 2px; }
+.btn-move {
+    background: none; border: 1px solid var(--border); border-radius: 4px;
+    padding: 2px 8px; font-size: 0.85rem; cursor: pointer; color: var(--text-primary);
+    line-height: 1;
+}
+.btn-move:disabled { opacity: 0.25; cursor: default; }
+.btn-move:not(:disabled):active { background: var(--border); }
 .player-name-display { flex: 1; font-weight: 500; }
 
 .add-player-row { display: flex; gap: 8px; }
