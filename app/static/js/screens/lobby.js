@@ -85,6 +85,7 @@ export const lobbyScreen = {
                     </section>
 
                     <button id="start-game" class="btn btn-primary btn-large">Start Game</button>
+                    <button id="view-stats" class="btn btn-large" style="margin-top: 8px;">📊 Stats</button>
                     <p id="lobby-error" class="error hidden"></p>
                 </div>
             `;
@@ -227,6 +228,10 @@ export const lobbyScreen = {
                     errorElement.textContent = error.message;
                     errorElement.classList.remove('hidden');
                 }
+            });
+
+            container.querySelector('#view-stats').addEventListener('click', () => {
+                navigate(`stats/${playground.share_code}`);
             });
         }
 

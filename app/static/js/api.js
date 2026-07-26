@@ -40,6 +40,10 @@ export function getPlayground(shareCode) {
     return request('GET', `/playground/${shareCode}`);
 }
 
+export function getPlaygroundStats(shareCode) {
+    return request('GET', `/playground/${shareCode}/stats`);
+}
+
 // Game
 export function createGame(playgroundId, players, settings = {}) {
     return request('POST', '/game', {

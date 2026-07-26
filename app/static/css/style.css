@@ -419,3 +419,58 @@ input::placeholder { color: var(--text-muted); }
 .final-name { flex: 1; }
 .final-pts { font-weight: 700; }
 .final-actions { margin-top: 16px; width: 100%; }
+
+/* Stats */
+.stats { display: flex; flex-direction: column; gap: 12px; }
+.stats-empty { text-align: center; color: var(--text-muted); padding: 32px 0; }
+.stats-tabs { display: flex; gap: 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.stats-tab {
+    flex: 1; padding: 10px 4px; text-align: center; background: var(--bg-card);
+    border: none; font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); cursor: pointer;
+}
+.stats-tab.active { background: var(--accent); color: #fff; }
+.stats-section { display: flex; flex-direction: column; gap: 8px; }
+
+/* Leaderboard cards */
+.stats-card {
+    display: flex; gap: 12px; align-items: center;
+    background: var(--bg-card); border-radius: var(--radius); padding: 12px; box-shadow: var(--shadow);
+}
+.stats-first { border: 2px solid var(--accent); }
+.stats-rank { font-size: 1.4rem; font-weight: 700; min-width: 32px; text-align: center; color: var(--text-muted); }
+.stats-card-body { flex: 1; }
+.stats-name { font-weight: 600; font-size: 1.1rem; margin-bottom: 4px; }
+.stats-detail { display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--text-secondary); }
+.stats-highlight { font-weight: 600; color: var(--accent); }
+.stats-muted { color: var(--text-muted); font-size: 0.8rem; }
+
+/* Accuracy bars */
+.stats-bar-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; }
+.stats-bar-name { width: 70px; font-size: 0.9rem; font-weight: 500; }
+.stats-bar-track { flex: 1; height: 20px; background: var(--border-light); border-radius: 10px; overflow: hidden; }
+.stats-bar-fill { height: 100%; background: var(--text-muted); border-radius: 10px; transition: width 0.3s; }
+.stats-bar-good { background: var(--success); }
+.stats-bar-value { width: 40px; text-align: right; font-weight: 600; font-size: 0.9rem; }
+
+/* Head-to-head */
+.stats-h2h-card {
+    display: flex; align-items: center; justify-content: center; gap: 16px;
+    background: var(--bg-card); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow);
+}
+.h2h-player { text-align: center; flex: 1; font-size: 0.95rem; }
+.h2h-player strong { font-size: 1.4rem; display: block; margin-top: 4px; }
+.h2h-leader { color: var(--accent); }
+.h2h-vs { text-align: center; color: var(--text-muted); font-size: 0.85rem; min-width: 40px; }
+
+/* Game history cards */
+.stats-game-card {
+    background: var(--bg-card); border-radius: var(--radius); padding: 12px; box-shadow: var(--shadow);
+}
+.stats-game-header {
+    display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-muted);
+    margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--border-light);
+}
+.stats-mode { text-transform: capitalize; }
+.stats-game-scores { display: flex; flex-direction: column; gap: 4px; }
+.stats-game-player { display: flex; justify-content: space-between; font-size: 0.9rem; padding: 2px 0; }
+.stats-game-winner { font-weight: 600; color: var(--accent); }

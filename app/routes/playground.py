@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database import get_db
 from app.schemas.playground import PlaygroundAuth, PlaygroundCreate, PlaygroundResponse
+from app.services.analytics import AnalyticsService
 from app.services.playground import PlaygroundService
 
 router = APIRouter(prefix="/api/playground", tags=["playground"])
@@ -81,3 +82,15 @@ async def get_playground(
     if not playground:
         raise HTTPException(status_code=404, detail="Playground not found")
     return playground
+
+
+@router.get("/{share_code}/stats")
+async def get_playground_stats(
+    share_code: str,
+    playground_id: int = Depends(_get_authenticated_playground_id),
+    db: AsyncSession = Depends(get_db),
+):
+    playground = await PlaygroundService.get_by_share_code(db, share_code)
+    if not playground:
+        raise HTTPException(status_code=404, detail="Playground not found")
+    return await AnalyticsService.get_playground_stats(db, playground.id)
