@@ -7,10 +7,16 @@ from sqlalchemy.orm import DeclarativeBase
 from app.config import settings
 
 database_url = settings.database_url
+
+# Auto-convert postgresql:// to postgresql+asyncpg:// for async driver
+if database_url.startswith("postgresql://"):
+    database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+
 connect_args: dict = {}
 if database_url.startswith("sqlite"):
     connect_args = {"check_same_thread": False}
-elif "sslmode=" in database_url:
+elif "postgresql" in database_url:
+    # Strip query params asyncpg doesn't understand, use SSL context instead
     database_url = database_url.split("?")[0]
     ssl_context = ssl_module.create_default_context()
     ssl_context.check_hostname = False
