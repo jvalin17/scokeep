@@ -162,7 +162,7 @@ input::placeholder { color: var(--text-muted); }
 
 /* Lobby */
 .lobby { display: flex; flex-direction: column; gap: 20px; }
-.lobby-header { text-align: center; padding: 16px 0; }
+.lobby-header { text-align: center; padding: 16px 0; position: relative; }
 .share-code { color: var(--text-secondary); margin-top: 4px; font-size: 0.95rem; }
 .share-code strong { font-family: monospace; font-size: 1.1rem; letter-spacing: 0.1em; }
 

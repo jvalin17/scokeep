@@ -28,6 +28,7 @@ export const lobbyScreen = {
             container.innerHTML = `
                 <div class="lobby">
                     <div class="lobby-header">
+                        <button class="btn-text" onclick="location.hash=''" style="position:absolute;left:16px;">← Home</button>
                         <h2>${playground.name}</h2>
                         <p class="share-code">Code: <strong>${playground.share_code}</strong></p>
                     </div>
