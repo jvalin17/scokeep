@@ -98,9 +98,10 @@ class TestFullGameFlow:
         assert resp.status_code == 200
         assert resp.json()["totals"] == {"0": 20, "1": 30, "2": 11}
 
-        # Game should be on round 2
+        # Game should be on scoreboard phase, still round 1
         resp = await client.get(f"/api/game/{game_id}", cookies=cookies)
-        assert resp.json()["current_round"] == 2
+        assert resp.json()["phase"] == "scoreboard"
+        assert resp.json()["current_round"] == 1
 
     async def test_must_lose_blocks_last_player_via_api(self, client: AsyncClient):
         """Must-lose enforcement through the API (not just service)."""

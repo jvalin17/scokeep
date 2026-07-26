@@ -63,6 +63,25 @@ async def get_game(
     return game
 
 
+@router.post("/{game_id}/next-round", response_model=GameResponse)
+async def next_round(
+    game_id: int,
+    playground_id: int = Depends(_require_auth),
+    db: AsyncSession = Depends(get_db),
+):
+    game = await GameService.get_by_id(db, game_id)
+    if not game:
+        raise HTTPException(status_code=404, detail="Game not found")
+    if game.phase != "scoreboard":
+        raise HTTPException(
+            status_code=409,
+            detail=f"Game is in '{game.phase}' phase, not 'scoreboard'",
+        )
+
+    await GameService.advance_round(db, game)
+    return game
+
+
 @router.post("/{game_id}/end", response_model=GameResponse)
 async def end_game(
     game_id: int,

@@ -1,6 +1,6 @@
 // Scoreboard screen — cumulative scores, next round / end game
 
-import { getGame, getScoreboard, undoRound, endGame } from '../api.js';
+import { getGame, getScoreboard, undoRound, endGame, nextRound } from '../api.js';
 
 export const scoreboardScreen = {
     async mount(container, state, { navigate, params }) {
@@ -62,8 +62,13 @@ export const scoreboardScreen = {
         `;
 
         if (!isGameOver) {
-            container.querySelector('#next-round').addEventListener('click', () => {
-                navigate(`bid/${gameId}`);
+            container.querySelector('#next-round').addEventListener('click', async () => {
+                try {
+                    await nextRound(gameId);
+                    navigate(`bid/${gameId}`);
+                } catch (error) {
+                    showError(error.message);
+                }
             });
 
             container.querySelector('#end-game').addEventListener('click', async () => {

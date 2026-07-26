@@ -172,6 +172,6 @@ async def end_round(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    # Advance to next round
-    await GameService.advance_round(db, game)
+    # Show scoreboard — don't advance until user clicks Next Round
+    await GameService.update_phase(db, game, "scoreboard")
     return round_obj

@@ -57,6 +57,10 @@ export function getActiveGame(playgroundId) {
     return request('GET', `/game/active/${playgroundId}`);
 }
 
+export function nextRound(gameId) {
+    return request('POST', `/game/${gameId}/next-round`);
+}
+
 export function endGame(gameId) {
     return request('POST', `/game/${gameId}/end`);
 }

@@ -64,21 +64,30 @@ class ScoreboardService:
 
     @staticmethod
     async def undo_last_round(db: AsyncSession, game) -> None:
-        """Undo the last scored round — delete it and decrement game.current_round."""
-        last_round_num = game.current_round - 1
-        if last_round_num < 1:
+        """Undo the last scored round — delete it and reset to bidding."""
+        # In scoreboard phase, current_round is the round just played
+        # In bidding phase (after advance), current_round is the next round
+        round_to_undo = game.current_round if game.phase == "scoreboard" else game.current_round - 1
+        if round_to_undo < 1:
             raise ValueError("No rounds to undo")
 
-        # Delete the last round
+        # Delete the round
         await db.execute(
             delete(Round).where(
                 Round.game_id == game.id,
-                Round.round_num == last_round_num,
+                Round.round_num == round_to_undo,
             )
         )
 
-        game.current_round = last_round_num
-        game.phase = "bidding"
+        if round_to_undo == 1:
+            # Back to round 1 bidding, no dealer change
+            game.current_round = 1
+            game.phase = "bidding"
+        else:
+            # Go back to scoreboard of previous round
+            game.current_round = round_to_undo - 1
+            game.phase = "scoreboard"
+
         if game.status == "finished":
             game.status = "active"
             game.finished_at = None

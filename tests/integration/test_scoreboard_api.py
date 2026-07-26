@@ -44,6 +44,7 @@ async def _setup_game_with_rounds(client: AsyncClient):
 
     # Round 1: bids=[2,0,1], hands=[2,0,1] → scores=[20,10,11]
     await _play_round(client, game_id, cookies, [2, 0, 1], [2, 0, 1])
+    await client.post(f"/api/game/{game_id}/next-round", cookies=cookies)
     # Round 2: bids=[0,3,0], hands=[1,3,0] → scores=[-10,30,10]
     await _play_round(client, game_id, cookies, [0, 3, 0], [1, 3, 0])
 
@@ -92,9 +93,10 @@ class TestUndo:
 
         assert response.status_code == 200
 
-        # Game should be back at round 2
+        # Game should be back at round 1 scoreboard
         game_resp = await client.get(f"/api/game/{game_id}", cookies=cookies)
-        assert game_resp.json()["current_round"] == 2
+        assert game_resp.json()["current_round"] == 1
+        assert game_resp.json()["phase"] == "scoreboard"
 
     async def test_undo_updates_scoreboard(self, client: AsyncClient):
         game_id, cookies = await _setup_game_with_rounds(client)

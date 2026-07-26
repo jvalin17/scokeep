@@ -104,12 +104,12 @@ class TestUndoLastRound:
     async def test_undo_clears_round_and_decrements(self, db_session: AsyncSession):
         game = await _setup_game_with_rounds(db_session, num_rounds=2)
 
-        assert game.current_round == 3  # after 2 scored rounds, next is 3
+        assert game.current_round == 3  # after 2 scored rounds + advance, next is 3
 
         await ScoreboardService.undo_last_round(db_session, game)
 
-        assert game.current_round == 2
-        assert game.phase == "bidding"
+        assert game.current_round == 1
+        assert game.phase == "scoreboard"
 
     async def test_undo_restores_correct_totals(self, db_session: AsyncSession):
         game = await _setup_game_with_rounds(db_session, num_rounds=3)
@@ -132,6 +132,9 @@ class TestUndoLastRound:
 
         # Undo round 2
         await ScoreboardService.undo_last_round(db_session, game)
+
+        # Advance from scoreboard to re-enter round 2
+        await GameService.advance_round(db_session, game)
 
         # Re-enter same data for round 2
         round_obj = await RoundService.create_round(db_session, game)

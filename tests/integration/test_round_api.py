@@ -182,12 +182,18 @@ class TestFullRoundLifecycle:
         body = resp.json()
         assert body["scores"] == {"0": 20, "1": 10, "2": -30, "3": 11}
 
-        # 6. Game should advance to round 2
+        # 6. Game should be on scoreboard phase
         game_resp = await client.get(f"/api/game/{game_id}", cookies=cookies)
         game_state = game_resp.json()
-        assert game_state["current_round"] == 2
-        assert game_state["phase"] == "bidding"
-        assert game_state["dealer_index"] == 1
+        assert game_state["phase"] == "scoreboard"
+
+        # 7. Advance to next round
+        resp = await client.post(f"/api/game/{game_id}/next-round", cookies=cookies)
+        assert resp.status_code == 200
+        next_state = resp.json()
+        assert next_state["current_round"] == 2
+        assert next_state["phase"] == "bidding"
+        assert next_state["dealer_index"] == 1
 
 
 class TestEditBid:
