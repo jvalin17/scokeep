@@ -85,30 +85,60 @@ class TestGetByShareCode:
         assert found is None
 
 
-class TestTimestampsAreNaive:
-    """Timestamps must be naive (no tzinfo) for asyncpg + TIMESTAMP WITHOUT TIME ZONE."""
+class TestTimestampDefaults:
+    """Timestamp defaults must use SQL func.now(), not Python datetime, for asyncpg compat."""
 
-    async def test_created_at_is_naive_utc(self, db_session: AsyncSession):
+    def test_created_at_default_is_sql_expression(self):
+        """Column default must be a SQL expression (func.now), not a Python callable.
+
+        Python datetime.utcnow defaults get converted to tz-aware by SQLAlchemy's
+        asyncpg dialect, which asyncpg rejects for TIMESTAMP WITHOUT TIME ZONE columns.
+        Using func.now() generates server-side now() in SQL, bypassing the issue.
+        """
+        from sqlalchemy.sql.functions import Function
+
+        from app.models.playground import Playground
+
+        col = Playground.__table__.c.created_at
+        assert col.default is not None, "created_at must have a default"
+        assert isinstance(col.default.arg, Function), (
+            f"created_at default must be a SQL function (func.now()), not {type(col.default.arg)}. "
+            "Python datetime defaults break asyncpg on PostgreSQL."
+        )
+
+    def test_updated_at_default_is_sql_expression(self):
+        from sqlalchemy.sql.functions import Function
+
+        from app.models.playground import Playground
+
+        col = Playground.__table__.c.updated_at
+        assert col.default is not None, "updated_at must have a default"
+        assert isinstance(col.default.arg, Function), (
+            f"updated_at default must be a SQL function (func.now()), not {type(col.default.arg)}. "
+            "Python datetime defaults break asyncpg on PostgreSQL."
+        )
+
+    def test_insert_sql_uses_now_not_bind_params(self):
+        """The INSERT SQL must use now() for timestamps, not bind parameters."""
+        from sqlalchemy.dialects import postgresql
+
+        from app.models.playground import Playground
+
+        stmt = Playground.__table__.insert().values(
+            name="test", pin_hash="hash", share_code="ABCD1234", players=[]
+        )
+        compiled = str(stmt.compile(dialect=postgresql.dialect()))
+        assert "now()" in compiled, (
+            f"INSERT must use now() for timestamps, got: {compiled}"
+        )
+
+    async def test_created_at_is_populated_after_insert(self, db_session: AsyncSession):
         playground = await PlaygroundService.create(
             db=db_session, name="TZ Test", pin="1234", players=["A"]
         )
 
         assert playground.created_at is not None
-        assert playground.created_at.tzinfo is None, (
-            f"created_at must be naive (no tzinfo) for asyncpg compatibility, "
-            f"got tzinfo={playground.created_at.tzinfo}"
-        )
-
-    async def test_updated_at_is_naive_utc(self, db_session: AsyncSession):
-        playground = await PlaygroundService.create(
-            db=db_session, name="TZ Test 2", pin="1234", players=["A"]
-        )
-
         assert playground.updated_at is not None
-        assert playground.updated_at.tzinfo is None, (
-            f"updated_at must be naive (no tzinfo) for asyncpg compatibility, "
-            f"got tzinfo={playground.updated_at.tzinfo}"
-        )
 
 
 class TestGetByName:
