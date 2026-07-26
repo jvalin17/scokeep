@@ -14,19 +14,26 @@ export const roundendScreen = {
 
         const players = game.players;
         const timerSeconds = game.settings.timer_seconds || 10;
-        let currentPlayerIndex = 0;
+        // Hands entry order: start from player after dealer, same as bidding
+        const entryOrder = [];
+        for (let i = 1; i <= players.length; i++) {
+            entryOrder.push((game.dealer_index + i) % players.length);
+        }
+        let entryPosition = 0;
         let handsCollected = {};
 
         document.body.setAttribute('data-phase', 'roundend');
 
         const self = this;
 
+        function currentPlayer() { return entryOrder[entryPosition]; }
+
         function getRoundCards(roundNum) {
             return 8 - ((roundNum - 1) % 8);
         }
 
         function getDisabledKeys() {
-            const isLastPlayer = currentPlayerIndex === players.length - 1;
+            const isLastPlayer = entryPosition === players.length - 1;
             if (!isLastPlayer) return [];
             const cardsDealt = getRoundCards(game.current_round);
             const totalHands = Object.values(handsCollected).reduce((s, v) => s + v, 0);
@@ -40,14 +47,15 @@ export const roundendScreen = {
         }
 
         function renderCollecting() {
-            if (currentPlayerIndex >= players.length) {
+            if (entryPosition >= players.length) {
                 renderConfirm();
                 return;
             }
 
+            const pi = currentPlayer();
             const cardsDealt = getRoundCards(game.current_round);
             const totalHands = Object.values(handsCollected).reduce((s, v) => s + v, 0);
-            const isLastPlayer = currentPlayerIndex === players.length - 1;
+            const isLastPlayer = entryPosition === players.length - 1;
 
             container.innerHTML = `
                 <div class="roundend">
@@ -55,7 +63,7 @@ export const roundendScreen = {
                         <span>Round ${game.current_round}</span>
                         <span>Scoring</span>
                     </div>
-                    <div class="bid-player-name">${players[currentPlayerIndex]}</div>
+                    <div class="bid-player-name">${players[pi]}</div>
                     <p class="bid-prompt">How many hands did they make?</p>
                     <p class="claimed-info">${totalHands} of ${cardsDealt} hands accounted${isLastPlayer ? ` — must be ${cardsDealt - totalHands}` : ''}</p>
                     <div id="keypad-container"></div>
@@ -90,8 +98,8 @@ export const roundendScreen = {
                 seconds: timerSeconds,
                 onExpire: () => advanceToNext(),
                 onCancel: () => {
-                    currentPlayerIndex = playerIndex;
                     delete handsCollected[String(playerIndex)];
+                    entryPosition = entryOrder.indexOf(playerIndex);
                     renderCollecting();
                 },
             });
@@ -111,11 +119,11 @@ export const roundendScreen = {
                     </div>
                     <h3>Confirm Hands Won</h3>
                     <div class="bid-summary">
-                        ${players.map((name, index) => `
+                        ${entryOrder.map(pi => `
                             <div class="bid-summary-row">
-                                <span>${name}</span>
-                                <span class="bid-summary-value">${handsCollected[String(index)] ?? '?'}</span>
-                                <button class="btn-small btn-edit" data-edit="${index}">Edit</button>
+                                <span>${players[pi]}${pi === game.dealer_index ? ' (D)' : ''}</span>
+                                <span class="bid-summary-value">${handsCollected[String(pi)] ?? '?'}</span>
+                                <button class="btn-small btn-edit" data-edit="${pi}">Edit</button>
                             </div>
                         `).join('')}
                     </div>
@@ -131,12 +139,13 @@ export const roundendScreen = {
             // Edit buttons
             container.querySelectorAll('[data-edit]').forEach(btn => {
                 btn.addEventListener('click', () => {
-                    const index = parseInt(btn.dataset.edit);
-                    // Remove this and all subsequent hands
-                    for (let i = index; i < players.length; i++) {
-                        delete handsCollected[String(i)];
+                    const pi = parseInt(btn.dataset.edit);
+                    // Remove this and all subsequent hands in entry order
+                    const pos = entryOrder.indexOf(pi);
+                    for (let i = pos; i < entryOrder.length; i++) {
+                        delete handsCollected[String(entryOrder[i])];
                     }
-                    currentPlayerIndex = index;
+                    entryPosition = pos;
                     renderCollecting();
                 });
             });
@@ -154,15 +163,16 @@ export const roundendScreen = {
         }
 
         async function handleHandsSelect(value) {
+            const pi = currentPlayer();
             try {
-                await submitHands(gameId, currentPlayerIndex, value);
-                handsCollected[String(currentPlayerIndex)] = value;
+                await submitHands(gameId, pi, value);
+                handsCollected[String(pi)] = value;
                 // Last player — skip review, go straight to confirm
-                if (currentPlayerIndex === players.length - 1) {
+                if (entryPosition === players.length - 1) {
                     renderConfirm();
                     return;
                 }
-                renderReview(currentPlayerIndex, value);
+                renderReview(pi, value);
             } catch (error) {
                 const errorEl = container.querySelector('#hands-error');
                 if (errorEl) {
@@ -173,7 +183,7 @@ export const roundendScreen = {
         }
 
         function advanceToNext() {
-            currentPlayerIndex++;
+            entryPosition++;
             renderCollecting();
         }
 
