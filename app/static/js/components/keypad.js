@@ -6,6 +6,8 @@ let audioCtx = null;
 function playTapSound() {
     try {
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        // iOS Safari suspends AudioContext until resumed during a user gesture
+        if (audioCtx.state === 'suspended') audioCtx.resume();
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
         osc.connect(gain);
