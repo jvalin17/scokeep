@@ -22,6 +22,16 @@ export const roundendScreen = {
 
         function currentPlayer() { return entryOrder[entryPosition]; }
 
+        function getTrump(roundNum) {
+            const suits = ['♠', '♦', '♣', '♥'];
+            const names = ['Spades', 'Diamonds', 'Chidi', 'Hearts'];
+            const index = (roundNum - 1) % 4;
+            const isRed = index === 1 || index === 3;
+            return { symbol: suits[index], name: names[index], isRed };
+        }
+        const trumpInfo = getTrump(game.current_round);
+        const mode = game.settings.mode || 'expert';
+
         function getRoundCards(roundNum) {
             return 8 - ((roundNum - 1) % 8);
         }
@@ -61,6 +71,7 @@ export const roundendScreen = {
                     <p class="bid-prompt">How many hands did they make?</p>
                     <p class="claimed-info">${totalHands} of ${cardsDealt} hands accounted${isLastPlayer ? ` — must be ${cardsDealt - totalHands}` : ''}</p>
                     <div id="keypad-container"></div>
+                    ${mode !== 'expert' ? `<div class="trump-below ${trumpInfo.isRed ? 'trump-red' : ''}"><span class="trump-symbol-sm">${trumpInfo.symbol}</span><span class="trump-label">${trumpInfo.name}</span></div>` : ''}
                     ${entryPosition > 0 ? '<button id="go-back" class="btn btn-back">← Previous Player</button>' : ''}
                     <p class="error hidden" id="hands-error"></p>
                 </div>

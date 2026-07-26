@@ -245,7 +245,7 @@ input::placeholder { color: var(--text-muted); }
 .bid-prompt { text-align: center; color: var(--text-secondary); font-size: 1rem; margin-bottom: 4px; }
 .claimed-info { text-align: center; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 8px; min-height: 1.2em; }
 .trump-below { text-align: center; margin-top: 16px; }
-.trump-symbol-sm { font-size: 8rem; display: block; }
+.trump-symbol-sm { font-size: 12rem; display: block; }
 .trump-label { color: var(--text-secondary); font-size: 1.5rem; display: block; font-weight: 600; }
 .dealer-info { text-align: center; color: var(--text-muted); font-size: 0.95rem; }
 .share-code-mini { font-family: monospace; font-size: 0.8rem; color: var(--text-muted); letter-spacing: 0.05em; }
