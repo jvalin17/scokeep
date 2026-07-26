@@ -27,8 +27,14 @@ def kachuful_standard(bid: int, actual: int) -> int:
             return -(bid * 10)
 
 
+def free_raw(bid: int, actual: int) -> int:
+    """Free score mode — bid stores the absolute value, hands match means positive."""
+    return bid if bid == actual else -bid
+
+
 SCORING_FORMULAS = {
     "kachuful_standard": kachuful_standard,
+    "free_raw": free_raw,
 }
 
 

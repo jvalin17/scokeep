@@ -12,8 +12,13 @@ class RoundService:
 
     @staticmethod
     async def create_round(db: AsyncSession, game) -> Round:
-        cards_dealt = get_cards_for_round(game.current_round)
-        trump_suit = get_trump_for_round(game.current_round)
+        game_type = game.settings.get("game_type", "kachuful")
+        if game_type == "free":
+            cards_dealt = 999
+            trump_suit = "none"
+        else:
+            cards_dealt = get_cards_for_round(game.current_round)
+            trump_suit = get_trump_for_round(game.current_round)
 
         round_obj = Round(
             game_id=game.id,

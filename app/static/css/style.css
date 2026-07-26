@@ -420,6 +420,27 @@ input::placeholder { color: var(--text-muted); }
 .final-pts { font-weight: 700; }
 .final-actions { margin-top: 16px; width: 100%; }
 
+/* Game type tabs */
+.game-type-tabs { display: flex; gap: 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 16px; }
+.game-type-tab {
+    flex: 1; padding: 10px; text-align: center; background: var(--bg-card);
+    border: none; font-size: 0.95rem; font-weight: 500; color: var(--text-secondary); cursor: pointer;
+}
+.game-type-tab.active { background: var(--accent); color: #fff; }
+
+/* Free Score */
+.freescore { display: flex; flex-direction: column; gap: 12px; }
+.free-input-row { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px; }
+.free-sign-btn {
+    width: 48px; height: 48px; font-size: 1.5rem; font-weight: 700; border: 1px solid var(--border);
+    border-radius: var(--radius); background: var(--bg-card); cursor: pointer; color: var(--success);
+}
+.free-sign-negative { color: var(--danger); }
+.free-score-input {
+    width: 120px; height: 48px; font-size: 1.8rem; font-weight: 700; text-align: center;
+    border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-card);
+}
+
 /* Stats */
 .stats { display: flex; flex-direction: column; gap: 12px; }
 .stats-empty { text-align: center; color: var(--text-muted); padding: 32px 0; }

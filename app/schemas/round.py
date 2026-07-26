@@ -5,16 +5,16 @@ from pydantic import BaseModel, Field
 
 class BidSubmit(BaseModel):
     player_index: int = Field(..., ge=0, le=7)
-    value: int = Field(..., ge=0, le=8)
+    value: int = Field(..., ge=0, le=999)
 
 
 class BidEdit(BaseModel):
-    value: int = Field(..., ge=0, le=8)
+    value: int = Field(..., ge=0, le=999)
 
 
 class HandsSubmit(BaseModel):
     player_index: int = Field(..., ge=0, le=7)
-    value: int = Field(..., ge=0, le=8)
+    value: int = Field(..., ge=0, le=999)
 
 
 class RoundResponse(BaseModel):

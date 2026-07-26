@@ -54,8 +54,13 @@ export const lobbyScreen = {
                     </section>
 
                     <section class="lobby-section">
-                        <h3>Settings</h3>
-                        <div class="settings-grid">
+                        <h3>Game Type</h3>
+                        <div class="game-type-tabs">
+                            <button class="game-type-tab active" data-type="kachuful">Kachuful</button>
+                            <button class="game-type-tab" data-type="free">Free Score</button>
+                        </div>
+
+                        <div id="kachuful-settings" class="settings-grid">
                             <label>Mode</label>
                             <select id="setting-mode">
                                 <option value="expert">Expert</option>
@@ -81,6 +86,18 @@ export const lobbyScreen = {
                                 <input type="checkbox" id="setting-must-lose" checked>
                                 <span class="toggle-label">On</span>
                             </label>
+                        </div>
+
+                        <div id="free-settings" class="settings-grid" style="display: none;">
+                            <label>Rounds</label>
+                            <input type="number" id="setting-free-rounds" value="10" min="1" max="99"
+                                style="width: 80px; text-align: center;">
+
+                            <label>Appearance</label>
+                            <select id="setting-free-appearance">
+                                <option value="standard">Standard</option>
+                                <option value="interactive" selected>Interactive</option>
+                            </select>
                         </div>
                     </section>
 
@@ -117,6 +134,10 @@ export const lobbyScreen = {
                 resumeBtn.addEventListener('click', () => {
                     state.game = activeGame;
                     document.body.setAttribute('data-appearance', activeGame.settings.appearance || 'standard');
+                    if (activeGame.settings.game_type === 'free') {
+                        navigate(`freescore/${activeGame.id}`);
+                        return;
+                    }
                     const phase = activeGame.phase;
                     if (phase === 'bidding') { navigate(`bid/${activeGame.id}`); return; }
                     if (phase === 'playing') { navigate(`play/${activeGame.id}`); return; }
@@ -125,6 +146,18 @@ export const lobbyScreen = {
                     navigate(`scoreboard/${activeGame.id}`);
                 });
             }
+
+            // Game type tabs
+            let gameType = 'kachuful';
+            container.querySelectorAll('.game-type-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    gameType = tab.dataset.type;
+                    container.querySelectorAll('.game-type-tab').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    container.querySelector('#kachuful-settings').style.display = gameType === 'kachuful' ? '' : 'none';
+                    container.querySelector('#free-settings').style.display = gameType === 'free' ? '' : 'none';
+                });
+            });
 
             // Remove player
             container.querySelectorAll('[data-remove]').forEach(btn => {
@@ -212,18 +245,36 @@ export const lobbyScreen = {
                 const errorElement = container.querySelector('#lobby-error');
                 errorElement.classList.add('hidden');
 
-                const settings = {
-                    mode: container.querySelector('#setting-mode').value,
-                    appearance: container.querySelector('#setting-appearance').value,
-                    num_sets: parseInt(container.querySelector('#setting-sets').value),
-                    must_lose: container.querySelector('#setting-must-lose').checked,
-                };
+                let settings;
+                if (gameType === 'kachuful') {
+                    settings = {
+                        game_type: 'kachuful',
+                        mode: container.querySelector('#setting-mode').value,
+                        appearance: container.querySelector('#setting-appearance').value,
+                        num_sets: parseInt(container.querySelector('#setting-sets').value),
+                        must_lose: container.querySelector('#setting-must-lose').checked,
+                    };
+                } else {
+                    settings = {
+                        game_type: 'free',
+                        mode: 'friendly',
+                        scoring_formula: 'free_raw',
+                        appearance: container.querySelector('#setting-free-appearance').value,
+                        num_sets: 1,
+                        must_lose: false,
+                        free_rounds: parseInt(container.querySelector('#setting-free-rounds').value) || 10,
+                    };
+                }
 
                 try {
                     const game = await createGame(playground.id, players, settings);
                     state.game = game;
                     document.body.setAttribute('data-appearance', settings.appearance);
-                    navigate(`bid/${game.id}`);
+                    if (gameType === 'free') {
+                        navigate(`freescore/${game.id}`);
+                    } else {
+                        navigate(`bid/${game.id}`);
+                    }
                 } catch (error) {
                     errorElement.textContent = error.message;
                     errorElement.classList.remove('hidden');

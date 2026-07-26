@@ -7,11 +7,11 @@ export const homeScreen = {
         container.innerHTML = `
             <div class="home">
                 <h1 class="logo">Scokeep</h1>
-                <p class="tagline">Score tracker for Kachuful</p>
+                <p class="tagline">Score tracker for card games</p>
 
                 <div class="tabs">
                     <button class="tab active" data-tab="create">Create</button>
-                    <button class="tab" data-tab="join">Return</button>
+                    <button class="tab" data-tab="join">Join</button>
                 </div>
 
                 <form id="create-form" class="form visible">

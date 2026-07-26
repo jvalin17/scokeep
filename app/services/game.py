@@ -11,6 +11,7 @@ from app.utils.trump import ROUNDS_PER_SET
 DEFAULT_NUM_SETS = 3
 
 DEFAULT_SETTINGS = {
+    "game_type": "kachuful",
     "mode": "expert",
     "appearance": "standard",
     "timer_seconds": 10,
@@ -31,8 +32,12 @@ class GameService:
         settings: dict,
     ) -> Game:
         merged_settings = {**DEFAULT_SETTINGS, **settings}
-        num_sets = merged_settings["num_sets"]
-        total_rounds = num_sets * ROUNDS_PER_SET
+        game_type = merged_settings.get("game_type", "kachuful")
+        if game_type == "free":
+            total_rounds = merged_settings.get("free_rounds", 10)
+        else:
+            num_sets = merged_settings["num_sets"]
+            total_rounds = num_sets * ROUNDS_PER_SET
 
         game = Game(
             playground_id=playground_id,
