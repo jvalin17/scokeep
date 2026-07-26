@@ -49,6 +49,16 @@ class GameService:
         return result.scalar_one_or_none()
 
     @staticmethod
+    async def get_active_for_playground(db: AsyncSession, playground_id: int) -> Game | None:
+        result = await db.execute(
+            select(Game)
+            .where(Game.playground_id == playground_id, Game.status == "active")
+            .order_by(Game.id.desc())
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
+    @staticmethod
     async def advance_round(db: AsyncSession, game: Game) -> None:
         if game.current_round >= game.total_rounds:
             game.status = "finished"

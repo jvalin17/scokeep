@@ -248,6 +248,7 @@ input::placeholder { color: var(--text-muted); }
 .trump-symbol-sm { font-size: 3rem; display: block; }
 .trump-label { color: var(--text-secondary); font-size: 1rem; }
 .dealer-info { text-align: center; color: var(--text-muted); font-size: 0.85rem; }
+.share-code-mini { font-family: monospace; font-size: 0.8rem; color: var(--text-muted); letter-spacing: 0.05em; }
 .bid-value-display {
     font-size: 4rem;
     font-weight: 700;

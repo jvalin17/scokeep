@@ -33,6 +33,7 @@ export const scoreboardScreen = {
             <div class="scoreboard">
                 <div class="round-info">
                     <span>${isGameOver ? 'Game Over' : `After Round ${game.current_round - 1}`}</span>
+                    ${state.playground ? `<span class="share-code-mini">${state.playground.share_code}</span>` : ''}
                 </div>
 
                 <div class="score-table">

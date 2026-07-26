@@ -53,6 +53,10 @@ export function getGame(gameId) {
     return request('GET', `/game/${gameId}`);
 }
 
+export function getActiveGame(playgroundId) {
+    return request('GET', `/game/active/${playgroundId}`);
+}
+
 export function endGame(gameId) {
     return request('POST', `/game/${gameId}/end`);
 }

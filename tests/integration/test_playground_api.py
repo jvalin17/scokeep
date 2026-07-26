@@ -19,7 +19,7 @@ class TestCreatePlayground:
         assert response.status_code == 201
         body = response.json()
         assert body["name"] == "The Jokers"
-        assert len(body["share_code"]) == 8
+        assert len(body["share_code"]) == 4
         assert body["players"] == ["Alice", "Bob", "Charlie"]
         assert "pin" not in body
         assert "pin_hash" not in body
@@ -59,7 +59,7 @@ class TestAuthPlayground:
         assert response.status_code == 200
         body = response.json()
         assert body["name"] == "Auth Test"
-        assert len(body["share_code"]) == 8
+        assert len(body["share_code"]) == 4
         assert "scokeep_session" in response.cookies
 
     async def test_auth_wrong_pin_returns_401(self, client: AsyncClient):

@@ -1,6 +1,6 @@
 // Lobby screen — player setup, settings, start game
 
-import { getPlayground, createGame } from '../api.js';
+import { getPlayground, createGame, getActiveGame } from '../api.js';
 
 export const lobbyScreen = {
     async mount(container, state, { navigate, params }) {
@@ -16,6 +16,21 @@ export const lobbyScreen = {
 
         const playground = state.playground;
         let players = [...playground.players];
+
+        // Check for active game — resume instead of showing lobby
+        try {
+            const activeGame = await getActiveGame(playground.id);
+            if (activeGame) {
+                state.game = activeGame;
+                document.body.setAttribute('data-appearance', activeGame.settings.appearance || 'standard');
+                const phase = activeGame.phase;
+                if (phase === 'bidding') { navigate(`bid/${activeGame.id}`); return; }
+                if (phase === 'playing') { navigate(`play/${activeGame.id}`); return; }
+                if (phase === 'round_end') { navigate(`roundend/${activeGame.id}`); return; }
+                if (phase === 'final') { navigate(`final/${activeGame.id}`); return; }
+                navigate(`scoreboard/${activeGame.id}`); return;
+            }
+        } catch { /* no active game — show lobby */ }
 
         function renderLobby() {
             container.innerHTML = `

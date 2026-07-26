@@ -39,6 +39,18 @@ async def create_game(
     return game
 
 
+@router.get("/active/{playground_id}", response_model=GameResponse)
+async def get_active_game(
+    playground_id: int,
+    _auth_playground_id: int = Depends(_require_auth),
+    db: AsyncSession = Depends(get_db),
+):
+    game = await GameService.get_active_for_playground(db, playground_id)
+    if not game:
+        raise HTTPException(status_code=404, detail="No active game")
+    return game
+
+
 @router.get("/{game_id}", response_model=GameResponse)
 async def get_game(
     game_id: int,

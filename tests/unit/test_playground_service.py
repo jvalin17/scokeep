@@ -37,7 +37,7 @@ class TestCreatePlayground:
             db=db_session, name="Test", pin="1234", players=["A"]
         )
 
-        assert len(playground.share_code) == 8
+        assert len(playground.share_code) == 4
         assert playground.share_code.isalnum()
 
     async def test_two_playgrounds_get_different_share_codes(self, db_session: AsyncSession):

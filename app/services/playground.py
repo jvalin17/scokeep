@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.playground import Playground
 
-SHARE_CODE_LENGTH = 8
+SHARE_CODE_LENGTH = 4
 SHARE_CODE_ALPHABET = string.ascii_uppercase + string.digits
 
 

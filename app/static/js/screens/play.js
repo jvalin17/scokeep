@@ -54,6 +54,7 @@ export const playScreen = {
                 <div class="round-info">
                     <span>Round ${game.current_round} of ${game.total_rounds}</span>
                     <span>${cardsDealt} card${cardsDealt > 1 ? 's' : ''}</span>
+                    ${state.playground ? `<span class="share-code-mini">${state.playground.share_code}</span>` : ''}
                 </div>
 
                 ${mode !== 'expert' ? `
