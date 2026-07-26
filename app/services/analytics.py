@@ -1,6 +1,6 @@
 """Analytics service — player stats, leaderboard, game history, bid accuracy."""
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.game import Game
@@ -186,3 +186,25 @@ class AnalyticsService:
                         h2h[key][p2] += 1
 
         return [{"players": list(k), "record": v} for k, v in h2h.items()]
+
+    @staticmethod
+    async def clear_stats(db: AsyncSession, playground_id: int) -> int:
+        """Delete all finished games and their rounds. Returns count deleted."""
+        games_result = await db.execute(
+            select(Game.id).where(
+                Game.playground_id == playground_id,
+                Game.status == "finished",
+            )
+        )
+        game_ids = [row[0] for row in games_result.all()]
+        if not game_ids:
+            return 0
+
+        await db.execute(
+            delete(Round).where(Round.game_id.in_(game_ids))
+        )
+        await db.execute(
+            delete(Game).where(Game.id.in_(game_ids))
+        )
+        await db.commit()
+        return len(game_ids)

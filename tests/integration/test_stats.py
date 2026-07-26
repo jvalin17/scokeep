@@ -146,6 +146,59 @@ class TestPlaygroundStats:
         assert record["Alice"] == 1  # Alice won
         assert record["Bob"] == 0
 
+    async def test_clear_stats_deletes_finished_games(
+        self, client: AsyncClient,
+    ):
+        """Clear stats removes all finished games but keeps active ones."""
+        pg, cookies = await _setup(client, "Clear Stats")
+
+        # Play and finish a game
+        await _play_full_game(
+            client, pg["id"], cookies,
+            players=["Alice", "Bob"],
+            bids=[2, 3], hands=[2, 6],
+        )
+
+        # Verify stats show 1 game
+        resp = await client.get(
+            f"/api/playground/{pg['share_code']}/stats", cookies=cookies,
+        )
+        assert resp.json()["total_games"] == 1
+
+        # Clear stats
+        resp = await client.delete(
+            f"/api/playground/{pg['share_code']}/stats", cookies=cookies,
+        )
+        assert resp.status_code == 200
+        assert resp.json()["deleted_games"] == 1
+
+        # Stats should be empty now
+        resp = await client.get(
+            f"/api/playground/{pg['share_code']}/stats", cookies=cookies,
+        )
+        assert resp.json()["total_games"] == 0
+        assert resp.json()["leaderboard"] == []
+
+    async def test_clear_stats_keeps_active_game(
+        self, client: AsyncClient,
+    ):
+        """Clear stats does not delete active (in-progress) games."""
+        pg, cookies = await _setup(client, "Clear Active")
+
+        # Create an active game (don't finish it)
+        await client.post("/api/game", json={
+            "playground_id": pg["id"],
+            "players": ["Alice", "Bob"],
+            "settings": {"num_sets": 1},
+        }, cookies=cookies)
+
+        # Clear stats — should delete 0 (only finished games)
+        resp = await client.delete(
+            f"/api/playground/{pg['share_code']}/stats", cookies=cookies,
+        )
+        assert resp.status_code == 200
+        assert resp.json()["deleted_games"] == 0
+
     async def test_stats_requires_auth(self, client: AsyncClient):
         """Stats endpoint requires authentication."""
         pg, cookies = await _setup(client, "Auth Stats")

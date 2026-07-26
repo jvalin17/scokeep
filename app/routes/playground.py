@@ -126,3 +126,17 @@ async def get_playground_stats(
     if not playground:
         raise HTTPException(status_code=404, detail="Playground not found")
     return await AnalyticsService.get_playground_stats(db, playground.id)
+
+
+@router.delete("/{share_code}/stats")
+async def clear_playground_stats(
+    share_code: str,
+    playground_id: int = Depends(_get_authenticated_playground_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete all finished games and rounds for this playground."""
+    playground = await PlaygroundService.get_by_share_code(db, share_code)
+    if not playground:
+        raise HTTPException(status_code=404, detail="Playground not found")
+    count = await AnalyticsService.clear_stats(db, playground.id)
+    return {"deleted_games": count}

@@ -78,6 +78,10 @@ export function getPlaygroundStats(shareCode) {
     return request('GET', `/playground/${shareCode}/stats`);
 }
 
+export function clearPlaygroundStats(shareCode) {
+    return request('DELETE', `/playground/${shareCode}/stats`);
+}
+
 // Game
 export function createGame(playgroundId, players, settings = {}) {
     return request('POST', '/game', {

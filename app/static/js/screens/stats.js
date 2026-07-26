@@ -1,6 +1,6 @@
 // Stats screen — leaderboard, game history, bid accuracy, head-to-head
 
-import { getPlaygroundStats } from '../api.js';
+import { getPlaygroundStats, clearPlaygroundStats } from '../api.js';
 
 export const statsScreen = {
     async mount(container, state, { navigate, params }) {
@@ -38,6 +38,10 @@ export const statsScreen = {
                     <div class="round-info">
                         <span>Stats</span>
                         <span>${stats.total_games} game${stats.total_games !== 1 ? 's' : ''}</span>
+                        <button class="btn-refresh" id="stats-gear" title="Settings">⚙</button>
+                    </div>
+                    <div id="stats-actions" class="stats-actions hidden">
+                        <button class="btn btn-danger" id="clear-stats">Clear All Stats</button>
                     </div>
 
                     <div class="stats-tabs">
@@ -64,6 +68,27 @@ export const statsScreen = {
                     render();
                 });
             });
+
+            const gearBtn = container.querySelector('#stats-gear');
+            if (gearBtn) {
+                gearBtn.addEventListener('click', () => {
+                    const actions = container.querySelector('#stats-actions');
+                    actions.classList.toggle('hidden');
+                });
+            }
+
+            const clearBtn = container.querySelector('#clear-stats');
+            if (clearBtn) {
+                clearBtn.addEventListener('click', async () => {
+                    if (!confirm('Clear all game history and stats for this room? This cannot be undone.')) return;
+                    try {
+                        await clearPlaygroundStats(shareCode);
+                        navigate(`stats/${shareCode}`);
+                    } catch (e) {
+                        console.error('Failed to clear stats:', e.message);
+                    }
+                });
+            }
         }
 
         function renderLeaderboard() {
