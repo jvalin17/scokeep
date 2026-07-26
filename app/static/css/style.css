@@ -83,6 +83,7 @@ h3 { font-size: 1rem; font-weight: 600; color: var(--text-secondary); text-trans
 .btn-text { background: none; border: none; color: var(--text-secondary); font-size: 0.95rem; padding: 8px 0; cursor: pointer; }
 .btn-text:hover { color: var(--text-primary); }
 .btn-danger { background: #E57373; color: #fff; border-color: #E57373; }
+.btn-back { background: none; border: 1px solid var(--border); color: var(--text-muted); font-size: 0.9rem; margin-top: 12px; }
 .btn-remove {
     background: none;
     border: none;

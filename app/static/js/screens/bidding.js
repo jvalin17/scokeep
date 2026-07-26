@@ -1,12 +1,9 @@
-// Bidding screen — player queue + keypad + timer + confirm
+// Bidding screen — player queue + keypad + back button
 
 import { getGame, submitBid, getBids, editBid, startRound } from '../api.js';
 import { Keypad } from '../components/keypad.js';
-import { Timer } from '../components/timer.js';
 
 export const biddingScreen = {
-    _timer: null,
-
     async mount(container, state, { navigate, params }) {
         const gameId = params[0];
         const game = await getGame(gameId);
@@ -14,7 +11,6 @@ export const biddingScreen = {
 
         const players = game.players;
         const settings = game.settings;
-        const timerSeconds = settings.timer_seconds || 10;
         const mustLose = settings.must_lose || false;
         const mode = settings.mode || 'expert';
         // Bidding order: start from player after dealer, wrap around
@@ -24,7 +20,6 @@ export const biddingScreen = {
         }
         let bidPosition = 0;
         let bidsCollected = {};
-        let phase = 'collecting';
 
         document.body.setAttribute('data-phase', 'bidding');
 
@@ -35,8 +30,6 @@ export const biddingScreen = {
             bidPosition = Object.keys(bidsCollected).length;
         } catch { /* no bids yet */ }
 
-        const self = this;
-
         function getRoundCards(roundNum) {
             return 8 - ((roundNum - 1) % 8);
         }
@@ -44,7 +37,7 @@ export const biddingScreen = {
         function getTrump(roundNum) {
             const suits = ['♠', '♦', '♣', '♥'];
             const index = (roundNum - 1) % 4;
-            const isRed = index === 1 || index === 3; // diamonds, hearts
+            const isRed = index === 1 || index === 3;
             return { symbol: suits[index], isRed };
         }
 
@@ -52,7 +45,6 @@ export const biddingScreen = {
 
         function getDisabledKeys() {
             if (!mustLose) return [];
-            // Only grey out for the last player to bid (dealer)
             const isLastPlayer = bidPosition === players.length - 1;
             if (!isLastPlayer) return [];
             const cardsDealt = getRoundCards(game.current_round);
@@ -63,7 +55,6 @@ export const biddingScreen = {
         }
 
         function renderCollecting() {
-            phase = 'collecting';
             if (bidPosition >= players.length) {
                 renderConfirm();
                 return;
@@ -82,6 +73,7 @@ export const biddingScreen = {
                     <p class="bid-prompt">How many will you bid?</p>
                     <p class="claimed-info">${Object.values(bidsCollected).reduce((s, v) => s + v, 0)} of ${cardsDealt} hands claimed</p>
                     <div id="keypad-container"></div>
+                    ${bidPosition > 0 ? '<button id="go-back" class="btn btn-back">← Previous Player</button>' : ''}
                     <p class="error hidden" id="bid-error"></p>
                 </div>
             `;
@@ -92,39 +84,19 @@ export const biddingScreen = {
                 onSelect: (value) => handleBidSelect(value),
             });
             container.querySelector('#keypad-container').appendChild(keypad);
-        }
 
-        function renderReview(playerIndex, value) {
-            phase = 'reviewing';
-            container.innerHTML = `
-                <div class="bidding">
-                    <div class="round-info">
-                        <span>Round ${game.current_round} of ${game.total_rounds}</span>
-                    </div>
-                    <div class="bid-player-name">${players[playerIndex]}</div>
-                    <div class="bid-value-display">${value}</div>
-                    <div id="timer-container"></div>
-                </div>
-            `;
-
-            if (self._timer) self._timer.destroy();
-
-            const timerEl = Timer({
-                seconds: timerSeconds,
-                onExpire: () => advanceToNext(),
-                onCancel: () => {
-                    delete bidsCollected[String(playerIndex)];
-                    // Go back to this position
-                    bidPosition = biddingOrder.indexOf(playerIndex);
+            const backBtn = container.querySelector('#go-back');
+            if (backBtn) {
+                backBtn.addEventListener('click', () => {
+                    bidPosition--;
+                    const prevPi = currentPlayer();
+                    delete bidsCollected[String(prevPi)];
                     renderCollecting();
-                },
-            });
-            self._timer = timerEl;
-            container.querySelector('#timer-container').appendChild(timerEl);
+                });
+            }
         }
 
         function renderConfirm() {
-            phase = 'confirming';
             const cardsDealt = getRoundCards(game.current_round);
             const totalBids = Object.values(bidsCollected).reduce((sum, v) => sum + v, 0);
 
@@ -184,7 +156,8 @@ export const biddingScreen = {
                     await submitBid(gameId, pi, value);
                 }
                 bidsCollected[playerKey] = value;
-                renderReview(pi, value);
+                bidPosition++;
+                renderCollecting();
             } catch (error) {
                 const errorEl = container.querySelector('#bid-error');
                 if (errorEl) {
@@ -194,18 +167,8 @@ export const biddingScreen = {
             }
         }
 
-        function advanceToNext() {
-            bidPosition++;
-            renderCollecting();
-        }
-
         renderCollecting();
     },
 
-    unmount() {
-        if (this._timer) {
-            this._timer.destroy();
-            this._timer = null;
-        }
-    },
+    unmount() {},
 };
