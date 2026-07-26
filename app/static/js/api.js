@@ -4,6 +4,7 @@
 const BASE = '/api';
 
 async function request(method, path, body = null) {
+    console.log(`[api] ${method} ${path}`, body || '');
     const options = {
         method,
         headers: {},
@@ -18,9 +19,27 @@ async function request(method, path, body = null) {
         const error = await response.json().catch(() => ({ detail: 'Request failed' }));
         const detail = error.detail;
         const message = typeof detail === 'string' ? detail : JSON.stringify(detail);
+        console.error(`[api] ${method} ${path} → ${response.status}: ${message}`);
         throw new Error(message || `HTTP ${response.status}`);
     }
-    return response.json();
+    const data = await response.json();
+    console.log(`[api] ${method} ${path} → ${response.status}`);
+    return data;
+}
+
+// Re-sync: fetch game state and navigate to correct screen
+export async function resyncGame(gameId) {
+    const game = await request('GET', `/game/${gameId}`);
+    const routes = {
+        bidding: `bid/${gameId}`,
+        playing: `play/${gameId}`,
+        round_end: `roundend/${gameId}`,
+        scoreboard: `scoreboard/${gameId}`,
+        final: `final/${gameId}`,
+    };
+    const route = routes[game.phase] || `scoreboard/${gameId}`;
+    window.location.hash = route;
+    return game;
 }
 
 // Playground

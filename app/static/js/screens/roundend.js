@@ -1,6 +1,6 @@
 // Round end screen — hands won entry via keypad + back button
 
-import { getGame, submitHands, endRound } from '../api.js';
+import { getGame, submitHands, endRound, resyncGame } from '../api.js';
 import { Keypad } from '../components/keypad.js';
 import { soundScoreRound } from '../components/sounds.js';
 
@@ -144,9 +144,8 @@ export const roundendScreen = {
                     await endRound(gameId);
                     soundScoreRound();
                     navigate(`scoreboard/${gameId}`);
-                } catch (error) {
-                    errorEl.textContent = error.message;
-                    errorEl.classList.remove('hidden');
+                } catch {
+                    await resyncGame(gameId);
                 }
             });
         }

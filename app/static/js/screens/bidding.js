@@ -1,6 +1,6 @@
 // Bidding screen — player queue + keypad + back button
 
-import { getGame, submitBid, getBids, editBid, startRound } from '../api.js';
+import { getGame, submitBid, getBids, editBid, startRound, resyncGame } from '../api.js';
 import { Keypad } from '../components/keypad.js';
 import { soundStartRound } from '../components/sounds.js';
 
@@ -147,9 +147,8 @@ export const biddingScreen = {
                     await startRound(gameId);
                     soundStartRound();
                     navigate(`play/${gameId}`);
-                } catch (error) {
-                    errorEl.textContent = error.message;
-                    errorEl.classList.remove('hidden');
+                } catch {
+                    await resyncGame(gameId);
                 }
             });
         }

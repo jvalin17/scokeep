@@ -1,6 +1,6 @@
 // Play screen — trump display, round info, end round button
 
-import { getGame, getBids, enterRoundEnd } from '../api.js';
+import { getGame, getBids, enterRoundEnd, resyncGame } from '../api.js';
 
 export const playScreen = {
     async mount(container, state, { navigate, params }) {
@@ -80,8 +80,8 @@ export const playScreen = {
             try {
                 await enterRoundEnd(gameId);
                 navigate(`roundend/${gameId}`);
-            } catch (error) {
-                alert(error.message);
+            } catch {
+                await resyncGame(gameId);
             }
         });
     },
