@@ -30,10 +30,7 @@ export const lobbyScreen = {
                         <div id="player-list" class="lobby-player-list">
                             ${players.map((name, index) => `
                                 <div class="lobby-player" data-index="${index}">
-                                    <span class="reorder-buttons">
-                                        <button class="btn-move" data-move-up="${index}" ${index === 0 ? 'disabled' : ''}>&uarr;</button>
-                                        <button class="btn-move" data-move-down="${index}" ${index === players.length - 1 ? 'disabled' : ''}>&darr;</button>
-                                    </span>
+                                    <span class="drag-handle" data-drag="${index}">&#9776;</span>
                                     <span class="player-name-display">${name}</span>
                                     ${players.length > 2 ? `<button class="btn-remove" data-remove="${index}">&times;</button>` : ''}
                                 </div>
@@ -52,7 +49,7 @@ export const lobbyScreen = {
                             <label>Mode</label>
                             <select id="setting-mode">
                                 <option value="expert">Expert</option>
-                                <option value="rookie">Rookie</option>
+                                <option value="rookie" selected>Rookie</option>
                                 <option value="friendly">Friendly</option>
                             </select>
 
@@ -120,24 +117,69 @@ export const lobbyScreen = {
                 });
             });
 
-            // Move up/down to reorder
-            container.querySelectorAll('[data-move-up]').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const i = parseInt(btn.dataset.moveUp);
-                    if (i > 0) {
-                        [players[i - 1], players[i]] = [players[i], players[i - 1]];
-                        renderLobby();
-                    }
-                });
+            // Touch drag to reorder
+            const playerList = container.querySelector('#player-list');
+            let dragEl = null;
+            let dragIndex = null;
+            let startY = 0;
+            let currentY = 0;
+
+            container.querySelectorAll('.drag-handle').forEach(handle => {
+                handle.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    dragIndex = parseInt(handle.dataset.drag);
+                    dragEl = handle.closest('.lobby-player');
+                    startY = e.touches[0].clientY;
+                    currentY = startY;
+                    dragEl.classList.add('dragging');
+                }, { passive: false });
             });
-            container.querySelectorAll('[data-move-down]').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const i = parseInt(btn.dataset.moveDown);
-                    if (i < players.length - 1) {
-                        [players[i], players[i + 1]] = [players[i + 1], players[i]];
-                        renderLobby();
+
+            document.addEventListener('touchmove', (e) => {
+                if (dragEl === null) return;
+                e.preventDefault();
+                currentY = e.touches[0].clientY;
+                dragEl.style.transform = `translateY(${currentY - startY}px)`;
+
+                // Find which player we're over
+                const items = [...playerList.querySelectorAll('.lobby-player')];
+                for (const item of items) {
+                    if (item === dragEl) continue;
+                    const rect = item.getBoundingClientRect();
+                    const mid = rect.top + rect.height / 2;
+                    if (currentY < mid && parseInt(item.dataset.index) < dragIndex) {
+                        item.style.transform = 'translateY(48px)';
+                    } else if (currentY > mid && parseInt(item.dataset.index) > dragIndex) {
+                        item.style.transform = 'translateY(-48px)';
+                    } else {
+                        item.style.transform = '';
                     }
-                });
+                }
+            }, { passive: false });
+
+            document.addEventListener('touchend', () => {
+                if (dragEl === null) return;
+                // Find drop target
+                const items = [...playerList.querySelectorAll('.lobby-player')];
+                let dropIndex = dragIndex;
+                for (const item of items) {
+                    if (item === dragEl) continue;
+                    const rect = item.getBoundingClientRect();
+                    const mid = rect.top + rect.height / 2;
+                    const idx = parseInt(item.dataset.index);
+                    if (currentY < mid && idx < dragIndex) {
+                        dropIndex = Math.min(dropIndex, idx);
+                    } else if (currentY > mid && idx > dragIndex) {
+                        dropIndex = Math.max(dropIndex, idx);
+                    }
+                }
+                if (dropIndex !== dragIndex) {
+                    const moved = players.splice(dragIndex, 1)[0];
+                    players.splice(dropIndex, 0, moved);
+                }
+                dragEl = null;
+                dragIndex = null;
+                renderLobby();
             });
 
             // Must-lose toggle label
