@@ -23,7 +23,10 @@ elif "postgresql" in database_url:
     ssl_context.verify_mode = ssl_module.CERT_NONE
     connect_args = {"ssl": ssl_context}
 
-engine = create_async_engine(database_url, echo=settings.debug, connect_args=connect_args)
+engine = create_async_engine(
+    database_url, echo=settings.debug, connect_args=connect_args,
+    pool_pre_ping=True, pool_recycle=300,
+)
 async_session_factory = async_sessionmaker(engine, expire_on_commit=False)
 
 

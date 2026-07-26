@@ -59,14 +59,6 @@ export const lobbyScreen = {
                                 <option value="interactive" selected>Interactive</option>
                             </select>
 
-                            <label>Review timer</label>
-                            <select id="setting-timer">
-                                <option value="3" selected>3 seconds</option>
-                                <option value="5">5 seconds</option>
-                                <option value="10">10 seconds</option>
-                                <option value="15">15 seconds</option>
-                            </select>
-
                             <label>Sets</label>
                             <select id="setting-sets">
                                 ${[1,2,3,4,5].map(n =>
@@ -197,7 +189,6 @@ export const lobbyScreen = {
                 const settings = {
                     mode: container.querySelector('#setting-mode').value,
                     appearance: container.querySelector('#setting-appearance').value,
-                    timer_seconds: parseInt(container.querySelector('#setting-timer').value),
                     num_sets: parseInt(container.querySelector('#setting-sets').value),
                     must_lose: container.querySelector('#setting-must-lose').checked,
                 };
