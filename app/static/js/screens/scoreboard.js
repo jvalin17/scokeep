@@ -18,7 +18,7 @@ export const scoreboardScreen = {
         const isSetEnd = game.current_round > 1 && (game.current_round - 1) % 8 === 0;
         const isGameOver = game.status === 'finished';
 
-        document.body.setAttribute('data-phase', 'home');
+        document.body.setAttribute('data-phase', 'scoreboard');
 
         container.innerHTML = `
             <div class="scoreboard">

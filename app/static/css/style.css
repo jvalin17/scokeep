@@ -34,6 +34,7 @@ body {
 [data-appearance="interactive"][data-phase="bidding"] { --bg-page: #FFF9C4; --accent: #E65100; }
 [data-appearance="interactive"][data-phase="playing"] { --bg-page: #C8E6C9; --accent: #2E7D32; }
 [data-appearance="interactive"][data-phase="roundend"] { --bg-page: #BBDEFB; --accent: #1565C0; }
+[data-appearance="interactive"][data-phase="scoreboard"] { --bg-page: #E8EAF6; --accent: #283593; }
 [data-appearance="interactive"][data-phase="home"] { --bg-page: #F3E5F5; --accent: #6A1B9A; }
 [data-appearance="interactive"] { font-size: 1.1em; }
 

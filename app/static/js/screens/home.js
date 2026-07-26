@@ -4,6 +4,8 @@ import { createPlayground, authPlayground, listRecentPlaygrounds } from '../api.
 
 export const homeScreen = {
     mount(container, state, { navigate }) {
+        document.body.setAttribute('data-phase', 'home');
+        document.body.setAttribute('data-appearance', 'standard');
         container.innerHTML = `
             <div class="home">
                 <h1 class="logo">Scokeep</h1>

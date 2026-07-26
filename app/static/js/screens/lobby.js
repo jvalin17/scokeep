@@ -4,6 +4,7 @@ import { getPlayground, createGame, getActiveGame } from '../api.js';
 
 export const lobbyScreen = {
     async mount(container, state, { navigate, params }) {
+        document.body.setAttribute('data-phase', 'home');
         const shareCode = params[0];
         if (!state.playground) {
             try {
