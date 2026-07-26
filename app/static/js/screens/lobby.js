@@ -29,6 +29,7 @@ export const lobbyScreen = {
                 <div class="lobby">
                     <div class="lobby-header">
                         <button class="btn-text" onclick="location.hash=''" style="position:absolute;left:16px;">← Home</button>
+                        <button class="btn-text" onclick="location.reload()" style="position:absolute;right:16px;">↻</button>
                         <h2>${playground.name}</h2>
                         <p class="share-code">Code: <strong>${playground.share_code}</strong></p>
                     </div>
