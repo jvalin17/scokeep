@@ -47,6 +47,7 @@ node_modules/
 # Project docs (kept locally, not in repo)
 *.md
 !README.md
+!reports/**/*.md
 .gate/signing.key
 .gate/private.pem
 .gate/gate-token.jwt
