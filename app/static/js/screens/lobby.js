@@ -46,7 +46,7 @@ export const lobbyScreen = {
                                 <div class="lobby-player" data-index="${index}">
                                     <span class="drag-handle" data-drag="${index}">&#9776;</span>
                                     <span class="player-name-display">${name}</span>
-                                    ${players.length > 2 ? `<button class="btn-remove" data-remove="${index}">&times;</button>` : ''}
+                                    <button class="btn-remove" data-remove="${index}">&times;</button>
                                 </div>
                             `).join('')}
                         </div>
