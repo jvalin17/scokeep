@@ -120,15 +120,21 @@ export const homeScreen = {
                 return;
             }
 
+            const submitBtn = container.querySelector('#create-form button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = 'Creating...';
+            submitBtn.disabled = true;
+
             try {
                 const playground = await createPlayground(name, pin, players);
-                // Auto-auth after creation
                 await authPlayground(name, pin);
                 state.playground = playground;
                 navigate(`playground/${playground.share_code}`);
             } catch (error) {
                 errorElement.textContent = error.message;
                 errorElement.classList.remove('hidden');
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
             }
         });
 
@@ -141,6 +147,11 @@ export const homeScreen = {
             const name = container.querySelector('#join-name').value.trim();
             const pin = container.querySelector('#join-pin').value;
 
+            const joinBtn = container.querySelector('#join-form button[type="submit"]');
+            const joinOriginal = joinBtn.textContent;
+            joinBtn.textContent = 'Joining...';
+            joinBtn.disabled = true;
+
             try {
                 const playground = await authPlayground(name, pin);
                 state.playground = playground;
@@ -148,6 +159,8 @@ export const homeScreen = {
             } catch (error) {
                 errorElement.textContent = error.message;
                 errorElement.classList.remove('hidden');
+                joinBtn.textContent = joinOriginal;
+                joinBtn.disabled = false;
             }
         });
     },
