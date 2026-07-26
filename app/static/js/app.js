@@ -1,5 +1,6 @@
 // Scokeep — client-side router and state manager
 
+import { logger } from './components/logger.js';
 import { homeScreen } from './screens/home.js';
 import { lobbyScreen } from './screens/lobby.js';
 import { biddingScreen } from './screens/bidding.js';
@@ -48,7 +49,7 @@ async function render() {
     const { screen, params } = parseHash();
     const screenModule = routes[screen] || routes[''];
 
-    console.log(`[scokeep] navigate → ${screen || 'home'}`, params.length ? params : '');
+    logger.navigate(screen, params);
 
     if (currentScreen && currentScreen.unmount) {
         currentScreen.unmount();
@@ -60,16 +61,16 @@ async function render() {
     try {
         await screenModule.mount(appElement, state, { navigate, params });
     } catch (error) {
-        console.error(`[scokeep] screen error on ${screen}:`, error.message);
+        logger.error('screen', `error on ${screen}: ${error.message}`);
         // Try to resync if we have a game ID
         const gameId = params[0];
         if (gameId && screen !== '' && screen !== 'playground' && screen !== 'stats') {
             try {
-                console.log(`[scokeep] attempting resync for game ${gameId}`);
+                logger.warn('resync', `attempting resync for game ${gameId}`);
                 const resp = await fetch(`/api/game/${gameId}`, { credentials: 'same-origin' });
                 if (resp.ok) {
                     const game = await resp.json();
-                    console.log(`[scokeep] game phase: ${game.phase}, redirecting`);
+                    logger.resync(gameId, screen, routeMap[game.phase] || 'scoreboard');
                     const routeMap = { bidding: 'bid', playing: 'play', round_end: 'roundend', scoreboard: 'scoreboard', final: 'final' };
                     const target = routeMap[game.phase] || 'scoreboard';
                     if (target !== screen) {
@@ -78,7 +79,7 @@ async function render() {
                     }
                 }
             } catch (resyncErr) {
-                console.error(`[scokeep] resync failed:`, resyncErr.message);
+                logger.error('resync', `resync failed: ${resyncErr.message}`);
             }
         }
         appElement.innerHTML = `

@@ -1,10 +1,11 @@
 // API client — all fetch() calls to backend
-// Every function checks response.ok before returning
+
+import { logger } from './components/logger.js';
 
 const BASE = '/api';
 
 async function request(method, path, body = null) {
-    console.log(`[api] ${method} ${path}`, body || '');
+    logger.apiCall(method, path, body);
     const options = {
         method,
         headers: {},
@@ -19,11 +20,11 @@ async function request(method, path, body = null) {
         const error = await response.json().catch(() => ({ detail: 'Request failed' }));
         const detail = error.detail;
         const message = typeof detail === 'string' ? detail : JSON.stringify(detail);
-        console.error(`[api] ${method} ${path} → ${response.status}: ${message}`);
+        logger.apiError(method, path, response.status, message);
         throw new Error(message || `HTTP ${response.status}`);
     }
     const data = await response.json();
-    console.log(`[api] ${method} ${path} → ${response.status}`);
+    logger.apiOk(method, path, response.status);
     return data;
 }
 

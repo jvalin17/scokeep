@@ -1,5 +1,7 @@
 // Sound effects — synthesized tones, no audio files needed
 
+import { logger } from './logger.js';
+
 export function isMuted() { return localStorage.getItem('scokeep_mute') === '1'; }
 export function toggleMute() {
     const muted = !isMuted();
@@ -40,23 +42,25 @@ export function soundTap() { tone(1200, 0.06, 0.08); }
 
 // Next round — ascending double beep
 export function soundNextRound() {
+    logger.sound('nextRound');
     tone(600, 0.1); setTimeout(() => tone(900, 0.12), 120);
 }
 
 // Start round — bright chord
-export function soundStartRound() { chord([523, 659, 784], 0.2); }
+export function soundStartRound() { logger.sound('startRound'); chord([523, 659, 784], 0.2); }
 
 // Score round — warm resolved chord
-export function soundScoreRound() { chord([440, 554, 659], 0.25, 0.06); }
+export function soundScoreRound() { logger.sound('scoreRound'); chord([440, 554, 659], 0.25, 0.06); }
 
 // End game — descending fanfare
 export function soundEndGame() {
+    logger.sound('endGame');
     tone(784, 0.15); setTimeout(() => tone(659, 0.15), 150);
     setTimeout(() => tone(523, 0.25), 300);
 }
 
 // Undo — low descending tone
-export function soundUndo() { tone(400, 0.12); setTimeout(() => tone(300, 0.15), 130); }
+export function soundUndo() { logger.sound('undo'); tone(400, 0.12); setTimeout(() => tone(300, 0.15), 130); }
 
 // Haptic vibration
 export function haptic(ms = 15) { if (navigator.vibrate) navigator.vibrate(ms); }
