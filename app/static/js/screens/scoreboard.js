@@ -12,16 +12,7 @@ export const scoreboardScreen = {
         const players = game.players;
         const totals = scoreboard.totals;
         const rounds = scoreboard.rounds;
-
-        // Find leader
-        let maxScore = -Infinity;
-        let leaderIndex = '0';
-        for (const [key, val] of Object.entries(totals)) {
-            if (val > maxScore) {
-                maxScore = val;
-                leaderIndex = key;
-            }
-        }
+        const lastRound = rounds.length > 0 ? rounds[rounds.length - 1] : null;
 
         // Check if at set boundary (every 8 rounds)
         const isSetEnd = game.current_round > 1 && (game.current_round - 1) % 8 === 0;
@@ -36,43 +27,23 @@ export const scoreboardScreen = {
                     ${state.playground ? `<span class="share-code-mini">${state.playground.share_code}</span>` : ''}
                 </div>
 
-                <div class="score-table">
-                    <div class="score-header">
-                        <span>Player</span>
-                        <span>Score</span>
-                    </div>
-                    ${players.map((name, index) => {
-                        const key = String(index);
-                        const score = totals[key] || 0;
-                        const isLeader = key === leaderIndex;
-                        return `
-                            <div class="score-row ${isLeader ? 'score-leader' : ''}">
-                                <span>${name} ${isLeader ? '👑' : ''}</span>
-                                <span class="score-value">${score}</span>
-                            </div>
-                        `;
-                    }).join('')}
-                </div>
-
-                ${rounds.length > 0 ? `
-                    <details class="round-history">
-                        <summary>Round History</summary>
-                        <div class="history-table">
-                            <div class="history-header">
-                                <span>Rnd</span>
-                                ${players.map(name => `<span>${name.slice(0, 4)}</span>`).join('')}
-                            </div>
-                            ${rounds.map(round => `
-                                <div class="history-row">
-                                    <span>${round.round_num}</span>
-                                    ${players.map((_, index) => {
-                                        const score = round.scores[String(index)] || 0;
-                                        return `<span class="${score < 0 ? 'score-negative' : ''}">${score > 0 ? '+' : ''}${score}</span>`;
-                                    }).join('')}
-                                </div>
-                            `).join('')}
+                ${lastRound ? `
+                    <div class="score-table">
+                        <div class="score-header">
+                            <span>Player</span>
+                            <span>Round ${lastRound.round_num}</span>
                         </div>
-                    </details>
+                        ${players.map((name, index) => {
+                            const key = String(index);
+                            const score = lastRound.scores[key] || 0;
+                            return `
+                                <div class="score-row">
+                                    <span>${name}</span>
+                                    <span class="score-value ${score < 0 ? 'score-negative' : ''}">${score > 0 ? '+' : ''}${score}</span>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
                 ` : ''}
 
                 <div class="scoreboard-actions">
