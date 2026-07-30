@@ -24,11 +24,11 @@ export const homeScreen = {
                     <div id="player-list" class="player-list">
                         <div class="player-input-row">
                             <input type="text" placeholder="Player 1" class="player-name"
-                                maxlength="20" required autocomplete="off">
+                                maxlength="15" required autocomplete="off">
                         </div>
                         <div class="player-input-row">
                             <input type="text" placeholder="Player 2" class="player-name"
-                                maxlength="20" required autocomplete="off">
+                                maxlength="15" required autocomplete="off">
                         </div>
                     </div>
                     <button type="button" id="add-player" class="btn-text">+ Add player</button>
@@ -92,7 +92,7 @@ export const homeScreen = {
             row.className = 'player-input-row';
             row.innerHTML = `
                 <input type="text" placeholder="Player ${playerCount}" class="player-name"
-                    maxlength="20" autocomplete="off">
+                    maxlength="15" autocomplete="off">
                 <button type="button" class="btn-remove" title="Remove">&times;</button>
             `;
             row.querySelector('.btn-remove').addEventListener('click', () => {

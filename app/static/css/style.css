@@ -334,12 +334,13 @@ input::placeholder { color: var(--text-muted); }
 .bid-summary-row {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     padding: 8px 4px;
     border-bottom: 1px solid var(--border-light);
+    gap: 8px;
 }
+.bid-summary-row span:first-child { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bid-summary-row:last-child { border-bottom: none; }
-.bid-summary-value { font-weight: 700; font-size: 1.2rem; min-width: 24px; text-align: center; }
+.bid-summary-value { font-weight: 700; font-size: 1.2rem; width: 32px; text-align: center; flex-shrink: 0; }
 .btn-edit { font-size: 0.8rem; }
 .bid-total {
     text-align: center;
@@ -465,6 +466,43 @@ input::placeholder { color: var(--text-muted); }
 .active-game-actions .btn { flex: 1; min-width: 120px; }
 
 .scoreboard-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+
+/* Winner celebration (used on scoreboard game-over + final screen) */
+.final-celebration {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 4px; padding: 16px 0 8px; position: relative; overflow: hidden;
+}
+
+/* Confetti */
+.confetti-container {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none; overflow: hidden;
+}
+.confetti-piece {
+    position: absolute; top: -10px; border-radius: 2px;
+    animation: confetti-fall linear forwards;
+    transform: rotate(0deg);
+}
+@keyframes confetti-fall {
+    0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(300px) rotate(720deg); opacity: 0; }
+}
+
+/* Player rankings */
+.final-rankings {
+    margin-top: 16px;
+    background: var(--bg-card); border-radius: var(--radius);
+    box-shadow: var(--shadow); overflow: hidden;
+}
+.rank-row {
+    display: flex; align-items: center; padding: 12px 16px;
+    border-bottom: 1px solid var(--border-light); gap: 12px;
+}
+.rank-row:last-child { border-bottom: none; }
+.rank-first { font-weight: 700; font-size: 1.05rem; }
+.rank-badge { font-size: 1.3rem; width: 32px; text-align: center; }
+.rank-name { flex: 1; }
+.rank-score { font-weight: 700; font-size: 1.1rem; }
 
 /* Final screen */
 .final { display: flex; flex-direction: column; align-items: center; gap: 12px; padding-top: 24px; }

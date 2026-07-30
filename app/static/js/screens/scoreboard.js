@@ -22,17 +22,57 @@ export const scoreboardScreen = {
 
         // Check if at set boundary (every 8 rounds)
         const isSetEnd = game.current_round > 1 && (game.current_round - 1) % 8 === 0;
+        const isLastRound = (game.current_round - 1) >= game.total_rounds;
         const isGameOver = game.status === 'finished';
 
         document.body.setAttribute('data-phase', 'scoreboard');
 
         // Build score display
         let scoreTableHtml = '';
+        let winnerHtml = '';
         if (rounds.length === 0 && isGameOver) {
             scoreTableHtml = `<p style="text-align:center;color:var(--text-muted);padding:24px 0;">No rounds played</p>`;
         } else if (rounds.length > 0 && isGameOver) {
-            // Game over: full detailed scoresheet with all rounds
-            const runningTotals = players.map(() => 0);
+            // Winner celebration
+            const standings = players.map((name, index) => ({
+                name, score: totals[String(index)] || 0,
+            })).sort((a, b) => b.score - a.score);
+            const winner = standings[0];
+            // Confetti particles
+            const confettiPieces = Array.from({ length: 40 }, (_, i) => {
+                const left = Math.random() * 100;
+                const delay = Math.random() * 2;
+                const duration = 2 + Math.random() * 2;
+                const colors = ['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#F7DC6F', '#BB8FCE', '#FF9FF3'];
+                const color = colors[i % colors.length];
+                const size = 6 + Math.random() * 6;
+                return `<div class="confetti-piece" style="left:${left}%;animation-delay:${delay}s;animation-duration:${duration}s;background:${color};width:${size}px;height:${size}px;"></div>`;
+            }).join('');
+
+            // Rankings
+            const rankEmojis = ['🥇', '🥈', '🥉'];
+            const rankingsHtml = `
+                <div class="final-rankings">
+                    ${standings.map((player, rank) => `
+                        <div class="rank-row ${rank === 0 ? 'rank-first' : ''}">
+                            <span class="rank-badge">${rankEmojis[rank] || rank + 1}</span>
+                            <span class="rank-name">${player.name}</span>
+                            <span class="rank-score">${player.score}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+
+            winnerHtml = `
+                <div class="final-celebration">
+                    <div class="confetti-container">${confettiPieces}</div>
+                    <div class="final-trophy">🏆</div>
+                    <h2 class="final-winner">${winner.name}</h2>
+                    <p class="final-score">${winner.score} points</p>
+                </div>
+            `;
+
+            // Game over: full scoresheet — round scores only, total at bottom
             scoreTableHtml = `
                 <div class="score-table score-table-full">
                     <table class="scoresheet">
@@ -44,17 +84,12 @@ export const scoreboardScreen = {
                         </thead>
                         <tbody>
                             ${rounds.map(round => {
-                                players.forEach((_, idx) => {
-                                    runningTotals[idx] += (round.scores[String(idx)] || 0);
-                                });
                                 return `<tr>
                                     <td>${round.round_num}</td>
                                     ${players.map((_, idx) => {
                                         const roundScore = round.scores[String(idx)] || 0;
-                                        const total = runningTotals[idx];
                                         return `<td class="${roundScore < 0 ? 'score-negative' : ''}">
-                                            <span class="round-score">${roundScore > 0 ? '+' : ''}${roundScore}</span>
-                                            <span class="running-total">${total}</span>
+                                            ${roundScore > 0 ? '+' : ''}${roundScore}
                                         </td>`;
                                     }).join('')}
                                 </tr>`;
@@ -68,26 +103,24 @@ export const scoreboardScreen = {
                         </tfoot>
                     </table>
                 </div>
+                ${rankingsHtml}
             `;
         } else if (rounds.length > 0) {
-            // Between rounds: show only last round's scores + running totals
+            // Between rounds: round score only — no grand total
             const lastRound = rounds[rounds.length - 1];
             scoreTableHtml = `
                 <div class="score-table">
                     <div class="score-header">
                         <span>Player</span>
                         <span>Round ${lastRound.round_num}</span>
-                        <span>Total</span>
                     </div>
                     ${players.map((name, index) => {
                         const key = String(index);
                         const score = lastRound.scores[key] || 0;
-                        const total = totals[key] || 0;
                         return `
                             <div class="score-row">
                                 <span>${name}</span>
                                 <span class="score-value ${score < 0 ? 'score-negative' : ''}">${score > 0 ? '+' : ''}${score}</span>
-                                <span class="score-value"><strong>${total}</strong></span>
                             </div>
                         `;
                     }).join('')}
@@ -97,22 +130,27 @@ export const scoreboardScreen = {
 
         container.innerHTML = `
             <div class="scoreboard">
-                <div class="round-info">
-                    <span>${isGameOver ? 'Game Over' : `After Round ${game.current_round - 1}`}</span>
-                    ${state.playground ? `<button class="btn-home" onclick="location.hash='playground/${state.playground.share_code}'">🏠</button>` : ''}
-                </div>
+                ${isGameOver ? winnerHtml : `
+                    <div class="round-info">
+                        <span>After Round ${game.current_round - 1}</span>
+                        ${state.playground ? `<button class="btn-home" onclick="location.hash='playground/${state.playground.share_code}'">🏠</button>` : ''}
+                    </div>
+                `}
 
                 ${scoreTableHtml}
 
                 <div class="scoreboard-actions">
-                    ${!isGameOver ? `
+                    ${isGameOver ? `
+                        <button onclick="location.hash=''" class="btn btn-primary">🏠 Home</button>
+                    ` : isLastRound ? `
+                        <button id="end-game" class="btn btn-primary">End Game</button>
+                        <button id="undo-round" class="btn-text">Undo Last Round</button>
+                    ` : `
                         <button id="next-round" class="btn btn-primary">
                             ${isSetEnd ? 'Continue (Next Set)' : 'Next Round'}
                         </button>
                         <button id="end-game" class="btn-text" style="margin-top: 32px; color: var(--danger);">End Game</button>
                         <button id="undo-round" class="btn-text">Undo Last Round</button>
-                    ` : `
-                        <button onclick="location.hash=''" class="btn btn-primary">🏠 Home</button>
                     `}
                 </div>
                 <p id="scoreboard-error" class="error hidden"></p>
@@ -120,26 +158,27 @@ export const scoreboardScreen = {
         `;
 
         if (!isGameOver) {
-            container.querySelector('#next-round').addEventListener('click', async () => {
-                try {
-                    await nextRound(gameId);
-                    soundNextRound();
-                    navigate(`bid/${gameId}`);
-                } catch (error) {
-                    showError(error.message);
-                }
-            });
-
-            container.querySelector('#end-game').addEventListener('click', async () => {
-                if (confirm('End this game?')) {
+            const nextRoundBtn = container.querySelector('#next-round');
+            if (nextRoundBtn) {
+                nextRoundBtn.addEventListener('click', async () => {
                     try {
-                        await endGame(gameId);
-                        soundEndGame();
-                        navigate(`scoreboard/${gameId}`);
-                        window.dispatchEvent(new HashChangeEvent('hashchange'));
+                        await nextRound(gameId);
+                        soundNextRound();
+                        navigate(`bid/${gameId}`);
                     } catch (error) {
                         showError(error.message);
                     }
+                });
+            }
+
+            container.querySelector('#end-game').addEventListener('click', async () => {
+                try {
+                    await endGame(gameId);
+                    soundEndGame();
+                    navigate(`scoreboard/${gameId}`);
+                    window.dispatchEvent(new HashChangeEvent('hashchange'));
+                } catch (error) {
+                    showError(error.message);
                 }
             });
 

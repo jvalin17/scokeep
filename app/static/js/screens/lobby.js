@@ -55,7 +55,7 @@ export const lobbyScreen = {
                         </div>
                         <div class="add-player-row">
                             <input type="text" id="new-player" placeholder="Add player"
-                                maxlength="20" autocomplete="off">
+                                maxlength="15" autocomplete="off">
                             <button id="add-player-btn" class="btn-small">Add</button>
                         </div>
                     </section>
@@ -217,8 +217,6 @@ export const lobbyScreen = {
                 if (gameType === 'kachuful') {
                     const numSets = parseInt(container.querySelector('#setting-sets').value);
                     const roundsPerSet = parseInt(container.querySelector('#setting-set-type').value);
-                    const totalRounds = numSets * roundsPerSet;
-                    if (!confirm(`Start game with ${numSets} set${numSets > 1 ? 's' : ''} (${totalRounds} rounds, ${roundsPerSet} cards max)?`)) return;
                     settings = {
                         game_type: 'kachuful',
                         mode: container.querySelector('#setting-mode').value,
