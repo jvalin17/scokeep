@@ -12,11 +12,22 @@ class AnalyticsService:
     @staticmethod
     async def get_playground_stats(db: AsyncSession, playground_id: int) -> dict:
         games, all_rounds = await AnalyticsService._load_data(db, playground_id)
+        empty_highlights = {
+            "career": {
+                "sniper": [], "zero_master": [], "high_roller": [],
+                "all_in": [], "jinxed": [], "perfect_set": [],
+            },
+            "recent": {
+                "hot_hand": None, "on_fire": None,
+                "streak": None, "dodger": None,
+            },
+        }
         if not games:
             return {
                 "leaderboard": [],
                 "game_history": [],
                 "trends": [],
+                "highlights": empty_highlights,
                 "total_games": 0,
             }
 
@@ -28,11 +39,15 @@ class AnalyticsService:
         trends = AnalyticsService._calc_trends(
             games, rounds_by_game,
         )
+        highlights = AnalyticsService._calc_highlights(
+            games, rounds_by_game,
+        )
 
         return {
             "leaderboard": leaderboard,
             "game_history": game_history[:20],
             "trends": trends,
+            "highlights": highlights,
             "total_games": len(games),
         }
 
@@ -229,6 +244,173 @@ class AnalyticsService:
             {"name": name, **data}
             for name, data in trend_data.items()
         ]
+
+    @staticmethod
+    def _calc_highlights(games, rounds_by_game) -> dict:
+        """Calculate player highlights: career records + recent form."""
+        all_players: set[str] = set()
+        for g in games:
+            all_players.update(g.players)
+
+        # Career counters per player
+        career: dict[str, dict] = {}
+        for name in all_players:
+            career[name] = {
+                "sniper": 0, "zero_master": 0, "high_roller": 0,
+                "all_in": 0, "current_miss_streak": 0, "longest_miss_streak": 0,
+                "perfect_sets": 0,
+            }
+
+        # Recent form: track per-round scores for last 3 games
+        sorted_games = sorted(games, key=lambda g: g.started_at or g.id)
+        recent_games = sorted_games[-3:]
+        recent_game_ids = {g.id for g in recent_games}
+
+        # Recent form trackers
+        hot_hand_best = None  # {"name", "score", "round", "game_id"}
+        recent_bids_made: dict[str, int] = dict.fromkeys(all_players, 0)
+        recent_bids_total: dict[str, int] = dict.fromkeys(all_players, 0)
+        current_bid_streak: dict[str, int] = dict.fromkeys(all_players, 0)
+        current_zero_streak: dict[str, int] = dict.fromkeys(all_players, 0)
+
+        for game in sorted_games:
+            players = game.players
+            game_rounds = rounds_by_game.get(game.id, [])
+            if not game_rounds:
+                continue
+
+            is_recent = game.id in recent_game_ids
+            rounds_per_set = game.settings.get("rounds_per_set", 8)
+
+            # Track per-set accuracy for perfect set detection
+            set_bids: dict[str, list[bool]] = {name: [] for name in players}
+
+            for round_idx, r in enumerate(game_rounds):
+                for idx_str in r.bids:
+                    idx = int(idx_str)
+                    if idx >= len(players):
+                        continue
+                    name = players[idx]
+                    bid = r.bids.get(idx_str)
+                    hand = r.hands_won.get(idx_str)
+                    score = r.scores.get(idx_str, 0)
+                    if bid is None or hand is None:
+                        continue
+
+                    made = bid == hand
+
+                    # Career: sniper (bid 1 made)
+                    if bid == 1 and made:
+                        career[name]["sniper"] += 1
+
+                    # Career: zero master (bid 0 made)
+                    if bid == 0 and made:
+                        career[name]["zero_master"] += 1
+
+                    # Career: high roller (bid 3+ made)
+                    if bid >= 3 and made:
+                        career[name]["high_roller"] += 1
+
+                    # Career: all-in (bid = cards dealt and made)
+                    if bid == r.cards_dealt and made:
+                        career[name]["all_in"] += 1
+
+                    # Career: jinxed (miss streak)
+                    if not made:
+                        career[name]["current_miss_streak"] += 1
+                        current = career[name]["current_miss_streak"]
+                        if current > career[name]["longest_miss_streak"]:
+                            career[name]["longest_miss_streak"] = current
+                    else:
+                        career[name]["current_miss_streak"] = 0
+
+                    # Perfect set tracking
+                    set_bids[name].append(made)
+
+                    # Recent: hot hand (highest single-round score)
+                    if is_recent:
+                        recent_bids_total[name] = recent_bids_total.get(name, 0) + 1
+                        if made:
+                            recent_bids_made[name] = recent_bids_made.get(name, 0) + 1
+                        if hot_hand_best is None or score > hot_hand_best["score"]:
+                            hot_hand_best = {
+                                "name": name, "score": score,
+                                "round": r.round_num, "game_id": game.id,
+                            }
+
+                    # Bid streak (consecutive bids made, resets on miss)
+                    if made:
+                        current_bid_streak[name] = current_bid_streak.get(name, 0) + 1
+                    else:
+                        current_bid_streak[name] = 0
+
+                    # Dodger (consecutive 0-bids made, resets on miss or non-0 bid)
+                    if bid == 0 and made:
+                        current_zero_streak[name] = current_zero_streak.get(name, 0) + 1
+                    else:
+                        current_zero_streak[name] = 0
+
+                # Check for perfect set at set boundaries
+                if (round_idx + 1) % rounds_per_set == 0:
+                    for name in players:
+                        results = set_bids.get(name, [])
+                        if len(results) >= rounds_per_set and all(results[-rounds_per_set:]):
+                            career[name]["perfect_sets"] += 1
+                    set_bids = {name: [] for name in players}
+
+        # Build career tables (sorted by count descending)
+        def career_table(key, count_key="count"):
+            table = []
+            for name, data in career.items():
+                value = data[key]
+                if count_key == "longest":
+                    table.append({"name": name, "longest": value})
+                else:
+                    table.append({"name": name, "count": value})
+            sort_key = "longest" if count_key == "longest" else "count"
+            table.sort(key=lambda x: -x[sort_key])
+            return table
+
+        # Build recent form
+        def best_by_value(tracker):
+            if not tracker:
+                return None
+            name, count = max(tracker.items(), key=lambda x: x[1])
+            return {"name": name, "count": count} if count > 0 else None
+
+        on_fire = None
+        if recent_bids_total:
+            best_recent = max(
+                recent_bids_total.keys(),
+                key=lambda n: (
+                    recent_bids_made.get(n, 0) / recent_bids_total[n]
+                ) if recent_bids_total[n] > 0 else 0,
+            )
+            if recent_bids_total[best_recent] > 0:
+                accuracy = round(
+                    recent_bids_made.get(best_recent, 0)
+                    / recent_bids_total[best_recent] * 100,
+                )
+                on_fire = {"name": best_recent, "accuracy": accuracy}
+
+        return {
+            "career": {
+                "sniper": career_table("sniper"),
+                "zero_master": career_table("zero_master"),
+                "high_roller": career_table("high_roller"),
+                "all_in": career_table("all_in"),
+                "jinxed": career_table(
+                    "longest_miss_streak", "longest",
+                ),
+                "perfect_set": career_table("perfect_sets"),
+            },
+            "recent": {
+                "hot_hand": hot_hand_best,
+                "on_fire": on_fire,
+                "streak": best_by_value(current_bid_streak),
+                "dodger": best_by_value(current_zero_streak),
+            },
+        }
 
     @staticmethod
     async def clear_stats(db: AsyncSession, playground_id: int) -> int:

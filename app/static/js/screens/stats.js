@@ -50,6 +50,7 @@ export const statsScreen = {
                         <button class="stats-tab ${activeTab === 'leaderboard' ? 'active' : ''}" data-tab="leaderboard">Leaderboard</button>
                         <button class="stats-tab ${activeTab === 'accuracy' ? 'active' : ''}" data-tab="accuracy">Accuracy</button>
                         <button class="stats-tab ${activeTab === 'trends' ? 'active' : ''}" data-tab="trends">Trends</button>
+                        <button class="stats-tab ${activeTab === 'highlights' ? 'active' : ''}" data-tab="highlights">Awards</button>
                         <button class="stats-tab ${activeTab === 'history' ? 'active' : ''}" data-tab="history">Games</button>
                     </div>
 
@@ -57,6 +58,7 @@ export const statsScreen = {
                         ${activeTab === 'leaderboard' ? renderLeaderboard() : ''}
                         ${activeTab === 'accuracy' ? renderAccuracy() : ''}
                         ${activeTab === 'trends' ? renderTrends() : ''}
+                        ${activeTab === 'highlights' ? renderHighlights() : ''}
                         ${activeTab === 'history' ? renderHistory() : ''}
                     </div>
 
@@ -192,10 +194,10 @@ export const statsScreen = {
                                     <div style="width:${exPct}%;background:#C8E6C9;" title="Exact ${exPct}%"></div>
                                     <div style="width:${ubPct}%;background:#FFE0B2;" title="Underbid ${ubPct}%"></div>
                                 </div>
-                                <div style="display:flex;justify-content:space-between;font-size:0.7rem;color:var(--text-muted);margin-top:2px;">
-                                    <span>OB ${t.overbids}</span>
-                                    <span>Exact ${exact}</span>
-                                    <span>UB ${t.underbids}</span>
+                                <div style="font-size:0.75rem;color:var(--text-muted);margin-top:6px;line-height:1.6;">
+                                    <div>Overbid: ${t.overbids} rounds</div>
+                                    <div>Exact: ${exact} rounds</div>
+                                    <div>Underbid: ${t.underbids} rounds</div>
                                 </div>
                             </div>
                         `;
@@ -217,6 +219,78 @@ export const statsScreen = {
                             `;
                         }).join('')
                     }
+                </div>
+            `;
+        }
+
+        function renderHighlights() {
+            const highlights = stats.highlights;
+            if (!highlights) return '<p class="stats-empty">No highlights yet.</p>';
+
+            const { career, recent } = highlights;
+
+            function careerTable(title, emoji, data, valueKey = 'count') {
+                if (!data || !data.length) return '';
+                const filtered = data.filter(p => p[valueKey] > 0);
+                if (!filtered.length) return '';
+                return `
+                    <div class="stats-card" style="margin-bottom:12px;">
+                        <h4 style="margin-bottom:8px;">${emoji} ${title}</h4>
+                        ${filtered.map((p, i) => `
+                            <div class="stats-bar-row">
+                                <span class="stats-bar-name">${p.name}</span>
+                                <span class="stats-bar-value">${p[valueKey]}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            function recentCard(title, emoji, data) {
+                if (!data) return '';
+                let detail = '';
+                if (data.score !== undefined) {
+                    detail = `+${data.score} in Round ${data.round}`;
+                } else if (data.accuracy !== undefined) {
+                    detail = `${data.accuracy}% accuracy`;
+                } else if (data.count !== undefined) {
+                    detail = `${data.count} in a row`;
+                }
+                return `
+                    <div class="stats-card" style="margin-bottom:8px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <span>${emoji} ${title}</span>
+                            <strong>${data.name}</strong>
+                        </div>
+                        <div class="stats-muted" style="margin-top:4px;">
+                            ${detail}
+                        </div>
+                    </div>
+                `;
+            }
+
+            const hasRecent = recent.hot_hand || recent.on_fire
+                || recent.streak || recent.dodger;
+
+            return `
+                <div class="stats-section">
+                    ${hasRecent ? `
+                        <h3 style="margin-bottom:12px;">Recent Form (last 3 games)</h3>
+                        ${recentCard('Hot Hand', '🔥', recent.hot_hand)}
+                        ${recentCard('On Fire', '🎯', recent.on_fire)}
+                        ${recentCard('Streak', '⚡', recent.streak)}
+                        ${recentCard('Dodger', '🥷', recent.dodger)}
+                    ` : ''}
+
+                    <h3 style="margin:20px 0 12px;">Career Records</h3>
+                    ${careerTable('Sniper', '🎯', career.sniper)}
+                    ${careerTable('Zero Master', '🥷', career.zero_master)}
+                    ${careerTable('High Roller', '🎲', career.high_roller)}
+                    ${careerTable('All-in', '💎', career.all_in)}
+                    ${careerTable('Jinxed', '😵', career.jinxed, 'longest')}
+                    ${careerTable('Perfect Set', '⭐', career.perfect_set)}
+
+                    ${!hasRecent && !career.sniper?.some(p => p.count > 0) ? '<p class="stats-muted">Play more games to unlock awards!</p>' : ''}
                 </div>
             `;
         }
