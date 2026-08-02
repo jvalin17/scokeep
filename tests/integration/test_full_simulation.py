@@ -750,7 +750,7 @@ class TestFullGameSimulation:
             f"/api/game/{game_id}/extend", cookies=cookies,
         )
         assert resp.status_code == 200
-        assert resp.json()["total_rounds"] == 12  # 4 + 8 (extends by ROUNDS_PER_SET)
+        assert resp.json()["total_rounds"] == 8  # 4 + 4 (extends by game's rounds_per_set)
 
 
 # ---------------------------------------------------------------------------
@@ -782,3 +782,78 @@ class TestSecurityBasics:
             f"/api/game/{game['id']}", cookies=cookies2,
         )
         assert resp.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# End game from any phase (BUG-009)
+# ---------------------------------------------------------------------------
+
+class TestEndGameFromAnyPhase:
+    """BUG-009 — End Game button must work from bidding phase."""
+
+    async def test_end_game_during_bidding_no_bids(self, client: AsyncClient):
+        """End game immediately from bidding with zero bids submitted."""
+        pg, cookies = await create_playground(
+            client, "Early Exit Crew", "4321", ["Nadia", "Carlos", "Wei"],
+        )
+        game = await start_game(
+            client, pg["id"], cookies, ["Nadia", "Carlos", "Wei"],
+        )
+        assert game["phase"] == "bidding"
+
+        resp = await client.post(
+            f"/api/game/{game['id']}/end", cookies=cookies,
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["status"] == "finished"
+        assert body["phase"] == "final"
+
+        # Scoreboard still accessible with zero rounds
+        sb = await client.get(
+            f"/api/game/{game['id']}/scoreboard", cookies=cookies,
+        )
+        assert sb.status_code == 200
+        assert sb.json()["rounds"] == []
+
+    async def test_end_game_during_bidding_partial_bids(self, client: AsyncClient):
+        """End game mid-bidding with some bids submitted."""
+        pg, cookies = await create_playground(
+            client, "Partial Bid Exit", "9876", ["Lena", "Marco"],
+        )
+        game = await start_game(
+            client, pg["id"], cookies, ["Lena", "Marco"],
+        )
+        # Submit only one bid
+        resp = await client.post(f"/api/game/{game['id']}/bid", json={
+            "player_index": 0, "value": 3,
+        }, cookies=cookies)
+        assert resp.status_code == 200
+
+        # End game with partial bids
+        resp = await client.post(
+            f"/api/game/{game['id']}/end", cookies=cookies,
+        )
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "finished"
+
+    async def test_end_game_during_bidding_all_bids(self, client: AsyncClient):
+        """End game after all bids submitted but before starting round."""
+        pg, cookies = await create_playground(
+            client, "Full Bid Exit", "5555", ["Anya", "Riku"],
+        )
+        game = await start_game(
+            client, pg["id"], cookies, ["Anya", "Riku"],
+        )
+        # Submit all bids
+        for i in range(2):
+            await client.post(f"/api/game/{game['id']}/bid", json={
+                "player_index": i, "value": 2,
+            }, cookies=cookies)
+
+        # End game from confirm screen
+        resp = await client.post(
+            f"/api/game/{game['id']}/end", cookies=cookies,
+        )
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "finished"

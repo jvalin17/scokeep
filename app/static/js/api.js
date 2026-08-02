@@ -107,6 +107,10 @@ export function endGame(gameId) {
     return request('POST', `/game/${gameId}/end`);
 }
 
+export function extendGame(gameId) {
+    return request('POST', `/game/${gameId}/extend`);
+}
+
 // Round
 export function submitBid(gameId, playerIndex, value) {
     return request('POST', `/game/${gameId}/bid`, {

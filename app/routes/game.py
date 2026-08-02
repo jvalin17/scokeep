@@ -17,9 +17,11 @@ async def create_game(
     playground_id: int = Depends(require_auth),
     db: AsyncSession = Depends(get_db),
 ):
+    if data.playground_id != playground_id:
+        raise HTTPException(status_code=403, detail="Access denied")
     game = await GameService.create(
         db=db,
-        playground_id=data.playground_id,
+        playground_id=playground_id,
         players=data.players,
         settings=data.settings.model_dump(),
     )
@@ -29,9 +31,11 @@ async def create_game(
 @router.get("/active/{playground_id}", response_model=GameResponse)
 async def get_active_game(
     playground_id: int,
-    _auth_playground_id: int = Depends(require_auth),
+    auth_playground_id: int = Depends(require_auth),
     db: AsyncSession = Depends(get_db),
 ):
+    if playground_id != auth_playground_id:
+        raise HTTPException(status_code=403, detail="Access denied")
     game = await GameService.get_active_for_playground(db, playground_id)
     if not game:
         raise HTTPException(status_code=404, detail="No active game")

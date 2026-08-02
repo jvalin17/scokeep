@@ -127,3 +127,125 @@ class TestCrossPlaygroundAuth:
 
         resp = await client.get(f"/api/game/{game_a['id']}", cookies=cookies_a)
         assert resp.status_code == 200
+
+
+class TestGameCreateAuth:
+    """IDOR — game creation must use session playground_id, not request body."""
+
+    async def test_cannot_create_game_under_other_playground(
+        self, client: AsyncClient,
+    ):
+        """User authed to playground A must NOT create a game under playground B."""
+        pg_a, cookies_a = await _create_playground_and_auth(
+            client, "Create Auth Alpha",
+        )
+        pg_b, cookies_b = await _create_playground_and_auth(
+            client, "Create Auth Beta", pin="5678",
+        )
+
+        # User A tries to create a game under playground B
+        resp = await client.post("/api/game", json={
+            "playground_id": pg_b["id"],
+            "players": ["Nadia", "Carlos", "Wei"],
+            "settings": {},
+        }, cookies=cookies_a)
+        assert resp.status_code == 403, (
+            f"Expected 403 for cross-playground game create, got {resp.status_code}"
+        )
+
+    async def test_own_playground_game_create_works(self, client: AsyncClient):
+        """User authed to playground A CAN create games in their own playground."""
+        pg, cookies = await _create_playground_and_auth(
+            client, "Create Auth Own",
+        )
+        resp = await client.post("/api/game", json={
+            "playground_id": pg["id"],
+            "players": ["Nadia", "Carlos", "Wei"],
+            "settings": {},
+        }, cookies=cookies)
+        assert resp.status_code == 201
+
+
+class TestActiveGameAuth:
+    """IDOR — active game query must verify session matches path playground_id."""
+
+    async def test_cannot_query_other_playground_active_game(
+        self, client: AsyncClient,
+    ):
+        """User authed to playground A must NOT query playground B's active game."""
+        pg_a, cookies_a = await _create_playground_and_auth(
+            client, "Active Auth Alpha",
+        )
+        pg_b, cookies_b = await _create_playground_and_auth(
+            client, "Active Auth Beta", pin="5678",
+        )
+
+        # Create a game in B
+        await _create_game(client, pg_b["id"], cookies_b)
+
+        # User A queries B's active game
+        resp = await client.get(
+            f"/api/game/active/{pg_b['id']}", cookies=cookies_a,
+        )
+        assert resp.status_code == 403, (
+            f"Expected 403 for cross-playground active query, got {resp.status_code}"
+        )
+
+    async def test_own_playground_active_game_works(self, client: AsyncClient):
+        """User can query their own playground's active game."""
+        pg, cookies = await _create_playground_and_auth(
+            client, "Active Auth Own",
+        )
+        await _create_game(client, pg["id"], cookies)
+
+        resp = await client.get(
+            f"/api/game/active/{pg['id']}", cookies=cookies,
+        )
+        assert resp.status_code == 200
+
+
+class TestStatsEndpointAuth:
+    """IDOR — stats endpoints must check playground_id matches share_code's playground."""
+
+    async def test_cannot_read_other_playground_stats(self, client: AsyncClient):
+        """User authed to playground A must NOT read playground B's stats."""
+        pg_a, cookies_a = await _create_playground_and_auth(client, "Stats Crew Alpha")
+        pg_b, cookies_b = await _create_playground_and_auth(client, "Stats Crew Beta")
+
+        # Create and finish a game in playground B so it has stats
+        game = await _create_game(client, pg_b["id"], cookies_b)
+        await client.post(f"/api/game/{game['id']}/end", cookies=cookies_b)
+
+        # User A tries to read B's stats
+        resp = await client.get(
+            f"/api/playground/{pg_b['share_code']}/stats", cookies=cookies_a,
+        )
+        assert resp.status_code == 403, (
+            f"Expected 403 for cross-playground stats, got {resp.status_code}"
+        )
+
+    async def test_cannot_delete_other_playground_stats(self, client: AsyncClient):
+        """User authed to playground A must NOT delete playground B's stats."""
+        pg_a, cookies_a = await _create_playground_and_auth(client, "Delete Crew Alpha")
+        pg_b, cookies_b = await _create_playground_and_auth(client, "Delete Crew Beta")
+
+        game = await _create_game(client, pg_b["id"], cookies_b)
+        await client.post(f"/api/game/{game['id']}/end", cookies=cookies_b)
+
+        resp = await client.delete(
+            f"/api/playground/{pg_b['share_code']}/stats", cookies=cookies_a,
+        )
+        assert resp.status_code == 403, (
+            f"Expected 403 for cross-playground stats delete, got {resp.status_code}"
+        )
+
+    async def test_own_playground_stats_works(self, client: AsyncClient):
+        """User authed to playground A CAN read their own stats (sanity)."""
+        pg, cookies = await _create_playground_and_auth(client, "Own Stats Crew")
+        game = await _create_game(client, pg["id"], cookies)
+        await client.post(f"/api/game/{game['id']}/end", cookies=cookies)
+
+        resp = await client.get(
+            f"/api/playground/{pg['share_code']}/stats", cookies=cookies,
+        )
+        assert resp.status_code == 200

@@ -1,6 +1,6 @@
 // Round end screen — hands won entry via keypad + back button
 
-import { getGame, submitHands, endRound, endGame, resyncGame, guardPhase } from '../api.js';
+import { submitHands, endRound, endGame, resyncGame, guardPhase } from '../api.js';
 import { Keypad } from '../components/keypad.js';
 import { getRoundCards, getTrump } from '../components/game-utils.js';
 import { soundScoreRound, soundEndGame } from '../components/sounds.js';

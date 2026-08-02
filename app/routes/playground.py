@@ -125,6 +125,8 @@ async def get_playground_stats(
     playground = await PlaygroundService.get_by_share_code(db, share_code)
     if not playground:
         raise HTTPException(status_code=404, detail="Playground not found")
+    if playground.id != playground_id:
+        raise HTTPException(status_code=403, detail="Access denied")
     return await AnalyticsService.get_playground_stats(db, playground.id)
 
 
@@ -138,5 +140,7 @@ async def clear_playground_stats(
     playground = await PlaygroundService.get_by_share_code(db, share_code)
     if not playground:
         raise HTTPException(status_code=404, detail="Playground not found")
+    if playground.id != playground_id:
+        raise HTTPException(status_code=403, detail="Access denied")
     count = await AnalyticsService.clear_stats(db, playground.id)
     return {"deleted_games": count}

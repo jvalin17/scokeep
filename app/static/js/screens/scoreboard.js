@@ -1,6 +1,6 @@
 // Scoreboard screen — cumulative scores, next round / end game
 
-import { getGame, getScoreboard, undoRound, endGame, nextRound } from '../api.js';
+import { getGame, getScoreboard, undoRound, endGame, nextRound, extendGame } from '../api.js';
 import { soundNextRound, soundEndGame, soundUndo } from '../components/sounds.js';
 
 export const scoreboardScreen = {
@@ -20,8 +20,9 @@ export const scoreboardScreen = {
         const totals = scoreboard.totals;
         const rounds = scoreboard.rounds;
 
-        // Check if at set boundary (every 8 rounds)
-        const isSetEnd = game.current_round > 1 && (game.current_round - 1) % 8 === 0;
+        // Check if at set boundary
+        const roundsPerSet = game.settings.rounds_per_set || 8;
+        const isSetEnd = game.current_round > 1 && (game.current_round - 1) % roundsPerSet === 0;
         const isLastRound = (game.current_round - 1) >= game.total_rounds;
         const isGameOver = game.status === 'finished';
 
@@ -143,12 +144,16 @@ export const scoreboardScreen = {
                     ${isGameOver ? `
                         <button onclick="location.hash=''" class="btn btn-primary">🏠 Home</button>
                     ` : isLastRound ? `
-                        <button id="end-game" class="btn btn-primary">End Game</button>
+                        <button id="extend-game" class="btn btn-primary">Add Another Set</button>
+                        <button id="end-game" class="btn" style="margin-top: 12px;">End Game</button>
+                        <button id="undo-round" class="btn-text">Undo Last Round</button>
+                    ` : isSetEnd ? `
+                        <button id="next-round" class="btn btn-primary">Next Round</button>
+                        <button id="extend-game" class="btn" style="margin-top: 12px;">Add Another Set</button>
+                        <button id="end-game" class="btn-text" style="margin-top: 32px; color: var(--danger);">End Game</button>
                         <button id="undo-round" class="btn-text">Undo Last Round</button>
                     ` : `
-                        <button id="next-round" class="btn btn-primary">
-                            ${isSetEnd ? 'Continue (Next Set)' : 'Next Round'}
-                        </button>
+                        <button id="next-round" class="btn btn-primary">Next Round</button>
                         <button id="end-game" class="btn-text" style="margin-top: 32px; color: var(--danger);">End Game</button>
                         <button id="undo-round" class="btn-text">Undo Last Round</button>
                     `}
@@ -162,6 +167,20 @@ export const scoreboardScreen = {
             if (nextRoundBtn) {
                 nextRoundBtn.addEventListener('click', async () => {
                     try {
+                        await nextRound(gameId);
+                        soundNextRound();
+                        navigate(`bid/${gameId}`);
+                    } catch (error) {
+                        showError(error.message);
+                    }
+                });
+            }
+
+            const extendBtn = container.querySelector('#extend-game');
+            if (extendBtn) {
+                extendBtn.addEventListener('click', async () => {
+                    try {
+                        await extendGame(gameId);
                         await nextRound(gameId);
                         soundNextRound();
                         navigate(`bid/${gameId}`);

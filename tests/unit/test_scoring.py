@@ -10,7 +10,11 @@ Every branch of the scoring formula is tested:
 
 import pytest
 
-from app.services.scoring import calculate_round_scores, kachuful_standard
+from app.services.scoring import (
+    calculate_round_scores,
+    kachuful_standard,
+    kachuful_zeros,
+)
 
 
 class TestKachufulStandardSinglePlayer:
@@ -48,6 +52,46 @@ class TestKachufulStandardSinglePlayer:
 
     def test_bid_eight_missed(self):
         assert kachuful_standard(bid=8, actual=7) == -80
+
+
+class TestKachufulZerosSinglePlayer:
+    """Zeros mode: bid 1 made = 10 (not 11). Bid 0 same as standard."""
+
+    def test_bid_zero_made(self):
+        assert kachuful_zeros(bid=0, actual=0) == 10
+
+    def test_bid_zero_missed(self):
+        assert kachuful_zeros(bid=0, actual=2) == -10
+
+    def test_bid_one_made_scores_10_not_11(self):
+        """Key difference: bid 1 made = 10, not 11."""
+        assert kachuful_zeros(bid=1, actual=1) == 10
+
+    def test_bid_one_missed(self):
+        assert kachuful_zeros(bid=1, actual=0) == -10
+
+    def test_bid_two_made(self):
+        assert kachuful_zeros(bid=2, actual=2) == 20
+
+    def test_bid_two_missed(self):
+        assert kachuful_zeros(bid=2, actual=1) == -20
+
+    def test_bid_five_made(self):
+        assert kachuful_zeros(bid=5, actual=5) == 50
+
+    def test_bid_eight_made(self):
+        assert kachuful_zeros(bid=8, actual=8) == 80
+
+
+class TestZerosRoundScoring:
+    """Full round scoring with zeros formula."""
+
+    def test_zeros_formula_via_calculate(self):
+        bids = {"0": 2, "1": 0, "2": 1, "3": 1}
+        hands_won = {"0": 2, "1": 0, "2": 1, "3": 0}
+        scores = calculate_round_scores(bids, hands_won, "kachuful_zeros")
+        # bid 2 made=20, bid 0 made=10, bid 1 made=10 (not 11!), bid 1 miss=-10
+        assert scores == {"0": 20, "1": 10, "2": 10, "3": -10}
 
 
 class TestCalculateRoundScores:

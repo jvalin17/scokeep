@@ -86,8 +86,9 @@ class GameService:
 
     @staticmethod
     async def extend_game(db: AsyncSession, game: Game) -> None:
-        """Add another set (8 rounds) to the game."""
-        game.total_rounds += ROUNDS_PER_SET
+        """Add another set to the game."""
+        rounds_per_set = game.settings.get("rounds_per_set", ROUNDS_PER_SET)
+        game.total_rounds += rounds_per_set
         num_sets = game.settings.get("num_sets", 3) + 1
         game.settings = {**game.settings, "num_sets": num_sets}
         await db.commit()

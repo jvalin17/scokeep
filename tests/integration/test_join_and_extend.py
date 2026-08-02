@@ -136,3 +136,192 @@ class TestExtendGame:
             f"/api/game/{game_id}/extend", cookies=cookies,
         )
         assert resp.status_code == 409
+
+
+class TestExtendAndPlayNextSet:
+    """Extend game then play into the new set — full integration."""
+
+    async def test_extend_then_next_round_plays_alternating_set(
+        self, client: AsyncClient,
+    ):
+        """After extending a 1-set game, next set alternates direction (1→8)."""
+        pg, cookies = await _setup(client, "Extend Play Alt")
+        game_resp = await client.post("/api/game", json={
+            "playground_id": pg["id"],
+            "players": ["Nadia", "Carlos"],
+            "settings": {"num_sets": 1, "rounds_per_set": 4},
+        }, cookies=cookies)
+        game = game_resp.json()
+        game_id = game["id"]
+        assert game["total_rounds"] == 4
+
+        # Play all 4 rounds (set 1: 4,3,2,1 cards)
+        for round_num in range(4):
+            bids = [1, 1]
+            cards = 4 - round_num  # descending
+            hands = [1, cards - 1]
+            for i, bid in enumerate(bids):
+                await client.post(f"/api/game/{game_id}/bid", json={
+                    "player_index": i, "value": bid,
+                }, cookies=cookies)
+            await client.post(
+                f"/api/game/{game_id}/start-round", cookies=cookies,
+            )
+            await client.post(
+                f"/api/game/{game_id}/enter-round-end", cookies=cookies,
+            )
+            for i, hand in enumerate(hands):
+                await client.post(f"/api/game/{game_id}/hands", json={
+                    "player_index": i, "value": hand,
+                }, cookies=cookies)
+            await client.post(
+                f"/api/game/{game_id}/end-round", cookies=cookies,
+            )
+            if round_num < 3:
+                await client.post(
+                    f"/api/game/{game_id}/next-round", cookies=cookies,
+                )
+
+        # At scoreboard after round 4 — extend
+        resp = await client.post(
+            f"/api/game/{game_id}/extend", cookies=cookies,
+        )
+        assert resp.status_code == 200
+        assert resp.json()["total_rounds"] == 8
+
+        # Advance to round 5
+        resp = await client.post(
+            f"/api/game/{game_id}/next-round", cookies=cookies,
+        )
+        assert resp.status_code == 200
+        assert resp.json()["current_round"] == 5
+
+        # Round 5 is set 2, ascending: 1 card
+        bids_resp = await client.post(f"/api/game/{game_id}/bid", json={
+            "player_index": 0, "value": 0,
+        }, cookies=cookies)
+        assert bids_resp.json()["cards_dealt"] == 1
+
+    async def test_extend_preserves_scores(self, client: AsyncClient):
+        """Scores from before extend are preserved in scoreboard."""
+        pg, cookies = await _setup(client, "Extend Scores")
+        game_resp = await client.post("/api/game", json={
+            "playground_id": pg["id"],
+            "players": ["Lena", "Marco"],
+            "settings": {"num_sets": 1, "rounds_per_set": 4},
+        }, cookies=cookies)
+        game_id = game_resp.json()["id"]
+
+        # Round 1: 4 cards. Lena bids 3 makes 3 (+30), Marco bids 1 makes 1 (+11)
+        for i, bid in enumerate([3, 1]):
+            await client.post(f"/api/game/{game_id}/bid", json={
+                "player_index": i, "value": bid,
+            }, cookies=cookies)
+        await client.post(
+            f"/api/game/{game_id}/start-round", cookies=cookies,
+        )
+        await client.post(
+            f"/api/game/{game_id}/enter-round-end", cookies=cookies,
+        )
+        for i, hand in enumerate([3, 1]):
+            await client.post(f"/api/game/{game_id}/hands", json={
+                "player_index": i, "value": hand,
+            }, cookies=cookies)
+        await client.post(
+            f"/api/game/{game_id}/end-round", cookies=cookies,
+        )
+
+        sb = await client.get(
+            f"/api/game/{game_id}/scoreboard", cookies=cookies,
+        )
+        assert sb.json()["totals"]["0"] == 30
+        assert sb.json()["totals"]["1"] == 11
+
+        # Extend
+        await client.post(
+            f"/api/game/{game_id}/extend", cookies=cookies,
+        )
+
+        # Totals unchanged
+        sb_after = await client.get(
+            f"/api/game/{game_id}/scoreboard", cookies=cookies,
+        )
+        assert sb_after.json()["totals"] == sb.json()["totals"]
+
+
+class TestScoringFormula:
+    """Integration: games with different scoring formulas."""
+
+    async def test_zeros_formula_scores_10_for_bid_1(
+        self, client: AsyncClient,
+    ):
+        """With zeros formula, bid 1 made = 10 (not 11)."""
+        pg, cookies = await _setup(client, "Zeros Formula")
+        game_resp = await client.post("/api/game", json={
+            "playground_id": pg["id"],
+            "players": ["Anya", "Riku"],
+            "settings": {"scoring_formula": "kachuful_zeros"},
+        }, cookies=cookies)
+        game_id = game_resp.json()["id"]
+
+        for i, bid in enumerate([1, 0]):
+            await client.post(f"/api/game/{game_id}/bid", json={
+                "player_index": i, "value": bid,
+            }, cookies=cookies)
+        await client.post(
+            f"/api/game/{game_id}/start-round", cookies=cookies,
+        )
+        await client.post(
+            f"/api/game/{game_id}/enter-round-end", cookies=cookies,
+        )
+        for i, hand in enumerate([1, 7]):
+            await client.post(f"/api/game/{game_id}/hands", json={
+                "player_index": i, "value": hand,
+            }, cookies=cookies)
+        await client.post(
+            f"/api/game/{game_id}/end-round", cookies=cookies,
+        )
+
+        sb = await client.get(
+            f"/api/game/{game_id}/scoreboard", cookies=cookies,
+        )
+        totals = sb.json()["totals"]
+        assert totals["0"] == 10   # bid 1 made = 10 (zeros mode)
+        assert totals["1"] == -10  # bid 0 missed
+
+    async def test_standard_formula_scores_11_for_bid_1(
+        self, client: AsyncClient,
+    ):
+        """With standard formula, bid 1 made = 11 (sanity check)."""
+        pg, cookies = await _setup(client, "Standard Formula")
+        game_resp = await client.post("/api/game", json={
+            "playground_id": pg["id"],
+            "players": ["Wei", "Priya"],
+            "settings": {"scoring_formula": "kachuful_standard"},
+        }, cookies=cookies)
+        game_id = game_resp.json()["id"]
+
+        for i, bid in enumerate([1, 0]):
+            await client.post(f"/api/game/{game_id}/bid", json={
+                "player_index": i, "value": bid,
+            }, cookies=cookies)
+        await client.post(
+            f"/api/game/{game_id}/start-round", cookies=cookies,
+        )
+        await client.post(
+            f"/api/game/{game_id}/enter-round-end", cookies=cookies,
+        )
+        for i, hand in enumerate([1, 7]):
+            await client.post(f"/api/game/{game_id}/hands", json={
+                "player_index": i, "value": hand,
+            }, cookies=cookies)
+        await client.post(
+            f"/api/game/{game_id}/end-round", cookies=cookies,
+        )
+
+        sb = await client.get(
+            f"/api/game/{game_id}/scoreboard", cookies=cookies,
+        )
+        totals = sb.json()["totals"]
+        assert totals["0"] == 11   # bid 1 made = 11 (standard)
+        assert totals["1"] == -10  # bid 0 missed

@@ -2,27 +2,17 @@
 
 **Live:** [scokeep.onrender.com](https://scokeep.onrender.com)
 
-Ditch the notebook. Scokeep is a mobile-first score tracker built for Kachuful (Judgement), but works for any card or board game.
-
-One person runs the app on their phone, taps in scores, and the math is done. No arguments, no miscalculations, no lost notebooks.
+Ditch the notebook. Scokeep is a mobile-first score tracker built for Kachuful (Judgement). One person runs the app on their phone, taps in scores, and the math is done. No arguments, no miscalculations, no lost notebooks.
 
 **Install it:** Open the site on your phone, tap "Add to Home Screen" — it runs like a native app.
-
-## Two Game Modes
-
-### Kachuful (Judgement)
-Full-featured tracker with bids, trump suits, must-lose logic, dealer rotation, and automatic scoring. Handles everything the notebook did, faster and without errors.
-
-### Free Score
-Generic score tracker for any game — Rummy, Teen Patti, or anything else. Enter +/- scores per player each round. No rules, no bids, just numbers.
 
 ## How It Works
 
 1. **Create a Playground** — give your group a name and a 4-digit PIN
 2. **Add Players** — drag the handle to set clockwise seating order
-3. **Pick Game Type** — Kachuful or Free Score
-4. **Play Rounds** — tap scores on the keypad, instant advance to next player
-5. **See Stats** — per-round scores, analytics, leaderboard across games
+3. **Configure** — pick game mode, appearance, number of sets, must-lose toggle
+4. **Play Rounds** — tap bids/scores on the keypad, instant advance to next player
+5. **See Stats** — leaderboard, bid accuracy, head-to-head, game history
 
 ## Features
 
@@ -30,29 +20,31 @@ Generic score tracker for any game — Rummy, Teen Patti, or anything else. Ente
 - Phone-style keypad with haptic feedback and tap sound
 - Instant advance — tap a number, move to the next player
 - "Previous Player" button to go back and change
+- Inline bid editing on the confirm screen — tap Edit next to any player
 - Automatic score calculation — never wrong
 - Undo last round if something was entered incorrectly
+- End game from any screen (bidding, play, round end, scoreboard)
 - Between rounds: only that round's scores shown (no cumulative spoilers)
 
-### Trump Display (Kachuful)
-- Large trump suit symbol (Spades, Diamonds, Chidi, Hearts) — 12rem, impossible to miss
-- Shown during bidding, play, and scoring phases
-- Dealer name bold on bidding screen
+### Trump Display
+- Large trump suit symbol (Spades, Diamonds, Clubs, Hearts)
+- Shown during bidding, play, and scoring phases (Rookie/Friendly modes)
+- Dealer name shown on bidding screen
 
-### Dealer Rotation (Kachuful)
+### Dealer Rotation
 - Dealer rotates clockwise each round
 - Bidding order starts from the player after the dealer
-- Dealer always bids last (must-lose applies to dealer)
+- Dealer always bids last (must-lose restriction applies to last bidder)
 
-### Game Modes (Kachuful)
+### Game Modes
 | Mode | What's Visible |
 |------|---------------|
 | **Expert** | Cards to deal only. No trump, no bids, no scores during play |
-| **Rookie** (default) | Large trump suit display below keypad |
+| **Rookie** (default) | Trump suit display below keypad |
 | **Friendly** | Everything — all bids, trump, hands claimed count |
 
-### Must-Lose Mode (Kachuful)
-The dealer (last to bid) cannot make the total bids equal the cards dealt. The forbidden number is greyed out on their keypad. On by default.
+### Must-Lose Mode
+The last player to bid cannot make the total bids equal the cards dealt. The forbidden number is greyed out on their keypad. On by default in the UI.
 
 ### Appearance
 - **Standard** — clean, monochrome
@@ -70,9 +62,9 @@ Per-playground stats accessible from the lobby:
 - **Leaderboard** — wins, win rate, average score per round, best/worst game
 - **Bid Accuracy** — visual percentage bars showing how often each player makes their bid
 - **Head-to-Head** — win record between every player pair
-- **Game History** — last 20 games with dates, scores, and winners
+- **Game History** — expandable scoresheets with overbid/underbid color coding
 
-### Scoring Rules (Kachuful)
+### Scoring Rules
 
 | Bid | Made | Missed |
 |-----|------|--------|
@@ -80,10 +72,18 @@ Per-playground stats accessible from the lobby:
 | 1 | +11 | -11 |
 | 2-8 | +N x 10 | -N x 10 |
 
-### Game Structure (Kachuful)
-- **Set:** 8 rounds (8, 7, 6, 5, 4, 3, 2, 1 cards)
+### Game Structure
+- **Set:** 8 rounds (8, 7, 6, 5, 4, 3, 2, 1 cards) or 4 rounds (test mode)
+- **Alternating sets:** odd sets descend (8→1), even sets ascend (1→8)
 - **Default:** 3 sets (24 rounds), configurable 1-5
-- **Trump:** Spades, Diamonds, Chidi, Hearts (repeating)
+- **Trump:** Spades, Diamonds, Clubs, Hearts (repeating)
+
+### Security
+- PIN hashed with bcrypt
+- Signed httponly session cookies
+- All endpoints verify playground ownership (no cross-playground access)
+- Rate limiting on auth endpoint
+- Server-side input sanitization (XSS prevention)
 
 ## Technical Details
 
@@ -108,7 +108,6 @@ SQLAlchemy's asyncpg dialect converts Python naive datetimes to timezone-aware b
 ### Pluggable Scoring
 Scoring formulas are registered in a dictionary. Adding a new game's scoring rules is one function + one dict entry:
 - `kachuful_standard` — bid/actual comparison with bonus scaling
-- `free_raw` — pass-through for raw +/- scores
 
 ## Development
 
@@ -127,8 +126,6 @@ Open http://localhost:8050
 ```bash
 pytest tests/ -v
 ```
-
-117 tests: scoring engine, playground CRUD, game lifecycle, round management, scoreboard, undo, and end-to-end flows.
 
 ### CI
 

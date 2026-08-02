@@ -37,6 +37,34 @@
 - **File:** `app/static/js/app.js:73-74`
 - **Fix:** Moved `const routeMap = {...}` above the `logger.resync()` call that uses it
 
+### BUG-009: End Game button missing from confirm-bids screen (FIXED — Session 9)
+- **Fix:** Added `#end-game-btn` button + click handler to `renderConfirm()` in `bidding.js:155-197`
+- **Tests:** `test_full_simulation.py::TestEndGameFromAnyPhase` (3 regression tests)
+
+### BUG-010: "Chidi" typo in trump names (FIXED — Session 9)
+- **Fix:** Changed `'Chidi'` to `'Clubs'` in `game-utils.js:21`
+
+### BUG-011: IDOR on stats endpoints (FIXED — Session 9)
+- **Fix:** Added `playground.id != playground_id` check returning 403 in `playground.py:128,143`
+- **Tests:** `test_security.py::TestStatsEndpointAuth` (3 regression tests)
+
+### BUG-012: Lobby defaults mismatch — NOT A BUG
+- **Ruling:** Rookie/Interactive are the intended UI defaults per user. Requirements doc said Expert/Standard but user overrides that decision.
+
+### BUG-013: Dead code — free_raw in scoring.py (FIXED — Session 9)
+- **Fix:** Removed unused `free_raw` function and its SCORING_FORMULAS entry
+
+### BUG-014: Overlapping overbid/underbid colors in scoresheet (FIXED — Session 9)
+- **Fix:** Changed `border-bottom` to `border` on `.scoresheet th, td` in `style.css:457`
+
+### BUG-015: IDOR on game creation (FIXED — Session 9)
+- **Fix:** Added `data.playground_id != playground_id` check returning 403 in `game.py:21`
+- **Tests:** `test_security.py::TestGameCreateAuth` (2 tests)
+
+### BUG-016: IDOR on active game query (FIXED — Session 9)
+- **Fix:** Added `playground_id != auth_playground_id` check returning 403 in `game.py:33`
+- **Tests:** `test_security.py::TestActiveGameAuth` (2 tests)
+
 ## Open Issues
 
 ### ISSUE-001: .env with production credentials tracked in git

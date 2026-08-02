@@ -1,6 +1,6 @@
 // Play screen — trump display, round info, end round button
 
-import { getGame, getBids, enterRoundEnd, endGame, resyncGame, guardPhase } from '../api.js';
+import { getBids, enterRoundEnd, endGame, resyncGame, guardPhase } from '../api.js';
 import { getRoundCards, getTrump } from '../components/game-utils.js';
 import { soundEndGame } from '../components/sounds.js';
 

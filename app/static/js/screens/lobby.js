@@ -89,6 +89,12 @@ export const lobbyScreen = {
                                 ).join('')}
                             </select>
 
+                            <label>Scoring</label>
+                            <select id="setting-scoring">
+                                <option value="kachuful_standard" selected>Ones (bid 1 = 11)</option>
+                                <option value="kachuful_zeros">Zeros (bid 1 = 10)</option>
+                            </select>
+
                             <label>Must-lose</label>
                             <label class="toggle">
                                 <input type="checkbox" id="setting-must-lose" checked>
@@ -188,6 +194,7 @@ export const lobbyScreen = {
                     game_type: 'kachuful',
                     mode: container.querySelector('#setting-mode').value,
                     appearance: container.querySelector('#setting-appearance').value,
+                    scoring_formula: container.querySelector('#setting-scoring').value,
                     num_sets: numSets,
                     rounds_per_set: roundsPerSet,
                     must_lose: container.querySelector('#setting-must-lose').checked,

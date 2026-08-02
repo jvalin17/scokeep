@@ -155,6 +155,10 @@ export const biddingScreen = {
             container.innerHTML = `
                 <div class="bidding">
                     <div class="round-info">
+                        ${state.playground ? `<button class="btn-home" onclick="location.hash='playground/${state.playground.share_code}'">🏠</button>` : ''}
+                        <button class="btn-end-game" id="end-game-btn">End Game</button>
+                    </div>
+                    <div class="round-info">
                         <span>Round ${game.current_round}</span>
                         <span>${cardsDealt} cards</span>
                     </div>
@@ -183,6 +187,14 @@ export const biddingScreen = {
                     <p id="bid-error" class="error hidden"></p>
                 </div>
             `;
+
+            container.querySelector('#end-game-btn').addEventListener('click', async () => {
+                if (confirm('End this game? Scores so far will be saved.')) {
+                    await endGame(gameId);
+                    soundEndGame();
+                    navigate(`scoreboard/${gameId}`);
+                }
+            });
 
             // Edit button toggles inline keypad
             container.querySelectorAll('[data-edit]').forEach(btn => {
