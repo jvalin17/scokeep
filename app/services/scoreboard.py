@@ -29,6 +29,8 @@ class ScoreboardService:
                 "round_num": round_obj.round_num,
                 "cards_dealt": round_obj.cards_dealt,
                 "trump_suit": round_obj.trump_suit,
+                "bids": round_obj.bids,
+                "hands_won": round_obj.hands_won,
                 "scores": round_obj.scores,
             })
             for player_key, score in round_obj.scores.items():

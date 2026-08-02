@@ -93,26 +93,22 @@ export const statsScreen = {
             }
 
             // Expand game detail in history tab
-            container.querySelectorAll('[data-game]').forEach(card => {
-                card.addEventListener('click', async (event) => {
-                    event.stopPropagation();
-                    const gameId = parseInt(card.dataset.game);
-                    if (expandedGameId === gameId) {
-                        expandedGameId = null;
-                        expandedData = null;
-                    } else {
-                        expandedGameId = gameId;
-                        expandedData = 'loading';
-                        render();
-                        try {
-                            expandedData = await getScoreboard(gameId);
-                        } catch {
-                            expandedData = 'error';
-                        }
-                    }
+            window._expandGame = async (gameId) => {
+                if (expandedGameId === gameId) {
+                    expandedGameId = null;
+                    expandedData = null;
+                } else {
+                    expandedGameId = gameId;
+                    expandedData = 'loading';
                     render();
-                });
-            });
+                    try {
+                        expandedData = await getScoreboard(gameId);
+                    } catch {
+                        expandedData = 'error';
+                    }
+                }
+                render();
+            };
         }
 
         function renderLeaderboard() {
@@ -187,7 +183,7 @@ export const statsScreen = {
             return `
                 <div class="stats-section">
                     ${stats.game_history.map(g => `
-                        <div class="stats-game-card" data-game="${g.game_id}" style="cursor:pointer;">
+                        <div class="stats-game-card">
                             <div class="stats-game-header">
                                 <span class="stats-muted">${g.date ? new Date(g.date).toLocaleDateString() : '—'}</span>
                                 <span>${g.rounds_played} rounds</span>
@@ -202,6 +198,7 @@ export const statsScreen = {
                                     </div>
                                 `).join('')}
                             </div>
+                            <button class="btn-small" style="width:100%;margin-top:8px;" onclick="window._expandGame(${g.game_id})">${expandedGameId === g.game_id ? '▲ Hide scoresheet' : '▼ View scoresheet'}</button>
                             ${expandedGameId === g.game_id ? (
                                 expandedData === 'loading' ? '<p class="stats-muted" style="padding:8px;text-align:center;">Loading...</p>' :
                                 expandedData === 'error' ? '<p class="stats-muted" style="padding:8px;text-align:center;">Could not load game details</p>' :

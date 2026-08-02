@@ -57,7 +57,9 @@ app.include_router(score.router)
 
 @app.get("/")
 async def index():
-    return FileResponse(STATIC_DIR / "index.html")
+    response = FileResponse(STATIC_DIR / "index.html")
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    return response
 
 
 @app.get("/favicon.ico")
