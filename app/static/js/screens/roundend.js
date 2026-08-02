@@ -1,9 +1,11 @@
 // Round end screen — hands won entry via keypad + back button
 
-import { submitHands, endRound, endGame, resyncGame, guardPhase } from '../api.js';
+import { submitHands, endRound, resyncGame, guardPhase } from '../api.js';
 import { Keypad } from '../components/keypad.js';
-import { getRoundCards, getTrump } from '../components/game-utils.js';
-import { soundScoreRound, soundEndGame } from '../components/sounds.js';
+import { getRoundCards } from '../components/game-utils.js';
+import { getEntryOrder } from '../components/entry-utils.js';
+import { renderGameIsland, renderRoundInfoBar, renderTrumpDisplay, attachEndGameHandler, showError } from '../components/screen-parts.js';
+import { soundScoreRound } from '../components/sounds.js';
 
 export const roundendScreen = {
     async mount(container, state, { navigate, params }) {
@@ -14,11 +16,8 @@ export const roundendScreen = {
 
         const players = game.players;
         const rps = game.settings.rounds_per_set || 8;
-        // Hands entry order: start from player after dealer, same as bidding
-        const entryOrder = [];
-        for (let i = 1; i <= players.length; i++) {
-            entryOrder.push((game.dealer_index + i) % players.length);
-        }
+        const mode = game.settings.mode || 'expert';
+        const entryOrder = getEntryOrder(game.dealer_index, players.length);
         let entryPosition = 0;
         let handsCollected = {};
 
@@ -26,19 +25,15 @@ export const roundendScreen = {
 
         function currentPlayer() { return entryOrder[entryPosition]; }
 
-        const trumpInfo = getTrump(game.current_round);
-        const mode = game.settings.mode || 'expert';
-
         function getRemainingCards() {
             const cardsDealt = getRoundCards(game.current_round, rps);
             const totalHands = Object.values(handsCollected).reduce((s, v) => s + v, 0);
             return Math.max(0, cardsDealt - totalHands);
         }
 
-        function getDisabledKeys() {
+        function getLastPlayerDisabledKeys() {
             const isLastPlayer = entryPosition === players.length - 1;
             if (!isLastPlayer) return [];
-            // Last player must take exactly the remaining cards
             const remaining = getRemainingCards();
             const cardsDealt = getRoundCards(game.current_round, rps);
             const disabled = [];
@@ -59,25 +54,15 @@ export const roundendScreen = {
             const totalHands = Object.values(handsCollected).reduce((s, v) => s + v, 0);
             const isLastPlayer = entryPosition === players.length - 1;
 
-            const dealerName = players[game.dealer_index];
             container.innerHTML = `
                 <div class="roundend">
-                    <div class="game-island">
-                        <span>${dealerName} deals</span>
-                        <span class="island-sep">·</span>
-                        <span>${cardsDealt} card${cardsDealt > 1 ? 's' : ''}</span>
-                        <span class="island-sep">·</span>
-                        <span>R${game.current_round}/${game.total_rounds}</span>
-                    </div>
-                    <div class="round-info">
-                        ${state.playground ? `<button class="btn-home" onclick="location.hash='playground/${state.playground.share_code}'">🏠</button>` : ''}
-                        <button class="btn-end-game" id="end-game-btn">End Game</button>
-                    </div>
+                    ${renderGameIsland(game, rps)}
+                    ${renderRoundInfoBar(state)}
                     <div class="bid-player-name">${players[pi]}</div>
                     <p class="bid-prompt">How many hands did they make?</p>
                     <p class="claimed-info">${totalHands} of ${cardsDealt} hands accounted${isLastPlayer ? ` — must be ${cardsDealt - totalHands}` : ''}</p>
                     <div id="keypad-container"></div>
-                    ${mode !== 'expert' ? `<div class="trump-below ${trumpInfo.isRed ? 'trump-red' : ''}"><span class="trump-symbol-sm">${trumpInfo.symbol}</span><span class="trump-label">${trumpInfo.name}</span></div>` : ''}
+                    ${renderTrumpDisplay(game.current_round, mode)}
                     ${entryPosition > 0 ? '<button id="go-back" class="btn btn-back">← Previous Player</button>' : ''}
                     <p class="error hidden" id="hands-error"></p>
                 </div>
@@ -85,28 +70,24 @@ export const roundendScreen = {
 
             const keypad = Keypad({
                 max: getRemainingCards(),
-                disabled: getDisabledKeys(),
+                disabled: getLastPlayerDisabledKeys(),
                 onSelect: (value) => handleHandsSelect(value),
             });
             container.querySelector('#keypad-container').appendChild(keypad);
 
             const backBtn = container.querySelector('#go-back');
             if (backBtn) {
-                backBtn.addEventListener('click', () => {
+                backBtn.addEventListener('click', async () => {
                     entryPosition--;
                     const prevPi = currentPlayer();
+                    // Reset previous player's hands on backend so remaining recalculates
+                    await submitHands(gameId, prevPi, 0);
                     delete handsCollected[String(prevPi)];
                     renderCollecting();
                 });
             }
 
-            container.querySelector('#end-game-btn').addEventListener('click', async () => {
-                if (confirm('End this game? Scores so far will be saved.')) {
-                    await endGame(gameId);
-                    soundEndGame();
-                    navigate(`scoreboard/${gameId}`);
-                }
-            });
+            attachEndGameHandler(container, gameId, navigate);
         }
 
         function renderConfirm() {
@@ -137,11 +118,16 @@ export const roundendScreen = {
             `;
 
             container.querySelectorAll('[data-edit]').forEach(btn => {
-                btn.addEventListener('click', () => {
+                btn.addEventListener('click', async () => {
                     const pi = parseInt(btn.dataset.edit);
                     const pos = entryOrder.indexOf(pi);
+                    // Reset hands on backend for this player and all after
                     for (let i = pos; i < entryOrder.length; i++) {
-                        delete handsCollected[String(entryOrder[i])];
+                        const clearKey = String(entryOrder[i]);
+                        if (clearKey in handsCollected) {
+                            await submitHands(gameId, entryOrder[i], 0);
+                            delete handsCollected[clearKey];
+                        }
                     }
                     entryPosition = pos;
                     renderCollecting();
@@ -149,7 +135,6 @@ export const roundendScreen = {
             });
 
             container.querySelector('#score-round').addEventListener('click', async () => {
-                const errorEl = container.querySelector('#score-error');
                 try {
                     await endRound(gameId);
                     soundScoreRound();
@@ -168,11 +153,7 @@ export const roundendScreen = {
                 entryPosition++;
                 renderCollecting();
             } catch (error) {
-                const errorEl = container.querySelector('#hands-error');
-                if (errorEl) {
-                    errorEl.textContent = error.message;
-                    errorEl.classList.remove('hidden');
-                }
+                showError(container, 'hands-error', error.message);
             }
         }
 

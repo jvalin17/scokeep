@@ -49,14 +49,14 @@ export const statsScreen = {
                     <div class="stats-tabs">
                         <button class="stats-tab ${activeTab === 'leaderboard' ? 'active' : ''}" data-tab="leaderboard">Leaderboard</button>
                         <button class="stats-tab ${activeTab === 'accuracy' ? 'active' : ''}" data-tab="accuracy">Accuracy</button>
-                        <button class="stats-tab ${activeTab === 'h2h' ? 'active' : ''}" data-tab="h2h">Head-to-Head</button>
+                        <button class="stats-tab ${activeTab === 'trends' ? 'active' : ''}" data-tab="trends">Trends</button>
                         <button class="stats-tab ${activeTab === 'history' ? 'active' : ''}" data-tab="history">Games</button>
                     </div>
 
                     <div class="stats-content">
                         ${activeTab === 'leaderboard' ? renderLeaderboard() : ''}
                         ${activeTab === 'accuracy' ? renderAccuracy() : ''}
-                        ${activeTab === 'h2h' ? renderH2H() : ''}
+                        ${activeTab === 'trends' ? renderTrends() : ''}
                         ${activeTab === 'history' ? renderHistory() : ''}
                     </div>
 
@@ -159,22 +159,64 @@ export const statsScreen = {
             `;
         }
 
-        function renderH2H() {
-            const h2h = stats.head_to_head;
-            if (!h2h.length) return '<p class="stats-empty">No head-to-head data yet.</p>';
+        function renderTrends() {
+            const trends = stats.trends;
+            if (!trends || !trends.length) return '<p class="stats-empty">No trend data yet.</p>';
             return `
                 <div class="stats-section">
-                    ${h2h.map(match => {
-                        const [p1, p2] = match.players;
-                        const r = match.record;
+                    <h3 style="margin-bottom: 12px;">Win Streaks</h3>
+                    ${trends.map(t => `
+                        <div class="stats-bar-row">
+                            <span class="stats-bar-name">${t.name}</span>
+                            <span class="stats-bar-value">${t.current_streak > 0 ? '🔥 ' + t.current_streak : '—'}</span>
+                            <span class="stats-muted" style="min-width:60px;text-align:right;">best: ${t.longest_streak}</span>
+                        </div>
+                    `).join('')}
+
+                    <h3 style="margin: 20px 0 12px;">Overbid / Underbid</h3>
+                    ${trends.filter(t => t.total_bid_rounds > 0).map(t => {
+                        const total = t.overbids + t.underbids;
+                        const exact = t.total_bid_rounds - total;
+                        const obPct = total > 0 ? Math.round(t.overbids / t.total_bid_rounds * 100) : 0;
+                        const ubPct = total > 0 ? Math.round(t.underbids / t.total_bid_rounds * 100) : 0;
+                        const exPct = 100 - obPct - ubPct;
+                        const style = t.overbids > t.underbids ? 'Aggressive' : t.underbids > t.overbids ? 'Conservative' : 'Balanced';
                         return `
-                            <div class="stats-h2h-card">
-                                <div class="h2h-player ${r[p1] > r[p2] ? 'h2h-leader' : ''}">${p1}<br><strong>${r[p1]}</strong></div>
-                                <div class="h2h-vs">vs<br><span class="stats-muted">${r.games}g</span></div>
-                                <div class="h2h-player ${r[p2] > r[p1] ? 'h2h-leader' : ''}">${p2}<br><strong>${r[p2]}</strong></div>
+                            <div class="stats-card" style="margin-bottom:8px;">
+                                <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                                    <span>${t.name}</span>
+                                    <span class="stats-muted">${style}</span>
+                                </div>
+                                <div class="stats-bar-track" style="display:flex;height:8px;border-radius:4px;overflow:hidden;">
+                                    <div style="width:${obPct}%;background:#BBDEFB;" title="Overbid ${obPct}%"></div>
+                                    <div style="width:${exPct}%;background:#C8E6C9;" title="Exact ${exPct}%"></div>
+                                    <div style="width:${ubPct}%;background:#FFE0B2;" title="Underbid ${ubPct}%"></div>
+                                </div>
+                                <div style="display:flex;justify-content:space-between;font-size:0.7rem;color:var(--text-muted);margin-top:2px;">
+                                    <span>OB ${t.overbids}</span>
+                                    <span>Exact ${exact}</span>
+                                    <span>UB ${t.underbids}</span>
+                                </div>
                             </div>
                         `;
                     }).join('')}
+
+                    <h3 style="margin: 20px 0 12px;">Clutch Factor</h3>
+                    ${trends.filter(t => t.clutch_opportunities > 0).length === 0
+                        ? '<p class="stats-muted">Need more games for clutch data</p>'
+                        : trends.filter(t => t.clutch_opportunities > 0).map(t => {
+                            const pct = Math.round(t.clutch_wins / t.clutch_opportunities * 100);
+                            return `
+                                <div class="stats-bar-row">
+                                    <span class="stats-bar-name">${t.name}</span>
+                                    <div class="stats-bar-track">
+                                        <div class="stats-bar-fill ${pct >= 50 ? 'stats-bar-good' : ''}" style="width: ${pct}%"></div>
+                                    </div>
+                                    <span class="stats-bar-value">${pct}% (${t.clutch_wins}/${t.clutch_opportunities})</span>
+                                </div>
+                            `;
+                        }).join('')
+                    }
                 </div>
             `;
         }

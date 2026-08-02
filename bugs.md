@@ -83,6 +83,18 @@
 - **Severity:** Low (code quality)
 - **Description:** Exceeds 200-line guideline. Drag reorder was extracted but remaining HTML template + event handlers are irreducible for a single screen.
 
+### ISSUE-004: CI gate fails — `.venv/bin/python` not found
+- **Severity:** High (blocks all CI runs)
+- **Description:** `gates.json` has `"test_command": ".venv/bin/python -m pytest -q"` and `"lint_command": ".venv/bin/python -m ruff check ."` but CI installs packages into system Python (no `.venv`). The attestation script gets `[Errno 2] No such file or directory: '.venv/bin/python'`.
+- **Fix needed:** Change both commands in `gates.json` to `"python -m pytest -q"` and `"python -m ruff check ."`. Works locally (venv activated = `python` resolves to venv) and in CI (system python).
+- **File:** `gates.json:7-8`
+
+### ISSUE-005: CI picks wrong evaluate report (mtime problem)
+- **Severity:** High (blocks CI gate)
+- **Description:** `reports.py:latest_report()` sorts reports by filesystem `st_mtime` to find the latest. After `git checkout` in CI, all files get the same timestamp, so the function picks an arbitrary report. It picked `eval_bug-fixes-session5_5c2c4dd7.md` (93%) instead of the latest `eval_scokeep-v1-s9-v3_7629dfee.md` (94%).
+- **Fix needed:** Either (a) change `latest_report()` to parse the date from the report header instead of relying on mtime, or (b) remove old evaluate reports so only the latest exists.
+- **File:** `.agent-toolkit/gate/reports.py:29-45`
+
 ## Test Gaps (remaining)
 
 1. Analytics service — no dedicated test (user said to ignore)

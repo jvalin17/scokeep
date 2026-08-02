@@ -73,7 +73,7 @@ class TestPlaygroundStats:
         assert body["total_games"] == 0
         assert body["leaderboard"] == []
         assert body["game_history"] == []
-        assert body["head_to_head"] == []
+        assert body["trends"] == []
 
     async def test_stats_after_one_game(self, client: AsyncClient):
         """Stats after 1 finished game show correct leaderboard."""
@@ -125,26 +125,52 @@ class TestPlaygroundStats:
         assert alice["bid_accuracy"] == 100  # 1/1 bids hit
         assert bob["bid_accuracy"] == 0     # 0/1 bids hit
 
-    async def test_stats_head_to_head(self, client: AsyncClient):
-        """Head-to-head records track wins between pairs."""
-        pg, cookies = await _setup(client, "H2H Stats")
+    async def test_trends_overbid_underbid(self, client: AsyncClient):
+        """Trends track overbid/underbid counts per player."""
+        pg, cookies = await _setup(client, "Trends OB/UB")
 
-        # Game 1: Alice wins (bid 3 get 3 → 30, Bob bid 1 get 1 → 11)
+        # Alice bids 3, gets 1 (overbid). Bob bids 1, gets 7 (underbid).
         await _play_full_game(
             client, pg["id"], cookies,
             players=["Alice", "Bob"],
-            bids=[3, 1], hands=[3, 5],
+            bids=[3, 1], hands=[1, 7],
         )
 
         resp = await client.get(
             f"/api/playground/{pg['share_code']}/stats", cookies=cookies,
         )
-        h2h = resp.json()["head_to_head"]
-        assert len(h2h) == 1
-        record = h2h[0]["record"]
-        assert record["games"] == 1
-        assert record["Alice"] == 1  # Alice won
-        assert record["Bob"] == 0
+        trends = resp.json()["trends"]
+        alice = next(t for t in trends if t["name"] == "Alice")
+        bob = next(t for t in trends if t["name"] == "Bob")
+
+        assert alice["overbids"] == 1
+        assert alice["underbids"] == 0
+        assert bob["overbids"] == 0
+        assert bob["underbids"] == 1
+
+    async def test_trends_win_streaks(self, client: AsyncClient):
+        """Trends track current and longest win streaks."""
+        pg, cookies = await _setup(client, "Trends Streaks")
+
+        # Alice wins 2 games in a row
+        for _ in range(2):
+            await _play_full_game(
+                client, pg["id"], cookies,
+                players=["Alice", "Bob"],
+                bids=[3, 0], hands=[3, 5],  # Alice: +30, Bob: -10
+            )
+
+        resp = await client.get(
+            f"/api/playground/{pg['share_code']}/stats", cookies=cookies,
+        )
+        trends = resp.json()["trends"]
+        alice = next(t for t in trends if t["name"] == "Alice")
+        bob = next(t for t in trends if t["name"] == "Bob")
+
+        assert alice["current_streak"] == 2
+        assert alice["longest_streak"] == 2
+        assert bob["current_streak"] == 0
+        assert bob["longest_streak"] == 0
 
     async def test_clear_stats_deletes_finished_games(
         self, client: AsyncClient,

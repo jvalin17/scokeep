@@ -575,15 +575,7 @@ input::placeholder { color: var(--text-muted); }
 .stats-bar-good { background: var(--success); }
 .stats-bar-value { width: 40px; text-align: right; font-weight: 600; font-size: 0.9rem; }
 
-/* Head-to-head */
-.stats-h2h-card {
-    display: flex; align-items: center; justify-content: center; gap: 16px;
-    background: var(--bg-card); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow);
-}
-.h2h-player { text-align: center; flex: 1; font-size: 0.95rem; }
-.h2h-player strong { font-size: 1.4rem; display: block; margin-top: 4px; }
-.h2h-leader { color: var(--accent); }
-.h2h-vs { text-align: center; color: var(--text-muted); font-size: 0.85rem; min-width: 40px; }
+/* Trends */
 
 /* Game history cards */
 .stats-game-card {

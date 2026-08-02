@@ -16,7 +16,7 @@ class AnalyticsService:
             return {
                 "leaderboard": [],
                 "game_history": [],
-                "head_to_head": [],
+                "trends": [],
                 "total_games": 0,
             }
 
@@ -25,14 +25,14 @@ class AnalyticsService:
             games, rounds_by_game,
         )
         leaderboard = AnalyticsService._calc_leaderboard(player_data)
-        head_to_head = AnalyticsService._calc_head_to_head(
+        trends = AnalyticsService._calc_trends(
             games, rounds_by_game,
         )
 
         return {
             "leaderboard": leaderboard,
             "game_history": game_history[:20],
-            "head_to_head": head_to_head,
+            "trends": trends,
             "total_games": len(games),
         }
 
@@ -155,37 +155,80 @@ class AnalyticsService:
         return leaderboard
 
     @staticmethod
-    def _calc_head_to_head(games, rounds_by_game) -> list[dict]:
-        """Calculate head-to-head records between player pairs."""
-        h2h: dict[tuple, dict] = {}
-        for game in games:
+    def _calc_trends(games, rounds_by_game) -> list[dict]:
+        """Calculate per-player trends: streaks, overbid/underbid, clutch."""
+        all_players: set[str] = set()
+        for g in games:
+            all_players.update(g.players)
+
+        trend_data: dict[str, dict] = {}
+        for name in all_players:
+            trend_data[name] = {
+                "overbids": 0, "underbids": 0, "total_bid_rounds": 0,
+                "current_streak": 0, "longest_streak": 0,
+                "clutch_wins": 0, "clutch_opportunities": 0,
+            }
+
+        # Process games oldest-first for streak calculation
+        sorted_games = sorted(games, key=lambda g: g.started_at or g.id)
+
+        for game in sorted_games:
             players = game.players
             game_rounds = rounds_by_game.get(game.id, [])
             if not game_rounds:
                 continue
 
-            game_totals: dict[str, int] = {}
-            for r in game_rounds:
+            # Compute game totals and per-round running totals
+            game_totals: dict[str, int] = dict.fromkeys(players, 0)
+            halfway = len(game_rounds) // 2
+            halfway_totals: dict[str, int] = dict.fromkeys(players, 0)
+
+            for round_idx, r in enumerate(game_rounds):
                 for idx_str, score in r.scores.items():
                     idx = int(idx_str)
                     if idx < len(players):
-                        game_totals.setdefault(players[idx], 0)
                         game_totals[players[idx]] += score
+                        if round_idx < halfway:
+                            halfway_totals[players[idx]] += score
 
-            for i, p1 in enumerate(players):
-                for p2 in players[i + 1:]:
-                    key = tuple(sorted([p1, p2]))
-                    if key not in h2h:
-                        h2h[key] = {key[0]: 0, key[1]: 0, "games": 0}
-                    h2h[key]["games"] += 1
-                    s1 = game_totals.get(p1, 0)
-                    s2 = game_totals.get(p2, 0)
-                    if s1 > s2:
-                        h2h[key][p1] += 1
-                    elif s2 > s1:
-                        h2h[key][p2] += 1
+                # Count overbids/underbids
+                for idx_str in r.bids:
+                    idx = int(idx_str)
+                    if idx < len(players):
+                        bid = r.bids.get(idx_str)
+                        hand = r.hands_won.get(idx_str)
+                        if bid is not None and hand is not None:
+                            name = players[idx]
+                            trend_data[name]["total_bid_rounds"] += 1
+                            if bid > hand:
+                                trend_data[name]["overbids"] += 1
+                            elif bid < hand:
+                                trend_data[name]["underbids"] += 1
 
-        return [{"players": list(k), "record": v} for k, v in h2h.items()]
+            winner = max(game_totals, key=lambda n: game_totals[n])
+
+            # Streaks
+            for name in players:
+                if name == winner:
+                    trend_data[name]["current_streak"] += 1
+                    if trend_data[name]["current_streak"] > trend_data[name]["longest_streak"]:
+                        trend_data[name]["longest_streak"] = trend_data[name]["current_streak"]
+                else:
+                    trend_data[name]["current_streak"] = 0
+
+            # Clutch: was behind at halfway but won
+            if len(game_rounds) >= 2:
+                halfway_leader = max(halfway_totals, key=lambda n: halfway_totals[n])
+                for name in players:
+                    if name != halfway_leader:
+                        trend_data[name]["clutch_opportunities"] += 1
+                        if name == winner:
+                            trend_data[name]["clutch_wins"] += 1
+
+        return [
+            {"name": name, **data}
+            for name, data in trend_data.items()
+        ]
 
     @staticmethod
     async def clear_stats(db: AsyncSession, playground_id: int) -> int:

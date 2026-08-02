@@ -1,15 +1,17 @@
 // Bidding screen — player queue + keypad + back button
 
-import { getGame, submitBid, getBids, editBid, startRound, endGame, resyncGame, guardPhase } from '../api.js';
+import { submitBid, getBids, editBid, startRound, resyncGame, guardPhase } from '../api.js';
 import { Keypad, InlineKeypad } from '../components/keypad.js';
-import { getRoundCards, getTrump } from '../components/game-utils.js';
-import { soundStartRound, soundEndGame } from '../components/sounds.js';
+import { getRoundCards } from '../components/game-utils.js';
+import { getEntryOrder } from '../components/entry-utils.js';
+import { renderGameIsland, renderRoundInfoBar, renderTrumpDisplay, attachEndGameHandler, showError } from '../components/screen-parts.js';
+import { soundStartRound } from '../components/sounds.js';
 
 export const biddingScreen = {
     async mount(container, state, { navigate, params }) {
         const gameId = params[0];
         const game = await guardPhase(gameId, 'bidding');
-        if (!game) return; // redirected
+        if (!game) return;
         state.game = game;
 
         const players = game.players;
@@ -17,11 +19,7 @@ export const biddingScreen = {
         const mustLose = settings.must_lose || false;
         const mode = settings.mode || 'expert';
         const rps = settings.rounds_per_set || 8;
-        // Bidding order: start from player after dealer, wrap around
-        const biddingOrder = [];
-        for (let i = 1; i <= players.length; i++) {
-            biddingOrder.push((game.dealer_index + i) % players.length);
-        }
+        const biddingOrder = getEntryOrder(game.dealer_index, players.length);
         let bidPosition = 0;
         let bidsCollected = {};
         let editingPi = null;
@@ -39,19 +37,29 @@ export const biddingScreen = {
 
         function currentPlayer() { return biddingOrder[bidPosition]; }
 
-        function getDisabledKeys() {
+        function getMustLoseDisabledKeys(playerIndex, cardsDealt) {
             if (!mustLose) return [];
-            const isLastPlayer = bidPosition === players.length - 1;
-            if (!isLastPlayer) return [];
-            const cardsDealt = getRoundCards(game.current_round, rps);
-            const pi = currentPlayer();
-            // Sum all bids except this player's (they're about to re-enter)
+            const lastPlayerIndex = biddingOrder[biddingOrder.length - 1];
+            if (playerIndex !== lastPlayerIndex) return [];
             const totalOtherBids = Object.entries(bidsCollected)
-                .filter(([key]) => key !== String(pi))
+                .filter(([key]) => key !== String(playerIndex))
                 .reduce((sum, [, val]) => sum + val, 0);
             const forbidden = cardsDealt - totalOtherBids;
             if (forbidden >= 0 && forbidden <= cardsDealt) return [forbidden];
             return [];
+        }
+
+        function checkMustLoseCascade(cardsDealt) {
+            if (!mustLose) return;
+            const lastPlayerIndex = biddingOrder[biddingOrder.length - 1];
+            const lastKey = String(lastPlayerIndex);
+            if (!(lastKey in bidsCollected)) return;
+            const totalOthers = Object.entries(bidsCollected)
+                .filter(([key]) => key !== lastKey)
+                .reduce((sum, [, val]) => sum + val, 0);
+            if (totalOthers + bidsCollected[lastKey] === cardsDealt) {
+                delete bidsCollected[lastKey];
+            }
         }
 
         function renderCollecting() {
@@ -62,26 +70,15 @@ export const biddingScreen = {
 
             const pi = currentPlayer();
             const cardsDealt = getRoundCards(game.current_round, rps);
-            const trumpInfo = getTrump(game.current_round);
-            const dealerName = players[game.dealer_index];
             container.innerHTML = `
                 <div class="bidding">
-                    <div class="game-island">
-                        <span>${dealerName} deals</span>
-                        <span class="island-sep">·</span>
-                        <span>${cardsDealt} card${cardsDealt > 1 ? 's' : ''}</span>
-                        <span class="island-sep">·</span>
-                        <span>R${game.current_round}/${game.total_rounds}</span>
-                    </div>
-                    <div class="round-info">
-                        ${state.playground ? `<button class="btn-home" onclick="location.hash='playground/${state.playground.share_code}'">🏠</button>` : ''}
-                        <button class="btn-end-game" id="end-game-btn">End Game</button>
-                    </div>
+                    ${renderGameIsland(game, rps)}
+                    ${renderRoundInfoBar(state)}
                     <div class="bid-player-name">${players[pi]}</div>
                     <p class="bid-prompt">How many will you bid?</p>
                     <p class="claimed-info">${Object.values(bidsCollected).reduce((s, v) => s + v, 0)} / ${cardsDealt} claimed</p>
                     <div id="keypad-container"></div>
-                    ${mode !== 'expert' ? `<div class="trump-below ${trumpInfo.isRed ? 'trump-red' : ''}"><span class="trump-symbol-sm">${trumpInfo.symbol}</span><span class="trump-label">${trumpInfo.name}</span></div>` : ''}
+                    ${renderTrumpDisplay(game.current_round, mode)}
                     <div class="bid-nav">
                         ${bidPosition > 0 ? '<button id="go-back" class="btn btn-back">← Previous</button>' : ''}
                         ${String(pi) in bidsCollected && bidPosition < players.length - 1 ? '<button id="go-next" class="btn btn-back">Next →</button>' : ''}
@@ -91,8 +88,8 @@ export const biddingScreen = {
             `;
 
             const keypad = Keypad({
-                max: getRoundCards(game.current_round, rps),
-                disabled: getDisabledKeys(),
+                max: cardsDealt,
+                disabled: getMustLoseDisabledKeys(pi, cardsDealt),
                 onSelect: (value) => handleBidSelect(value),
             });
             container.querySelector('#keypad-container').appendChild(keypad);
@@ -113,38 +110,7 @@ export const biddingScreen = {
                 });
             }
 
-            container.querySelector('#end-game-btn').addEventListener('click', async () => {
-                if (confirm('End this game? Scores so far will be saved.')) {
-                    await endGame(gameId);
-                    soundEndGame();
-                    navigate(`scoreboard/${gameId}`);
-                }
-            });
-        }
-
-        function getDisabledKeysForEdit(editPlayerIndex, cardsDealt) {
-            if (!mustLose) return [];
-            const lastPlayerIndex = biddingOrder[biddingOrder.length - 1];
-            if (editPlayerIndex !== lastPlayerIndex) return [];
-            const totalOthers = Object.entries(bidsCollected)
-                .filter(([key]) => key !== String(editPlayerIndex))
-                .reduce((sum, [, val]) => sum + val, 0);
-            const forbidden = cardsDealt - totalOthers;
-            if (forbidden >= 0 && forbidden <= cardsDealt) return [forbidden];
-            return [];
-        }
-
-        function checkMustLoseCascade(cardsDealt) {
-            if (!mustLose) return;
-            const lastPlayerIndex = biddingOrder[biddingOrder.length - 1];
-            const lastKey = String(lastPlayerIndex);
-            if (!(lastKey in bidsCollected)) return;
-            const totalOthers = Object.entries(bidsCollected)
-                .filter(([key]) => key !== lastKey)
-                .reduce((sum, [, val]) => sum + val, 0);
-            if (totalOthers + bidsCollected[lastKey] === cardsDealt) {
-                delete bidsCollected[lastKey];
-            }
+            attachEndGameHandler(container, gameId, navigate);
         }
 
         function renderConfirm() {
@@ -154,10 +120,7 @@ export const biddingScreen = {
 
             container.innerHTML = `
                 <div class="bidding">
-                    <div class="round-info">
-                        ${state.playground ? `<button class="btn-home" onclick="location.hash='playground/${state.playground.share_code}'">🏠</button>` : ''}
-                        <button class="btn-end-game" id="end-game-btn">End Game</button>
-                    </div>
+                    ${renderRoundInfoBar(state)}
                     <div class="round-info">
                         <span>Round ${game.current_round}</span>
                         <span>${cardsDealt} cards</span>
@@ -188,15 +151,8 @@ export const biddingScreen = {
                 </div>
             `;
 
-            container.querySelector('#end-game-btn').addEventListener('click', async () => {
-                if (confirm('End this game? Scores so far will be saved.')) {
-                    await endGame(gameId);
-                    soundEndGame();
-                    navigate(`scoreboard/${gameId}`);
-                }
-            });
+            attachEndGameHandler(container, gameId, navigate);
 
-            // Edit button toggles inline keypad
             container.querySelectorAll('[data-edit]').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const pi = parseInt(btn.dataset.edit);
@@ -205,12 +161,11 @@ export const biddingScreen = {
                 });
             });
 
-            // Mount inline keypad if editing
             const keypadSlot = container.querySelector('#inline-keypad-slot');
             if (keypadSlot && editingPi !== null) {
                 const inlineKeypad = InlineKeypad({
                     max: cardsDealt,
-                    disabled: getDisabledKeysForEdit(editingPi, cardsDealt),
+                    disabled: getMustLoseDisabledKeys(editingPi, cardsDealt),
                     onSelect: async (value) => {
                         try {
                             await editBid(gameId, editingPi, value);
@@ -219,15 +174,13 @@ export const biddingScreen = {
                             checkMustLoseCascade(cardsDealt);
                             renderConfirm();
                         } catch (error) {
-                            const errorEl = container.querySelector('#bid-error');
-                            if (errorEl) { errorEl.textContent = error.message; errorEl.classList.remove('hidden'); }
+                            showError(container, 'bid-error', error.message);
                         }
                     },
                 });
                 keypadSlot.appendChild(inlineKeypad);
             }
 
-            // Start round
             const confirmBtn = container.querySelector('#confirm-bids');
             if (confirmBtn) {
                 confirmBtn.addEventListener('click', async () => {
@@ -256,11 +209,7 @@ export const biddingScreen = {
                 bidPosition++;
                 renderCollecting();
             } catch (error) {
-                const errorEl = container.querySelector('#bid-error');
-                if (errorEl) {
-                    errorEl.textContent = error.message;
-                    errorEl.classList.remove('hidden');
-                }
+                showError(container, 'bid-error', error.message);
             }
         }
 

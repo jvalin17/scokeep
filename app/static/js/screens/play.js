@@ -1,8 +1,8 @@
 // Play screen — trump display, round info, end round button
 
-import { getBids, enterRoundEnd, endGame, resyncGame, guardPhase } from '../api.js';
-import { getRoundCards, getTrump } from '../components/game-utils.js';
-import { soundEndGame } from '../components/sounds.js';
+import { getBids, enterRoundEnd, resyncGame, guardPhase } from '../api.js';
+import { getRoundCards } from '../components/game-utils.js';
+import { renderGameIsland, renderRoundInfoBar, renderTrumpDisplay, attachEndGameHandler } from '../components/screen-parts.js';
 
 export const playScreen = {
     async mount(container, state, { navigate, params }) {
@@ -14,13 +14,9 @@ export const playScreen = {
         const settings = game.settings;
         const mode = settings.mode || 'expert';
         const players = game.players;
+        const rps = settings.rounds_per_set || 8;
 
         document.body.setAttribute('data-phase', 'playing');
-
-        const rps = settings.rounds_per_set || 8;
-        const cardsDealt = getRoundCards(game.current_round, rps);
-        const trump = getTrump(game.current_round);
-        const dealerName = players[game.dealer_index];
 
         let bidsHtml = '';
         if (mode === 'friendly') {
@@ -43,31 +39,13 @@ export const playScreen = {
 
         container.innerHTML = `
             <div class="play">
-                <div class="game-island">
-                    <span>${dealerName} deals</span>
-                    <span class="island-sep">·</span>
-                    <span>${cardsDealt} card${cardsDealt > 1 ? 's' : ''}</span>
-                    <span class="island-sep">·</span>
-                    <span>R${game.current_round}/${game.total_rounds}</span>
-                </div>
-                <div class="round-info">
-                    ${state.playground ? `<button class="btn-home" onclick="location.hash='playground/${state.playground.share_code}'">🏠</button>` : ''}
-                    <button class="btn-end-game" id="end-game-btn">End Game</button>
-                </div>
-
-                ${mode !== 'expert' ? `
-                    <div class="trump-display ${trump.isRed ? 'trump-red' : ''}">
-                        <span class="trump-symbol">${trump.symbol}</span>
-                        <span class="trump-name">${trump.name}</span>
-                    </div>
-                ` : ''}
-
+                ${renderGameIsland(game, rps)}
+                ${renderRoundInfoBar(state)}
+                ${renderTrumpDisplay(game.current_round, mode, 'large')}
                 <div class="play-info">
                     ${mode === 'expert' ? '<p class="play-minimal">Play your round</p>' : ''}
                 </div>
-
                 ${bidsHtml}
-
                 <button id="end-round-btn" class="btn btn-primary btn-large">End Round</button>
             </div>
         `;
@@ -81,13 +59,7 @@ export const playScreen = {
             }
         });
 
-        container.querySelector('#end-game-btn').addEventListener('click', async () => {
-            if (confirm('End this game? Scores so far will be saved.')) {
-                await endGame(gameId);
-                soundEndGame();
-                navigate(`scoreboard/${gameId}`);
-            }
-        });
+        attachEndGameHandler(container, gameId, navigate);
     },
 
     unmount() {},
