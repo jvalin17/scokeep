@@ -33,3 +33,30 @@ export function Keypad({ max = 8, disabled = [], onSelect }) {
 
     return el;
 }
+
+export function InlineKeypad({ max = 8, disabled = [], onSelect }) {
+    const el = document.createElement('div');
+    el.className = 'inline-keypad';
+
+    for (let num = 0; num <= max; num++) {
+        const btn = document.createElement('button');
+        btn.className = 'inline-keypad-key';
+        btn.textContent = num;
+        btn.type = 'button';
+
+        if (disabled.includes(num)) {
+            btn.classList.add('keypad-disabled');
+            btn.disabled = true;
+        } else {
+            btn.addEventListener('click', () => {
+                haptic();
+                soundTap();
+                onSelect(num);
+            });
+        }
+
+        el.appendChild(btn);
+    }
+
+    return el;
+}

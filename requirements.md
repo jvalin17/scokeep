@@ -119,7 +119,7 @@ Settings cannot change mid-game.
 | Hands-won queue | — | "How many hands did [Name] make?" | must |
 | Phone-style keypad | Tap 0-8 | Records hands won | must |
 | 10s review window | — | Show entered number, can change before auto-advance | must |
-| Flexible total | — | Warn if total hands ≠ cards dealt, but allow it | must |
+| Strict total | — | Total hands must equal cards dealt; keypad max capped to remaining | must |
 | Auto-calculate score | Bids vs actual | Points per scoring rules | must |
 
 ### Scoring Rules

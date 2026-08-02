@@ -33,13 +33,9 @@ class GameService:
         settings: dict,
     ) -> Game:
         merged_settings = {**DEFAULT_SETTINGS, **settings}
-        game_type = merged_settings.get("game_type", "kachuful")
-        if game_type == "free":
-            total_rounds = merged_settings.get("free_rounds", 10)
-        else:
-            num_sets = merged_settings["num_sets"]
-            rounds_per_set = merged_settings.get("rounds_per_set", ROUNDS_PER_SET)
-            total_rounds = num_sets * rounds_per_set
+        num_sets = merged_settings["num_sets"]
+        rounds_per_set = merged_settings.get("rounds_per_set", ROUNDS_PER_SET)
+        total_rounds = num_sets * rounds_per_set
 
         game = Game(
             playground_id=playground_id,

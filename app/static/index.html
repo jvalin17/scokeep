@@ -19,9 +19,11 @@
     </div>
     <script type="module" src="/static/js/app.js"></script>
     <script>
+        // Unregister service worker in dev; re-enable for production
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/static/sw.js', { updateViaCache: 'none' })
-                .then(reg => reg.update());
+            navigator.serviceWorker.getRegistrations().then(regs => {
+                regs.forEach(reg => reg.unregister());
+            });
         }
     </script>
 </body>

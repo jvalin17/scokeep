@@ -84,7 +84,8 @@ h3 { font-size: 1rem; font-weight: 600; color: var(--text-secondary); text-trans
 .btn-text { background: none; border: none; color: var(--text-secondary); font-size: 0.95rem; padding: 8px 0; cursor: pointer; }
 .btn-text:hover { color: var(--text-primary); }
 .btn-danger { background: #E57373; color: #fff; border-color: #E57373; }
-.btn-back { background: none; border: 1px solid var(--border); color: var(--text-muted); font-size: 0.9rem; margin-top: 12px; }
+.btn-back { background: none; border: 1px solid var(--border); color: var(--text-muted); font-size: 0.9rem; }
+.bid-nav { display: flex; gap: 8px; justify-content: center; margin-top: 12px; }
 .btn-remove {
     background: none;
     border: none;
@@ -319,6 +320,17 @@ input::placeholder { color: var(--text-muted); }
 .keypad-disabled { opacity: 0.25; cursor: not-allowed; }
 .keypad-disabled:active { background: var(--bg-card); color: var(--text-primary); transform: none; }
 
+/* Inline keypad (compact, for editing bids on confirm screen) */
+.inline-keypad { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; padding: 8px 4px; }
+.inline-keypad-key {
+    padding: 8px 14px; font-size: 1rem; font-weight: 600;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--bg-card); cursor: pointer; min-width: 38px;
+}
+.inline-keypad-key:active { background: var(--accent); color: #fff; }
+.bid-summary-row.must-lose-warn { background: rgba(220, 53, 69, 0.08); }
+.bid-summary-row.must-lose-warn .bid-summary-value { color: var(--danger); }
+
 /* Timer */
 .timer { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 8px; }
 .timer-display { font-size: 1.2rem; font-weight: 600; color: var(--text-secondary); min-width: 36px; text-align: center; }
@@ -530,27 +542,6 @@ input::placeholder { color: var(--text-muted); }
 .final-name { flex: 1; }
 .final-pts { font-weight: 700; }
 .final-actions { margin-top: 16px; width: 100%; }
-
-/* Game type tabs */
-.game-type-tabs { display: flex; gap: 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 16px; }
-.game-type-tab {
-    flex: 1; padding: 10px; text-align: center; background: var(--bg-card);
-    border: none; font-size: 0.95rem; font-weight: 500; color: var(--text-secondary); cursor: pointer;
-}
-.game-type-tab.active { background: var(--accent); color: #fff; }
-
-/* Free Score */
-.freescore { display: flex; flex-direction: column; gap: 12px; }
-.free-input-row { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px; }
-.free-sign-btn {
-    width: 48px; height: 48px; font-size: 1.5rem; font-weight: 700; border: 1px solid var(--border);
-    border-radius: var(--radius); background: var(--bg-card); cursor: pointer; color: var(--success);
-}
-.free-sign-negative { color: var(--danger); }
-.free-score-input {
-    width: 120px; height: 48px; font-size: 1.8rem; font-weight: 700; text-align: center;
-    border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-card);
-}
 
 /* Stats */
 .stats { display: flex; flex-direction: column; gap: 12px; }

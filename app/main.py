@@ -31,6 +31,24 @@ app = FastAPI(title="Scokeep", version="0.1.0", lifespan=lifespan)
 app.state.limiter = playground.limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+from starlette.middleware.base import BaseHTTPMiddleware  # noqa: E402
+from starlette.requests import Request  # noqa: E402
+from starlette.responses import Response  # noqa: E402
+
+from app.config import settings  # noqa: E402
+
+
+class NoCacheStaticMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response: Response = await call_next(request)
+        if request.url.path.startswith("/static/"):
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        return response
+
+
+if settings.debug:
+    app.add_middleware(NoCacheStaticMiddleware)
 app.include_router(playground.router)
 app.include_router(game.router)
 app.include_router(round_routes.router)

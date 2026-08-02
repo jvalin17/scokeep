@@ -12,14 +12,9 @@ class RoundService:
 
     @staticmethod
     async def create_round(db: AsyncSession, game) -> Round:
-        game_type = game.settings.get("game_type", "kachuful")
-        if game_type == "free":
-            cards_dealt = 999
-            trump_suit = "none"
-        else:
-            rounds_per_set = game.settings.get("rounds_per_set", 8)
-            cards_dealt = get_cards_for_round(game.current_round, rounds_per_set)
-            trump_suit = get_trump_for_round(game.current_round)
+        rounds_per_set = game.settings.get("rounds_per_set", 8)
+        cards_dealt = get_cards_for_round(game.current_round, rounds_per_set)
+        trump_suit = get_trump_for_round(game.current_round)
 
         round_obj = Round(
             game_id=game.id,
@@ -117,7 +112,18 @@ class RoundService:
         if round_obj.status != "round_end":
             raise ValueError(f"Round is not in round_end phase (current: {round_obj.status})")
 
+        # Validate: hands can't exceed remaining cards
+        cards_dealt = round_obj.cards_dealt
         player_key = str(player_index)
+        total_others = sum(
+            v for k, v in round_obj.hands_won.items() if k != player_key
+        )
+        remaining = cards_dealt - total_others
+        if value > remaining:
+            raise ValueError(
+                f"Hands ({value}) exceeds remaining cards ({remaining})"
+            )
+
         updated_hands = {**round_obj.hands_won, player_key: value}
         round_obj.hands_won = updated_hands
         await db.commit()

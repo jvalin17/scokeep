@@ -1,6 +1,6 @@
 // Service worker — cache app shell for offline use
 
-const CACHE_NAME = 'scokeep-v9';
+const CACHE_NAME = 'scokeep-v10';
 const APP_SHELL = [
     '/',
     '/static/css/style.css',
@@ -14,7 +14,6 @@ const APP_SHELL = [
     '/static/js/screens/scoreboard.js',
     '/static/js/screens/final.js',
     '/static/js/screens/stats.js',
-    '/static/js/screens/freescore.js',
     '/static/js/components/keypad.js',
     '/static/js/components/sounds.js',
     '/static/js/components/logger.js',

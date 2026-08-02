@@ -360,6 +360,38 @@ class TestBiddingRules:
         )
         assert bids_resp.json()["bids"]["0"] == 5
 
+    async def test_edit_bid_then_start_round(self, client: AsyncClient):
+        """After editing a bid, start round should still work."""
+        pg, cookies = await create_playground(
+            client, "Edit Then Start", "1234", ["Alice", "Bob", "Charlie"],
+        )
+        game = await start_game(
+            client, pg["id"], cookies, ["Alice", "Bob", "Charlie"],
+        )
+        game_id = game["id"]
+
+        # Submit all bids
+        for i in range(3):
+            await client.post(f"/api/game/{game_id}/bid", json={
+                "player_index": i, "value": 2,
+            }, cookies=cookies)
+
+        # Edit player 1's bid
+        resp = await client.patch(f"/api/game/{game_id}/bid/1", json={
+            "value": 4,
+        }, cookies=cookies)
+        assert resp.status_code == 200
+
+        # Verify edited value
+        bids = await client.get(f"/api/game/{game_id}/bids", cookies=cookies)
+        assert bids.json()["bids"]["1"] == 4
+
+        # Start round should still work (all bids present)
+        resp = await client.post(
+            f"/api/game/{game_id}/start-round", cookies=cookies,
+        )
+        assert resp.status_code == 200
+
     async def test_start_round_requires_all_bids(self, client: AsyncClient):
         """req:112 — Can't start round until all bids are in."""
         pg, cookies = await create_playground(
@@ -442,16 +474,16 @@ class TestScoringRules:
         assert totals["0"] == -30  # Alice: bid 3 missed
         assert totals["1"] == -10  # Bob: bid 0 missed
 
-    async def test_hands_total_mismatch_allowed(self, client: AsyncClient):
-        """req:122 — Warn if total ≠ cards dealt but allow it."""
+    async def test_hands_total_must_equal_cards_dealt(self, client: AsyncClient):
+        """Hands won must total exactly cards dealt."""
         pg, cookies = await create_playground(
-            client, "Mismatch OK", "1234", ["Alice", "Bob"],
+            client, "Hands Equal", "1234", ["Alice", "Bob"],
         )
         game = await start_game(
             client, pg["id"], cookies, ["Alice", "Bob"],
         )
-        # Total hands = 10, cards dealt = 8 → mismatch but should succeed
-        await play_round(client, game["id"], cookies, [5, 5], [6, 4])
+        # Total hands = 8 = cards dealt (8-card round)
+        await play_round(client, game["id"], cookies, [5, 3], [5, 3])
 
         scoreboard = await client.get(
             f"/api/game/{game['id']}/scoreboard", cookies=cookies,

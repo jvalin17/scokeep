@@ -29,12 +29,18 @@ export const roundendScreen = {
         const trumpInfo = getTrump(game.current_round);
         const mode = game.settings.mode || 'expert';
 
+        function getRemainingCards() {
+            const cardsDealt = getRoundCards(game.current_round, rps);
+            const totalHands = Object.values(handsCollected).reduce((s, v) => s + v, 0);
+            return Math.max(0, cardsDealt - totalHands);
+        }
+
         function getDisabledKeys() {
             const isLastPlayer = entryPosition === players.length - 1;
             if (!isLastPlayer) return [];
+            // Last player must take exactly the remaining cards
+            const remaining = getRemainingCards();
             const cardsDealt = getRoundCards(game.current_round, rps);
-            const totalHands = Object.values(handsCollected).reduce((s, v) => s + v, 0);
-            const remaining = cardsDealt - totalHands;
             const disabled = [];
             for (let i = 0; i <= cardsDealt; i++) {
                 if (i !== remaining) disabled.push(i);
@@ -78,7 +84,7 @@ export const roundendScreen = {
             `;
 
             const keypad = Keypad({
-                max: cardsDealt,
+                max: getRemainingCards(),
                 disabled: getDisabledKeys(),
                 onSelect: (value) => handleHandsSelect(value),
             });
@@ -106,7 +112,6 @@ export const roundendScreen = {
         function renderConfirm() {
             const cardsDealt = getRoundCards(game.current_round, rps);
             const totalHands = Object.values(handsCollected).reduce((sum, v) => sum + v, 0);
-            const mismatch = totalHands !== cardsDealt;
 
             container.innerHTML = `
                 <div class="roundend">
@@ -123,9 +128,8 @@ export const roundendScreen = {
                             </div>
                         `).join('')}
                     </div>
-                    <div class="bid-total ${mismatch ? 'mismatch-warn' : ''}">
-                        Total: ${totalHands} / ${cardsDealt}
-                        ${mismatch ? '<span class="overbid-warn">⚠ Does not match cards dealt</span>' : '✓'}
+                    <div class="bid-total">
+                        Total: ${totalHands} / ${cardsDealt} ✓
                     </div>
                     <button id="score-round" class="btn btn-primary">Score Round</button>
                     <p id="score-error" class="error hidden"></p>

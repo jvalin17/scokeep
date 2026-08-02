@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 
 class GameSettings(BaseModel):
-    game_type: str = Field(default="kachuful", pattern=r"^(kachuful|free)$")
+    game_type: str = Field(default="kachuful", pattern=r"^kachuful$")
     mode: str = Field(default="expert", pattern=r"^(expert|rookie|friendly)$")
     appearance: str = Field(default="standard", pattern=r"^(standard|interactive)$")
     timer_seconds: int = Field(default=3, ge=1, le=30)
@@ -12,7 +12,6 @@ class GameSettings(BaseModel):
     num_sets: int = Field(default=3, ge=1, le=10)
     rounds_per_set: int = Field(default=8, ge=4, le=8)
     must_lose: bool = Field(default=False)
-    free_rounds: int = Field(default=10, ge=1, le=99)
     trump_rotation: list[str] = Field(
         default=["spades", "diamonds", "clubs", "hearts"]
     )

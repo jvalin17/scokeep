@@ -9,7 +9,7 @@ import { roundendScreen } from './screens/roundend.js';
 import { scoreboardScreen } from './screens/scoreboard.js';
 import { finalScreen } from './screens/final.js';
 import { statsScreen } from './screens/stats.js';
-import { freescoreScreen } from './screens/freescore.js';
+
 
 const state = {
     playground: null,
@@ -29,7 +29,7 @@ const routes = {
     'scoreboard': scoreboardScreen,
     'final': finalScreen,
     'stats': statsScreen,
-    'freescore': freescoreScreen,
+
 };
 
 function parseHash() {

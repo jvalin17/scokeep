@@ -62,7 +62,6 @@ class TestJSModules:
         "/static/js/screens/scoreboard.js",
         "/static/js/screens/final.js",
         "/static/js/screens/stats.js",
-        "/static/js/screens/freescore.js",
         "/static/js/components/keypad.js",
         "/static/js/components/sounds.js",
         "/static/js/components/logger.js",
