@@ -38,7 +38,7 @@ export const playScreen = {
                         `).join('')}
                     </div>
                 `;
-            } catch (e) { console.warn('Failed to load bids:', e.message); }
+            } catch { /* bids not available */ }
         }
 
         container.innerHTML = `

@@ -53,7 +53,7 @@ export const homeScreen = {
             try {
                 const { names } = await listRecentPlaygrounds();
                 const recentEl = container.querySelector('#recent-playgrounds');
-                if (names.length > 0) {
+                if (recentEl && names.length > 0) {
                     recentEl.innerHTML = `
                         <div class="recent-list">
                             ${names.map(name => `<button type="button" class="recent-item">${name}</button>`).join('')}
@@ -66,7 +66,7 @@ export const homeScreen = {
                         });
                     });
                 }
-            } catch (e) { console.warn('Failed to load recent:', e.message); }
+            } catch { /* no recent playgrounds */ }
         }
 
         // Tab switching

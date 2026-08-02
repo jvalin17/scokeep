@@ -24,7 +24,7 @@ export const lobbyScreen = {
         let activeGame = null;
         try {
             activeGame = await getActiveGame(playground.id);
-        } catch (e) { console.warn('No active game:', e.message); }
+        } catch { /* no active game */ }
 
         function renderLobby() {
             container.innerHTML = `
@@ -167,7 +167,8 @@ export const lobbyScreen = {
 
             // Touch drag to reorder
             const playerList = container.querySelector('#player-list');
-            initDragReorder(container, playerList, players, renderLobby);
+            if (lobbyScreen._cleanupDrag) lobbyScreen._cleanupDrag();
+            lobbyScreen._cleanupDrag = initDragReorder(container, playerList, players, renderLobby);
 
             // Must-lose toggle label
             const mustLoseCheckbox = container.querySelector('#setting-must-lose');
@@ -217,5 +218,10 @@ export const lobbyScreen = {
         renderLobby();
     },
 
-    unmount() {},
+    unmount() {
+        if (lobbyScreen._cleanupDrag) {
+            lobbyScreen._cleanupDrag();
+            lobbyScreen._cleanupDrag = null;
+        }
+    },
 };

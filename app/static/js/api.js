@@ -146,11 +146,6 @@ export function endRound(gameId) {
 export function getScoreboard(gameId) {
     return request('GET', `/game/${gameId}/scoreboard`);
 }
-
-export function getHistory(gameId) {
-    return request('GET', `/game/${gameId}/history`);
-}
-
 export function undoRound(gameId) {
     return request('POST', `/game/${gameId}/undo`);
 }

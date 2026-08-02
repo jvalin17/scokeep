@@ -35,7 +35,7 @@ export const biddingScreen = {
             bidsCollected = roundData.bids || {};
             bidPosition = Object.keys(bidsCollected).length;
             Object.keys(bidsCollected).forEach(key => backendHasBid.add(key));
-        } catch (e) { console.warn('No existing bids:', e.message); }
+        } catch { /* first round — no bids yet */ }
 
         function currentPlayer() { return biddingOrder[bidPosition]; }
 
@@ -177,7 +177,7 @@ export const biddingScreen = {
                     </div>
                     <div class="bid-total">
                         Total: ${totalBids} / ${cardsDealt}
-                        ${allBidsPresent && totalBids === cardsDealt ? '<span class="overbid-warn">= cards dealt</span>' : ''}
+                        ${allBidsPresent && totalBids === cardsDealt ? '<span class="overbid-warn">⚠ total = cards dealt</span>' : ''}
                     </div>
                     ${allBidsPresent ? '<button id="confirm-bids" class="btn btn-primary">Start Round</button>' : '<p class="claimed-info">Set missing bids to continue</p>'}
                     <p id="bid-error" class="error hidden"></p>

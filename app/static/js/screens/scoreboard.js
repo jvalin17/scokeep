@@ -171,36 +171,43 @@ export const scoreboardScreen = {
                 });
             }
 
-            container.querySelector('#end-game').addEventListener('click', async () => {
-                try {
-                    await endGame(gameId);
-                    soundEndGame();
-                    navigate(`scoreboard/${gameId}`);
-                    window.dispatchEvent(new HashChangeEvent('hashchange'));
-                } catch (error) {
-                    showError(error.message);
-                }
-            });
-
-            container.querySelector('#undo-round').addEventListener('click', async () => {
-                try {
-                    await undoRound(gameId);
-                    soundUndo();
-                    const updated = await getGame(gameId);
-                    if (updated.phase === 'bidding') {
-                        navigate(`bid/${gameId}`);
-                    } else {
+            const endGameBtn = container.querySelector('#end-game');
+            if (endGameBtn) {
+                endGameBtn.addEventListener('click', async () => {
+                    try {
+                        await endGame(gameId);
+                        soundEndGame();
                         navigate(`scoreboard/${gameId}`);
                         window.dispatchEvent(new HashChangeEvent('hashchange'));
+                    } catch (error) {
+                        showError(error.message);
                     }
-                } catch (error) {
-                    showError(error.message);
-                }
-            });
+                });
+            }
+
+            const undoBtn = container.querySelector('#undo-round');
+            if (undoBtn) {
+                undoBtn.addEventListener('click', async () => {
+                    try {
+                        await undoRound(gameId);
+                        soundUndo();
+                        const updated = await getGame(gameId);
+                        if (updated.phase === 'bidding') {
+                            navigate(`bid/${gameId}`);
+                        } else {
+                            navigate(`scoreboard/${gameId}`);
+                            window.dispatchEvent(new HashChangeEvent('hashchange'));
+                        }
+                    } catch (error) {
+                        showError(error.message);
+                    }
+                });
+            }
         }
 
         function showError(message) {
             const errorEl = container.querySelector('#scoreboard-error');
+            if (!errorEl) return;
             errorEl.textContent = message;
             errorEl.classList.remove('hidden');
         }

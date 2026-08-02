@@ -85,7 +85,7 @@ export const statsScreen = {
                         await clearPlaygroundStats(shareCode);
                         navigate(`stats/${shareCode}`);
                     } catch (e) {
-                        console.error('Failed to clear stats:', e.message);
+                        /* clear failed silently — user can retry */
                     }
                 });
             }
