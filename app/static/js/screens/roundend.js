@@ -1,11 +1,11 @@
 // Round end screen — hands won entry via keypad + back button
 
-import { submitHands, endRound, resyncGame, guardPhase } from '../api.js';
-import { Keypad } from '../components/keypad.js';
+import { submitHands, endRound, extendGame, nextRound, resyncGame, guardPhase } from '../api.js';
+import { Keypad, InlineKeypad } from '../components/keypad.js';
 import { getRoundCards } from '../components/game-utils.js';
 import { getEntryOrder } from '../components/entry-utils.js';
 import { renderGameIsland, renderRoundInfoBar, renderTrumpDisplay, attachEndGameHandler, showError } from '../components/screen-parts.js';
-import { soundScoreRound } from '../components/sounds.js';
+import { soundScoreRound, soundNextRound } from '../components/sounds.js';
 
 export const roundendScreen = {
     async mount(container, state, { navigate, params }) {
@@ -20,6 +20,7 @@ export const roundendScreen = {
         const entryOrder = getEntryOrder(game.dealer_index, players.length);
         let entryPosition = 0;
         let handsCollected = {};
+        let editingPi = null;
 
         document.body.setAttribute('data-phase', 'roundend');
 
@@ -93,6 +94,7 @@ export const roundendScreen = {
         function renderConfirm() {
             const cardsDealt = getRoundCards(game.current_round, rps);
             const totalHands = Object.values(handsCollected).reduce((sum, v) => sum + v, 0);
+            const lastPi = entryOrder[entryOrder.length - 1];
 
             container.innerHTML = `
                 <div class="roundend">
@@ -101,47 +103,131 @@ export const roundendScreen = {
                     </div>
                     <h3>Confirm Hands Won</h3>
                     <div class="bid-summary">
-                        ${entryOrder.map(pi => `
-                            <div class="bid-summary-row">
-                                <span>${players[pi]}${pi === game.dealer_index ? ' (D)' : ''}</span>
-                                <span class="bid-summary-value">${handsCollected[String(pi)] ?? '?'}</span>
-                                <button class="btn-small btn-edit" data-edit="${pi}">Edit</button>
-                            </div>
-                        `).join('')}
+                        ${entryOrder.map(pi => {
+                            const key = String(pi);
+                            const isEditing = editingPi === pi;
+                            return `
+                                <div class="bid-summary-row">
+                                    <span>${players[pi]}${pi === game.dealer_index ? ' (D)' : ''}</span>
+                                    <span class="bid-summary-value">${handsCollected[key] ?? '?'}</span>
+                                    <button class="btn-small btn-edit" data-edit="${pi}">${isEditing ? 'Cancel' : 'Edit'}</button>
+                                </div>
+                                ${isEditing ? '<div id="inline-keypad-slot"></div>' : ''}
+                            `;
+                        }).join('')}
                     </div>
                     <div class="bid-total">
-                        Total: ${totalHands} / ${cardsDealt} ✓
+                        Total: ${totalHands} / ${cardsDealt} ${totalHands === cardsDealt ? '✓' : '⚠'}
                     </div>
-                    <button id="score-round" class="btn btn-primary">Score Round</button>
+                    ${totalHands === cardsDealt ? '<button id="score-round" class="btn btn-primary">Score Round</button>' : '<p class="claimed-info">Total must equal cards dealt</p>'}
                     <p id="score-error" class="error hidden"></p>
                 </div>
             `;
 
+            // Edit button toggles inline keypad
             container.querySelectorAll('[data-edit]').forEach(btn => {
-                btn.addEventListener('click', async () => {
+                btn.addEventListener('click', () => {
                     const pi = parseInt(btn.dataset.edit);
-                    const pos = entryOrder.indexOf(pi);
-                    // Reset hands on backend for this player and all after
-                    for (let i = pos; i < entryOrder.length; i++) {
-                        const clearKey = String(entryOrder[i]);
-                        if (clearKey in handsCollected) {
-                            await submitHands(gameId, entryOrder[i], 0);
-                            delete handsCollected[clearKey];
-                        }
-                    }
-                    entryPosition = pos;
-                    renderCollecting();
+                    editingPi = (editingPi === pi) ? null : pi;
+                    renderConfirm();
                 });
             });
 
-            container.querySelector('#score-round').addEventListener('click', async () => {
+            // Mount inline keypad if editing
+            const keypadSlot = container.querySelector('#inline-keypad-slot');
+            if (keypadSlot && editingPi !== null) {
+                const editKey = String(editingPi);
+                const othersTotal = Object.entries(handsCollected)
+                    .filter(([k]) => k !== editKey)
+                    .reduce((sum, [, v]) => sum + v, 0);
+                const maxForThisPlayer = cardsDealt - othersTotal;
+
+                const inlineKeypad = InlineKeypad({
+                    max: Math.max(0, maxForThisPlayer),
+                    disabled: [],
+                    onSelect: async (value) => {
+                        try {
+                            await submitHands(gameId, editingPi, value);
+                            handsCollected[editKey] = value;
+
+                            // Auto-adjust last player to keep total = cards dealt
+                            if (editingPi !== lastPi) {
+                                const newOthersTotal = Object.entries(handsCollected)
+                                    .filter(([k]) => k !== String(lastPi))
+                                    .reduce((sum, [, v]) => sum + v, 0);
+                                const lastValue = cardsDealt - newOthersTotal;
+                                if (lastValue >= 0) {
+                                    await submitHands(gameId, lastPi, lastValue);
+                                    handsCollected[String(lastPi)] = lastValue;
+                                }
+                            }
+
+                            editingPi = null;
+                            renderConfirm();
+                        } catch (error) {
+                            showError(container, 'score-error', error.message);
+                        }
+                    },
+                });
+                keypadSlot.appendChild(inlineKeypad);
+            }
+
+            const scoreBtn = container.querySelector('#score-round');
+            if (scoreBtn) {
+                scoreBtn.addEventListener('click', async () => {
+                    try {
+                        await endRound(gameId);
+                        soundScoreRound();
+                        const isFinalRound = game.current_round >= game.total_rounds;
+                        if (isFinalRound) {
+                            renderExtendPrompt();
+                        } else {
+                            navigate(`scoreboard/${gameId}`);
+                        }
+                    } catch {
+                        await resyncGame(gameId);
+                    }
+                });
+            }
+        }
+
+        function renderExtendPrompt() {
+            const rps = game.settings.rounds_per_set || 8;
+            container.innerHTML = `
+                <div class="roundend">
+                    <div class="round-info">
+                        <span>Set Complete!</span>
+                    </div>
+                    <h3>All ${game.total_rounds} rounds played</h3>
+                    <div class="scoreboard-actions">
+                        <div style="display:flex;gap:8px;align-items:center;justify-content:center;margin-bottom:12px;">
+                            <label>Add</label>
+                            <select id="extend-count">
+                                ${[1,2,3,4].map(n => `<option value="${n}">${n} set${n > 1 ? 's' : ''} (${n * rps} rounds)</option>`).join('')}
+                            </select>
+                        </div>
+                        <button id="extend-set" class="btn btn-primary">Add & Continue</button>
+                        <button id="see-scores" class="btn" style="margin-top: 12px;">See Scores</button>
+                    </div>
+                </div>
+            `;
+
+            container.querySelector('#extend-set').addEventListener('click', async () => {
+                const count = parseInt(container.querySelector('#extend-count').value);
                 try {
-                    await endRound(gameId);
-                    soundScoreRound();
-                    navigate(`scoreboard/${gameId}`);
+                    for (let i = 0; i < count; i++) {
+                        await extendGame(gameId);
+                    }
+                    await nextRound(gameId);
+                    soundNextRound();
+                    navigate(`bid/${gameId}`);
                 } catch {
-                    await resyncGame(gameId);
+                    navigate(`scoreboard/${gameId}`);
                 }
+            });
+
+            container.querySelector('#see-scores').addEventListener('click', () => {
+                navigate(`scoreboard/${gameId}`);
             });
         }
 

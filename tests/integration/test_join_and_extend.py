@@ -138,6 +138,110 @@ class TestExtendGame:
         assert resp.status_code == 409
 
 
+class TestSetBoundaryDetection:
+    """Verify game state at scoreboard enables set-boundary detection."""
+
+    async def test_at_set_boundary_current_round_is_divisible(
+        self, client: AsyncClient,
+    ):
+        """After completing round 4 of a 4-round set, current_round=4
+        and current_round % rounds_per_set == 0 (set boundary)."""
+        pg, cookies = await _setup(client, "SetBound Test")
+        game_resp = await client.post("/api/game", json={
+            "playground_id": pg["id"],
+            "players": ["Lena", "Marco"],
+            "settings": {"num_sets": 2, "rounds_per_set": 4},
+        }, cookies=cookies)
+        game_id = game_resp.json()["id"]
+
+        # Play 4 rounds to complete set 1
+        for round_num in range(4):
+            cards = 4 - round_num
+            for i in range(2):
+                await client.post(f"/api/game/{game_id}/bid", json={
+                    "player_index": i, "value": 0,
+                }, cookies=cookies)
+            await client.post(
+                f"/api/game/{game_id}/start-round", cookies=cookies,
+            )
+            await client.post(
+                f"/api/game/{game_id}/enter-round-end", cookies=cookies,
+            )
+            for i, hand in enumerate([0, cards]):
+                await client.post(f"/api/game/{game_id}/hands", json={
+                    "player_index": i, "value": hand,
+                }, cookies=cookies)
+            await client.post(
+                f"/api/game/{game_id}/end-round", cookies=cookies,
+            )
+            if round_num < 3:
+                await client.post(
+                    f"/api/game/{game_id}/next-round", cookies=cookies,
+                )
+
+        # At scoreboard after round 4: game should be in scoreboard phase
+        game_state = await client.get(
+            f"/api/game/{game_id}", cookies=cookies,
+        )
+        game = game_state.json()
+        assert game["phase"] == "scoreboard"
+        assert game["status"] == "active"
+        # current_round should be 4 (not yet advanced)
+        assert game["current_round"] == 4
+        # Set boundary: 4 % 4 == 0
+        rounds_per_set = game["settings"]["rounds_per_set"]
+        assert game["current_round"] % rounds_per_set == 0
+
+    async def test_at_last_round_current_round_equals_total(
+        self, client: AsyncClient,
+    ):
+        """After completing the final round, current_round == total_rounds
+        and game is still active (not finished until next-round is called)."""
+        pg, cookies = await _setup(client, "LastRound Test")
+        game_resp = await client.post("/api/game", json={
+            "playground_id": pg["id"],
+            "players": ["Anya", "Riku"],
+            "settings": {"num_sets": 1, "rounds_per_set": 4},
+        }, cookies=cookies)
+        game_id = game_resp.json()["id"]
+
+        # Play all 4 rounds
+        for round_num in range(4):
+            cards = 4 - round_num
+            for i in range(2):
+                await client.post(f"/api/game/{game_id}/bid", json={
+                    "player_index": i, "value": 0,
+                }, cookies=cookies)
+            await client.post(
+                f"/api/game/{game_id}/start-round", cookies=cookies,
+            )
+            await client.post(
+                f"/api/game/{game_id}/enter-round-end", cookies=cookies,
+            )
+            for i, hand in enumerate([0, cards]):
+                await client.post(f"/api/game/{game_id}/hands", json={
+                    "player_index": i, "value": hand,
+                }, cookies=cookies)
+            await client.post(
+                f"/api/game/{game_id}/end-round", cookies=cookies,
+            )
+            if round_num < 3:
+                await client.post(
+                    f"/api/game/{game_id}/next-round", cookies=cookies,
+                )
+
+        # At scoreboard after final round
+        game_state = await client.get(
+            f"/api/game/{game_id}", cookies=cookies,
+        )
+        game = game_state.json()
+        assert game["phase"] == "scoreboard"
+        # Game must still be active so user can choose extend vs end
+        assert game["status"] == "active"
+        assert game["current_round"] == 4
+        assert game["current_round"] >= game["total_rounds"]
+
+
 class TestExtendAndPlayNextSet:
     """Extend game then play into the new set — full integration."""
 

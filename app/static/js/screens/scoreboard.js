@@ -1,6 +1,6 @@
 // Scoreboard screen — cumulative scores, next round / end game
 
-import { getGame, getScoreboard, undoRound, endGame, nextRound, extendGame } from '../api.js';
+import { getGame, getScoreboard, undoRound, endGame, nextRound } from '../api.js';
 import { soundNextRound, soundEndGame, soundUndo } from '../components/sounds.js';
 
 export const scoreboardScreen = {
@@ -20,10 +20,10 @@ export const scoreboardScreen = {
         const totals = scoreboard.totals;
         const rounds = scoreboard.rounds;
 
-        // Check if at set boundary
+        // current_round = round just completed (not yet advanced by next-round)
         const roundsPerSet = game.settings.rounds_per_set || 8;
-        const isSetEnd = game.current_round > 1 && (game.current_round - 1) % roundsPerSet === 0;
-        const isLastRound = (game.current_round - 1) >= game.total_rounds;
+        const isSetEnd = game.current_round % roundsPerSet === 0;
+        const isLastRound = game.current_round >= game.total_rounds;
         const isGameOver = game.status === 'finished';
 
         document.body.setAttribute('data-phase', 'scoreboard');
@@ -133,7 +133,7 @@ export const scoreboardScreen = {
             <div class="scoreboard">
                 ${isGameOver ? winnerHtml : `
                     <div class="round-info">
-                        <span>After Round ${game.current_round - 1}</span>
+                        <span>After Round ${game.current_round}</span>
                         ${state.playground ? `<button class="btn-home" onclick="location.hash='playground/${state.playground.share_code}'">🏠</button>` : ''}
                     </div>
                 `}
@@ -142,18 +142,9 @@ export const scoreboardScreen = {
 
                 <div class="scoreboard-actions">
                     ${isGameOver ? `
-                        <button onclick="location.hash=''" class="btn btn-primary">🏠 Home</button>
-                    ` : isLastRound ? `
-                        <button id="extend-game" class="btn btn-primary">Add Another Set</button>
-                        <button id="end-game" class="btn" style="margin-top: 12px;">End Game</button>
-                        <button id="undo-round" class="btn-text">Undo Last Round</button>
-                    ` : isSetEnd ? `
-                        <button id="next-round" class="btn btn-primary">Next Round</button>
-                        <button id="extend-game" class="btn" style="margin-top: 12px;">Add Another Set</button>
-                        <button id="end-game" class="btn-text" style="margin-top: 32px; color: var(--danger);">End Game</button>
-                        <button id="undo-round" class="btn-text">Undo Last Round</button>
+                        <button onclick="location.hash='${state.playground ? `playground/${state.playground.share_code}` : ''}'" class="btn btn-primary">🏠 Back to Room</button>
                     ` : `
-                        <button id="next-round" class="btn btn-primary">Next Round</button>
+                        <button id="next-round" class="btn btn-primary">${isLastRound ? 'Finish Game' : 'Next Round'}</button>
                         <button id="end-game" class="btn-text" style="margin-top: 32px; color: var(--danger);">End Game</button>
                         <button id="undo-round" class="btn-text">Undo Last Round</button>
                     `}
@@ -167,20 +158,6 @@ export const scoreboardScreen = {
             if (nextRoundBtn) {
                 nextRoundBtn.addEventListener('click', async () => {
                     try {
-                        await nextRound(gameId);
-                        soundNextRound();
-                        navigate(`bid/${gameId}`);
-                    } catch (error) {
-                        showError(error.message);
-                    }
-                });
-            }
-
-            const extendBtn = container.querySelector('#extend-game');
-            if (extendBtn) {
-                extendBtn.addEventListener('click', async () => {
-                    try {
-                        await extendGame(gameId);
                         await nextRound(gameId);
                         soundNextRound();
                         navigate(`bid/${gameId}`);
