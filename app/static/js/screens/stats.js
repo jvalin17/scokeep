@@ -1,6 +1,6 @@
 // Stats screen — leaderboard, game history, bid accuracy, head-to-head
 
-import { getPlaygroundStats, clearPlaygroundStats } from '../api.js';
+import { getPlaygroundStats, clearPlaygroundStats, getScoreboard } from '../api.js';
 
 export const statsScreen = {
     async mount(container, state, { navigate, params }) {
@@ -31,6 +31,8 @@ export const statsScreen = {
         }
 
         let activeTab = 'leaderboard';
+        let expandedGameId = null;
+        let expandedData = null;
 
         function render() {
             container.innerHTML = `
@@ -84,11 +86,33 @@ export const statsScreen = {
                     try {
                         await clearPlaygroundStats(shareCode);
                         navigate(`stats/${shareCode}`);
-                    } catch (e) {
+                    } catch {
                         /* clear failed silently — user can retry */
                     }
                 });
             }
+
+            // Expand game detail in history tab
+            container.querySelectorAll('[data-game]').forEach(card => {
+                card.addEventListener('click', async (event) => {
+                    event.stopPropagation();
+                    const gameId = parseInt(card.dataset.game);
+                    if (expandedGameId === gameId) {
+                        expandedGameId = null;
+                        expandedData = null;
+                    } else {
+                        expandedGameId = gameId;
+                        expandedData = 'loading';
+                        render();
+                        try {
+                            expandedData = await getScoreboard(gameId);
+                        } catch {
+                            expandedData = 'error';
+                        }
+                    }
+                    render();
+                });
+            });
         }
 
         function renderLeaderboard() {
@@ -163,11 +187,12 @@ export const statsScreen = {
             return `
                 <div class="stats-section">
                     ${stats.game_history.map(g => `
-                        <div class="stats-game-card">
+                        <div class="stats-game-card" data-game="${g.game_id}" style="cursor:pointer;">
                             <div class="stats-game-header">
                                 <span class="stats-muted">${g.date ? new Date(g.date).toLocaleDateString() : '—'}</span>
                                 <span>${g.rounds_played} rounds</span>
                                 <span class="stats-mode">${g.mode}</span>
+                                <span>${expandedGameId === g.game_id ? '▲' : '▼'}</span>
                             </div>
                             <div class="stats-game-scores">
                                 ${g.players.map(name => `
@@ -177,8 +202,65 @@ export const statsScreen = {
                                     </div>
                                 `).join('')}
                             </div>
+                            ${expandedGameId === g.game_id ? (
+                                expandedData === 'loading' ? '<p class="stats-muted" style="padding:8px;text-align:center;">Loading...</p>' :
+                                expandedData === 'error' ? '<p class="stats-muted" style="padding:8px;text-align:center;">Could not load game details</p>' :
+                                expandedData ? renderGameDetail(g, expandedData) : ''
+                            ) : ''}
                         </div>
                     `).join('')}
+                </div>
+            `;
+        }
+
+        function renderGameDetail(game, scoreboard) {
+            const players = game.players;
+            const rounds = scoreboard.rounds;
+            const totals = scoreboard.totals;
+            if (!rounds.length) return '<p class="stats-muted" style="padding:8px;">No round data</p>';
+
+            return `
+                <div class="game-detail">
+                    <div class="game-detail-legend">
+                        <span class="legend-item"><span class="legend-swatch legend-overbid"></span> Overbid</span>
+                        <span class="legend-item"><span class="legend-swatch legend-underbid"></span> Underbid</span>
+                    </div>
+                    <div class="score-table-full" style="margin-top:8px;">
+                        <table class="scoresheet">
+                            <thead>
+                                <tr>
+                                    <th>R#</th>
+                                    ${players.map(name => `<th>${name}</th>`).join('')}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${rounds.map(round => {
+                                    return `<tr>
+                                        <td>${round.round_num}</td>
+                                        ${players.map((_, idx) => {
+                                            const key = String(idx);
+                                            const score = round.scores[key] || 0;
+                                            const bid = round.bids ? round.bids[key] : null;
+                                            const hand = round.hands_won ? round.hands_won[key] : null;
+                                            let cellClass = '';
+                                            if (bid !== null && hand !== null && bid !== hand) {
+                                                cellClass = bid > hand ? 'cell-overbid' : 'cell-underbid';
+                                            }
+                                            return `<td class="${cellClass} ${score < 0 ? 'score-negative' : ''}">
+                                                ${score > 0 ? '+' : ''}${score}
+                                            </td>`;
+                                        }).join('')}
+                                    </tr>`;
+                                }).join('')}
+                            </tbody>
+                            <tfoot>
+                                <tr class="totals-row">
+                                    <td><strong>Tot</strong></td>
+                                    ${players.map((_, idx) => `<td><strong>${totals[String(idx)] || 0}</strong></td>`).join('')}
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
                 </div>
             `;
         }

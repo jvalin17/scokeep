@@ -597,3 +597,13 @@ input::placeholder { color: var(--text-muted); }
 .stats-game-scores { display: flex; flex-direction: column; gap: 4px; }
 .stats-game-player { display: flex; justify-content: space-between; font-size: 0.9rem; padding: 2px 0; }
 .stats-game-winner { font-weight: 600; color: var(--accent); }
+
+/* Game detail expand */
+.game-detail { margin-top: 12px; border-top: 1px solid var(--border-light); padding-top: 8px; }
+.game-detail-legend { display: flex; gap: 16px; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px; }
+.legend-item { display: flex; align-items: center; gap: 4px; }
+.legend-swatch { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
+.legend-overbid { background: #BBDEFB; }
+.legend-underbid { background: #FFE0B2; }
+.cell-overbid { background: #BBDEFB; }
+.cell-underbid { background: #FFE0B2; }
