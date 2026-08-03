@@ -59,7 +59,7 @@ export const playScreen = {
             }
         });
 
-        attachEndGameHandler(container, gameId, navigate);
+        attachEndGameHandler(container, gameId, navigate, state);
     },
 
     unmount() {},

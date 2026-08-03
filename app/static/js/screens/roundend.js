@@ -88,7 +88,7 @@ export const roundendScreen = {
                 });
             }
 
-            attachEndGameHandler(container, gameId, navigate);
+            attachEndGameHandler(container, gameId, navigate, state);
         }
 
         function renderConfirm() {

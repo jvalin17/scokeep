@@ -110,7 +110,7 @@ export const biddingScreen = {
                 });
             }
 
-            attachEndGameHandler(container, gameId, navigate);
+            attachEndGameHandler(container, gameId, navigate, state);
         }
 
         function renderConfirm() {
@@ -151,7 +151,7 @@ export const biddingScreen = {
                 </div>
             `;
 
-            attachEndGameHandler(container, gameId, navigate);
+            attachEndGameHandler(container, gameId, navigate, state);
 
             container.querySelectorAll('[data-edit]').forEach(btn => {
                 btn.addEventListener('click', () => {

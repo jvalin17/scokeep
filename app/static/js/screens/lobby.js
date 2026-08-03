@@ -157,7 +157,7 @@ export const lobbyScreen = {
                         const gameId = activeGame.id;
                         await endGame(gameId);
                         soundEndGame();
-                        navigate(`scoreboard/${gameId}`);
+                        navigate(`playground/${shareCode}`);
                     }
                 });
             }

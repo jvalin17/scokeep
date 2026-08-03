@@ -74,14 +74,17 @@ export function renderTrumpDisplay(roundNum, mode, size = 'small') {
 /**
  * Attach the End Game click handler to #end-game-btn in the container.
  */
-export function attachEndGameHandler(container, gameId, navigate) {
+export function attachEndGameHandler(container, gameId, navigate, state) {
     const btn = container.querySelector('#end-game-btn');
     if (!btn) return;
     btn.addEventListener('click', async () => {
         if (confirm('End this game? Scores so far will be saved.')) {
             await endGame(gameId);
             soundEndGame();
-            navigate(`scoreboard/${gameId}`);
+            const roomPath = state?.playground
+                ? `playground/${state.playground.share_code}`
+                : '';
+            navigate(roomPath);
         }
     });
 }
