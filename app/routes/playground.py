@@ -72,6 +72,7 @@ async def auth_playground(
         value=session_token,
         httponly=True,
         samesite="lax",
+        secure=True,
         max_age=60 * 60 * 24 * 30,  # 30 days
     )
     return playground
@@ -99,6 +100,7 @@ async def join_live_game(
         value=session_token,
         httponly=True,
         samesite="lax",
+        secure=True,
         max_age=60 * 60 * 2,  # 2 hours (shorter than PIN auth)
     )
     return playground
