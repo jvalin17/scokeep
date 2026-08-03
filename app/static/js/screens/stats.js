@@ -229,13 +229,14 @@ export const statsScreen = {
 
             const { career, recent } = highlights;
 
-            function careerTable(title, emoji, data, valueKey = 'count') {
+            function careerTable(title, emoji, description, data, valueKey = 'count') {
                 if (!data || !data.length) return '';
                 const filtered = data.filter(p => p[valueKey] > 0);
                 if (!filtered.length) return '';
                 return `
                     <div class="stats-card" style="margin-bottom:16px;padding:12px;">
-                        <h4 style="margin:0 0 10px;">${emoji} ${title}</h4>
+                        <h4 style="margin:0 0 4px;">${emoji} ${title}</h4>
+                        <p class="stats-muted" style="font-size:0.75rem;margin-bottom:8px;">${description}</p>
                         <table class="awards-table">
                             <thead>
                                 <tr><th>#</th><th>Player</th><th>Count</th></tr>
@@ -280,13 +281,13 @@ export const statsScreen = {
             function lastGameSection(lastGame) {
                 if (!lastGame) return '';
                 const awards = [
-                    { key: 'mvp', emoji: '🏆', title: 'MVP', detail: lg => `${lg.score} points` },
-                    { key: 'sharpshooter', emoji: '🎯', title: 'Sharpshooter', detail: lg => `${lg.accuracy}% accuracy` },
-                    { key: 'brick_wall', emoji: '🧱', title: 'Brick Wall', detail: lg => `${lg.count} zero-bids made` },
-                    { key: 'bold_move', emoji: '🎲', title: 'Bold Move', detail: lg => `bid ${lg.bid} and made it` },
-                    { key: 'sandbagger', emoji: '🏖️', title: 'Sandbagger', detail: lg => `${lg.count} underbids` },
-                    { key: 'gambler', emoji: '🎰', title: 'Gambler', detail: lg => `${lg.count} overbids` },
-                    { key: 'cursed', emoji: '😵', title: 'Cursed', detail: lg => `${lg.streak} misses in a row` },
+                    { key: 'mvp', emoji: '🏆', title: 'MVP', desc: 'Highest total score', detail: lg => `${lg.score} points` },
+                    { key: 'sharpshooter', emoji: '🎯', title: 'Sharpshooter', desc: 'Best bid accuracy', detail: lg => `${lg.accuracy}% accuracy` },
+                    { key: 'brick_wall', emoji: '🧱', title: 'Brick Wall', desc: 'Most successful zero bids', detail: lg => `${lg.count} zero-bids made` },
+                    { key: 'bold_move', emoji: '🎲', title: 'Bold Move', desc: 'Highest bid that was made', detail: lg => `bid ${lg.bid} and made it` },
+                    { key: 'sandbagger', emoji: '🏖️', title: 'Sandbagger', desc: 'Most underbids — bid low, won more', detail: lg => `${lg.count} underbids` },
+                    { key: 'gambler', emoji: '🎰', title: 'Gambler', desc: 'Most overbids — bid high, fell short', detail: lg => `${lg.count} overbids` },
+                    { key: 'cursed', emoji: '😵', title: 'Cursed', desc: 'Longest streak of missed bids', detail: lg => `${lg.streak} misses in a row` },
                 ];
                 const cards = awards
                     .filter(a => lastGame[a.key])
@@ -298,7 +299,8 @@ export const statsScreen = {
                                     <span>${a.emoji} ${a.title}</span>
                                     <strong style="margin-left:8px;">${data.name}</strong>
                                 </div>
-                                <div class="stats-muted" style="margin-top:4px;font-size:0.8rem;">
+                                <div class="stats-muted" style="margin-top:2px;font-size:0.7rem;">${a.desc}</div>
+                                <div class="stats-muted" style="margin-top:2px;font-size:0.8rem;">
                                     ${a.detail(data)}
                                 </div>
                             </div>
@@ -326,12 +328,12 @@ export const statsScreen = {
                     ` : ''}
 
                     <h3 style="margin:20px 0 12px;">Career Records</h3>
-                    ${careerTable('Sniper', '🎯', career.sniper)}
-                    ${careerTable('Zero Master', '🥷', career.zero_master)}
-                    ${careerTable('High Roller', '🎲', career.high_roller)}
-                    ${careerTable('All-in', '💎', career.all_in)}
-                    ${careerTable('Jinxed', '😵', career.jinxed, 'longest')}
-                    ${careerTable('Perfect Set', '⭐', career.perfect_set)}
+                    ${careerTable('Sniper', '🎯', 'Bid exactly 1 and made it', career.sniper)}
+                    ${careerTable('Zero Master', '🥷', 'Bid 0 and won no tricks', career.zero_master)}
+                    ${careerTable('High Roller', '🎲', 'Bid 3 or more and made it', career.high_roller)}
+                    ${careerTable('All-in', '💎', 'Bid all cards dealt and made it', career.all_in)}
+                    ${careerTable('Jinxed', '😵', 'Longest streak of missed bids', career.jinxed, 'longest')}
+                    ${careerTable('Perfect Set', '⭐', 'Made every bid in a full set', career.perfect_set)}
 
                     ${!hasRecent && !career.sniper?.some(p => p.count > 0)
                         ? '<p class="stats-muted">Play more games to unlock awards!</p>'

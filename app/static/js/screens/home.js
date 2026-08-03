@@ -106,7 +106,11 @@ export const homeScreen = {
                             </div>
                             <div class="howto-step">
                                 <strong>6. Stats & Awards</strong>
-                                <p>View leaderboard, bid accuracy, overbid/underbid trends, and awards — Sniper, Zero Master, Hot Hand, Sharpshooter, and more. Every player gets a chance to shine.</p>
+                                <p>View leaderboard, bid accuracy, overbid/underbid trends, and awards. Every player gets a chance to shine.</p>
+                            </div>
+                            <div class="howto-step">
+                                <strong>7. Install as App</strong>
+                                <p>Scokeep is a PWA — tap "Add to Home Screen" in your browser to install it. It works like a native app with offline support and no browser chrome.</p>
                             </div>
                         </div>
 
