@@ -21,6 +21,7 @@ class AnalyticsService:
                 "hot_hand": None, "on_fire": None,
                 "streak": None, "dodger": None,
             },
+            "last_game": None,
         }
         if not games:
             return {
@@ -42,6 +43,10 @@ class AnalyticsService:
         highlights = AnalyticsService._calc_highlights(
             games, rounds_by_game,
         )
+        last_game_awards = AnalyticsService._calc_last_game_awards(
+            games, rounds_by_game,
+        )
+        highlights["last_game"] = last_game_awards
 
         return {
             "leaderboard": leaderboard,
@@ -410,6 +415,119 @@ class AnalyticsService:
                 "streak": best_by_value(current_bid_streak),
                 "dodger": best_by_value(current_zero_streak),
             },
+        }
+
+    @staticmethod
+    def _calc_last_game_awards(games, rounds_by_game) -> dict | None:
+        """Awards for the most recent finished game."""
+        sorted_games = sorted(
+            games, key=lambda g: g.started_at or g.id,
+        )
+        if not sorted_games:
+            return None
+
+        game = sorted_games[-1]
+        players = game.players
+        game_rounds = rounds_by_game.get(game.id, [])
+        if not game_rounds:
+            return None
+
+        totals = dict.fromkeys(players, 0)
+        bids_made = dict.fromkeys(players, 0)
+        bids_total = dict.fromkeys(players, 0)
+        zero_bids_made = dict.fromkeys(players, 0)
+        overbids = dict.fromkeys(players, 0)
+        underbids = dict.fromkeys(players, 0)
+        best_bid = {}  # name → highest bid that was made
+        miss_streak = dict.fromkeys(players, 0)
+        longest_miss = dict.fromkeys(players, 0)
+
+        for r in game_rounds:
+            for idx_str in r.bids:
+                idx = int(idx_str)
+                if idx >= len(players):
+                    continue
+                name = players[idx]
+                bid = r.bids.get(idx_str)
+                hand = r.hands_won.get(idx_str)
+                score = r.scores.get(idx_str, 0)
+                if bid is None or hand is None:
+                    continue
+
+                totals[name] += score
+                bids_total[name] += 1
+                made = bid == hand
+
+                if made:
+                    bids_made[name] += 1
+                    miss_streak[name] = 0
+                    if bid == 0:
+                        zero_bids_made[name] += 1
+                    if name not in best_bid or bid > best_bid[name]:
+                        best_bid[name] = bid
+                else:
+                    miss_streak[name] += 1
+                    if miss_streak[name] > longest_miss[name]:
+                        longest_miss[name] = miss_streak[name]
+
+                if bid > hand:
+                    overbids[name] += 1
+                elif bid < hand:
+                    underbids[name] += 1
+
+        def best_player(data, key="value"):
+            if not data:
+                return None
+            name = max(data, key=lambda n: data[n])
+            return {"name": name, key: data[name]} if data[name] > 0 else None
+
+        # MVP: highest total score
+        mvp_name = max(totals, key=lambda n: totals[n])
+        mvp = {"name": mvp_name, "score": totals[mvp_name]}
+
+        # Sharpshooter: best accuracy
+        accuracies = {}
+        for name in players:
+            if bids_total[name] > 0:
+                accuracies[name] = round(
+                    bids_made[name] / bids_total[name] * 100,
+                )
+        sharpshooter = None
+        if accuracies:
+            best = max(accuracies, key=lambda n: accuracies[n])
+            sharpshooter = {
+                "name": best, "accuracy": accuracies[best],
+            }
+
+        # Brick Wall: most successful 0-bids
+        brick_wall = best_player(zero_bids_made, "count")
+
+        # Bold Move: highest bid that was made
+        bold_move = None
+        if best_bid:
+            boldest = max(best_bid, key=lambda n: best_bid[n])
+            if best_bid[boldest] > 0:
+                bold_move = {
+                    "name": boldest, "bid": best_bid[boldest],
+                }
+
+        # Cursed: longest miss streak
+        cursed = best_player(longest_miss, "streak")
+
+        # Sandbagger: most underbids
+        sandbagger = best_player(underbids, "count")
+
+        # Gambler: most overbids
+        gambler = best_player(overbids, "count")
+
+        return {
+            "mvp": mvp,
+            "sharpshooter": sharpshooter,
+            "brick_wall": brick_wall,
+            "bold_move": bold_move,
+            "cursed": cursed,
+            "sandbagger": sandbagger,
+            "gambler": gambler,
         }
 
     @staticmethod

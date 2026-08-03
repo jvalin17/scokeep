@@ -577,6 +577,36 @@ input::placeholder { color: var(--text-muted); }
 
 /* Trends */
 
+/* Awards tables */
+.awards-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+.awards-table th {
+    text-align: left;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    padding: 4px 8px;
+    border-bottom: 1px solid var(--border-light);
+}
+.awards-table td {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border-light);
+}
+.awards-table th:first-child,
+.awards-table td:first-child {
+    width: 30px;
+    text-align: center;
+    color: var(--text-muted);
+}
+.awards-table th:last-child,
+.awards-table td:last-child {
+    text-align: right;
+    width: 50px;
+}
+
 /* Game history cards */
 .stats-game-card {
     background: var(--bg-card); border-radius: var(--radius); padding: 12px; box-shadow: var(--shadow);

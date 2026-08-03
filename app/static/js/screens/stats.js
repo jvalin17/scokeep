@@ -234,14 +234,22 @@ export const statsScreen = {
                 const filtered = data.filter(p => p[valueKey] > 0);
                 if (!filtered.length) return '';
                 return `
-                    <div class="stats-card" style="margin-bottom:12px;">
-                        <h4 style="margin-bottom:8px;">${emoji} ${title}</h4>
-                        ${filtered.map((p, i) => `
-                            <div class="stats-bar-row">
-                                <span class="stats-bar-name">${p.name}</span>
-                                <span class="stats-bar-value">${p[valueKey]}</span>
-                            </div>
-                        `).join('')}
+                    <div class="stats-card" style="margin-bottom:16px;padding:12px;">
+                        <h4 style="margin:0 0 10px;">${emoji} ${title}</h4>
+                        <table class="awards-table">
+                            <thead>
+                                <tr><th>#</th><th>Player</th><th>Count</th></tr>
+                            </thead>
+                            <tbody>
+                                ${filtered.map((p, i) => `
+                                    <tr>
+                                        <td>${i + 1}</td>
+                                        <td>${p.name}</td>
+                                        <td><strong>${p[valueKey]}</strong></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
                     </div>
                 `;
             }
@@ -257,15 +265,48 @@ export const statsScreen = {
                     detail = `${data.count} in a row`;
                 }
                 return `
-                    <div class="stats-card" style="margin-bottom:8px;">
+                    <div class="stats-card" style="margin-bottom:8px;padding:10px 12px;">
                         <div style="display:flex;justify-content:space-between;align-items:center;">
                             <span>${emoji} ${title}</span>
-                            <strong>${data.name}</strong>
+                            <strong style="margin-left:8px;">${data.name}</strong>
                         </div>
-                        <div class="stats-muted" style="margin-top:4px;">
+                        <div class="stats-muted" style="margin-top:4px;font-size:0.8rem;">
                             ${detail}
                         </div>
                     </div>
+                `;
+            }
+
+            function lastGameSection(lastGame) {
+                if (!lastGame) return '';
+                const awards = [
+                    { key: 'mvp', emoji: '🏆', title: 'MVP', detail: lg => `${lg.score} points` },
+                    { key: 'sharpshooter', emoji: '🎯', title: 'Sharpshooter', detail: lg => `${lg.accuracy}% accuracy` },
+                    { key: 'brick_wall', emoji: '🧱', title: 'Brick Wall', detail: lg => `${lg.count} zero-bids made` },
+                    { key: 'bold_move', emoji: '🎲', title: 'Bold Move', detail: lg => `bid ${lg.bid} and made it` },
+                    { key: 'sandbagger', emoji: '🏖️', title: 'Sandbagger', detail: lg => `${lg.count} underbids` },
+                    { key: 'gambler', emoji: '🎰', title: 'Gambler', detail: lg => `${lg.count} overbids` },
+                    { key: 'cursed', emoji: '😵', title: 'Cursed', detail: lg => `${lg.streak} misses in a row` },
+                ];
+                const cards = awards
+                    .filter(a => lastGame[a.key])
+                    .map(a => {
+                        const data = lastGame[a.key];
+                        return `
+                            <div class="stats-card" style="margin-bottom:8px;padding:10px 12px;">
+                                <div style="display:flex;justify-content:space-between;align-items:center;">
+                                    <span>${a.emoji} ${a.title}</span>
+                                    <strong style="margin-left:8px;">${data.name}</strong>
+                                </div>
+                                <div class="stats-muted" style="margin-top:4px;font-size:0.8rem;">
+                                    ${a.detail(data)}
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                return `
+                    <h3 style="margin-bottom:12px;">Last Game</h3>
+                    ${cards}
                 `;
             }
 
@@ -274,8 +315,10 @@ export const statsScreen = {
 
             return `
                 <div class="stats-section">
+                    ${lastGameSection(highlights.last_game)}
+
                     ${hasRecent ? `
-                        <h3 style="margin-bottom:12px;">Recent Form (last 3 games)</h3>
+                        <h3 style="margin:20px 0 12px;">Recent Form (last 3 games)</h3>
                         ${recentCard('Hot Hand', '🔥', recent.hot_hand)}
                         ${recentCard('On Fire', '🎯', recent.on_fire)}
                         ${recentCard('Streak', '⚡', recent.streak)}
@@ -290,7 +333,9 @@ export const statsScreen = {
                     ${careerTable('Jinxed', '😵', career.jinxed, 'longest')}
                     ${careerTable('Perfect Set', '⭐', career.perfect_set)}
 
-                    ${!hasRecent && !career.sniper?.some(p => p.count > 0) ? '<p class="stats-muted">Play more games to unlock awards!</p>' : ''}
+                    ${!hasRecent && !career.sniper?.some(p => p.count > 0)
+                        ? '<p class="stats-muted">Play more games to unlock awards!</p>'
+                        : ''}
                 </div>
             `;
         }
