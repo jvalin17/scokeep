@@ -14,6 +14,7 @@ export const homeScreen = {
                 <div class="tabs">
                     <button class="tab active" data-tab="create">Create</button>
                     <button class="tab" data-tab="join">Join</button>
+                    <button class="tab" data-tab="howto">How To</button>
                 </div>
 
                 <form id="create-form" class="form visible">
@@ -45,6 +46,91 @@ export const homeScreen = {
                     <button type="submit" class="btn btn-primary">Enter</button>
                     <p id="join-error" class="error hidden"></p>
                 </form>
+
+                <div id="howto-section" class="form hidden">
+                    <div class="howto">
+                        <h3>How to Play Judgement</h3>
+                        <p>Judgement (Kachuful) is a trick-taking card game for 3–8 players.</p>
+                        <div class="howto-steps">
+                            <div class="howto-step">
+                                <strong>1. Deal</strong>
+                                <p>Cards are dealt in sets — 8 down to 1, then back up. Trump suit rotates: ♠ ♦ ♣ ♥</p>
+                            </div>
+                            <div class="howto-step">
+                                <strong>2. Bid</strong>
+                                <p>Each player bids how many tricks they'll win this round. The last player's bid can't make the total equal the cards dealt (must-lose rule).</p>
+                            </div>
+                            <div class="howto-step">
+                                <strong>3. Play</strong>
+                                <p>Play your cards. Win tricks by playing the highest card of the led suit, or trump.</p>
+                            </div>
+                            <div class="howto-step">
+                                <strong>4. Score</strong>
+                                <p>Made your bid? Score points. Missed? Lose the same amount.</p>
+                            </div>
+                        </div>
+
+                        <h4>Scoring</h4>
+                        <table class="howto-table">
+                            <thead><tr><th>Bid</th><th>Made</th><th>Missed</th></tr></thead>
+                            <tbody>
+                                <tr><td>0</td><td>+10</td><td>-10</td></tr>
+                                <tr><td>1</td><td>+11</td><td>-11</td></tr>
+                                <tr><td>2–8</td><td>+N × 10</td><td>-N × 10</td></tr>
+                            </tbody>
+                        </table>
+
+                        <h3 style="margin-top:24px;">How to Use Scokeep</h3>
+                        <div class="howto-steps">
+                            <div class="howto-step">
+                                <strong>1. Create a Room</strong>
+                                <p>Give your group a name and a 4-digit PIN. Add player names and drag to set clockwise seating order.</p>
+                                <p>Rooms are reusable — come back anytime with the same name + PIN. Other players can also join with the room name and PIN.</p>
+                            </div>
+                            <div class="howto-step">
+                                <strong>2. Pick Settings</strong>
+                                <p>Choose game mode, scoring type (Ones or Zeros), number of sets, appearance, and must-lose toggle. All configurable before the game starts.</p>
+                            </div>
+                            <div class="howto-step">
+                                <strong>3. Enter Bids</strong>
+                                <p>Tap each player's bid on the keypad. You can go back to previous players, and edit any bid on the confirm screen before starting the round.</p>
+                            </div>
+                            <div class="howto-step">
+                                <strong>4. Play & Score</strong>
+                                <p>After the round, tap how many tricks each player won. You can edit results with inline editing — the last player auto-adjusts to match the total.</p>
+                            </div>
+                            <div class="howto-step">
+                                <strong>5. Extend or End</strong>
+                                <p>After the last round, choose to add 1–4 more sets or see final scores. Sets alternate direction — if set 1 goes 8→1, set 2 goes 1→8.</p>
+                                <p>You can end the game anytime. If you take a break, the game is recoverable for 30 minutes — just come back to your room.</p>
+                            </div>
+                            <div class="howto-step">
+                                <strong>6. Stats & Awards</strong>
+                                <p>View leaderboard, bid accuracy, overbid/underbid trends, and awards — Sniper, Zero Master, Hot Hand, Sharpshooter, and more. Every player gets a chance to shine.</p>
+                            </div>
+                        </div>
+
+                        <h4>Game Modes</h4>
+                        <table class="howto-table">
+                            <thead><tr><th>Mode</th><th>What You See</th><th>Best For</th></tr></thead>
+                            <tbody>
+                                <tr><td>Expert</td><td>Cards to deal only</td><td>Seasoned players who remember trump</td></tr>
+                                <tr><td>Rookie</td><td>Trump suit shown</td><td>Regular players</td></tr>
+                                <tr><td>Friendly</td><td>All bids, trump, scores</td><td>New players or teaching</td></tr>
+                            </tbody>
+                        </table>
+
+                        <h4>Scoring Rules</h4>
+                        <table class="howto-table">
+                            <thead><tr><th>Rule</th><th>Bid 1 Made</th></tr></thead>
+                            <tbody>
+                                <tr><td>Ones (default)</td><td>+11 points</td></tr>
+                                <tr><td>Zeros</td><td>+10 points</td></tr>
+                            </tbody>
+                        </table>
+                        <p style="font-size:0.8rem;color:var(--text-muted);">Both rules: Bid 0 made = +10. Bid 2+ made = bid × 10. Miss = same amount negated.</p>
+                    </div>
+                </div>
             </div>
         `;
 
@@ -79,6 +165,8 @@ export const homeScreen = {
                 container.querySelector('#create-form').classList.toggle('hidden', target !== 'create');
                 container.querySelector('#join-form').classList.toggle('visible', target === 'join');
                 container.querySelector('#join-form').classList.toggle('hidden', target !== 'join');
+                container.querySelector('#howto-section').classList.toggle('visible', target === 'howto');
+                container.querySelector('#howto-section').classList.toggle('hidden', target !== 'howto');
                 if (target === 'join') loadRecent();
             });
         });

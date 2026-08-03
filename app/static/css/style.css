@@ -629,3 +629,34 @@ input::placeholder { color: var(--text-muted); }
 .legend-underbid { background: #FFE0B2; }
 .cell-overbid { background: #BBDEFB; }
 .cell-underbid { background: #FFE0B2; }
+
+/* How To section */
+.howto { text-align: left; line-height: 1.6; }
+.howto h3 { font-size: 1.1rem; margin-bottom: 12px; }
+.howto h4 { font-size: 0.95rem; margin: 16px 0 8px; }
+.howto p { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 8px; }
+.howto-steps { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+.howto-step {
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    padding: 12px;
+    box-shadow: var(--shadow);
+}
+.howto-step strong { font-size: 0.9rem; display: block; margin-bottom: 4px; }
+.howto-step p { margin: 0; font-size: 0.8rem; }
+.howto-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    margin-bottom: 16px;
+}
+.howto-table th, .howto-table td {
+    padding: 6px 10px;
+    border: 1px solid var(--border-light);
+    text-align: center;
+}
+.howto-table th {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}

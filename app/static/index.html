@@ -3,27 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Scokeep — Score Tracker for Judgement / Kachuful Card Game</title>
+    <meta name="description" content="Free mobile score tracker for Judgement (Kachuful) card game. Track bids, scores, trump suits, and stats. No signup needed — just create a room and play.">
+    <meta name="keywords" content="judgement card game, kachuful, score tracker, card game scorer, judgement scorer, kachuful score keeper, judgement score app">
     <meta name="theme-color" content="#333333">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Scokeep">
+
+    <!-- Open Graph (WhatsApp, social sharing) -->
+    <meta property="og:title" content="Scokeep — Judgement / Kachuful Score Tracker">
+    <meta property="og:description" content="Ditch the notebook. Track scores, bids, and stats for Judgement card game on your phone.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://scokeep.onrender.com">
+    <meta property="og:image" content="https://scokeep.onrender.com/static/icons/icon-512.png">
+
+    <link rel="canonical" href="https://scokeep.onrender.com">
     <link rel="manifest" href="/static/manifest.json">
     <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
-    <title>Scokeep</title>
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body data-appearance="standard" data-phase="home">
     <div id="app">
-        <h1>Scokeep</h1>
-        <p>Score tracker for Kachuful</p>
+        <!-- Static content for SEO — replaced by JS on load -->
+        <div style="max-width:480px;margin:0 auto;padding:24px 16px;">
+            <h1>Scokeep</h1>
+            <p>Score tracker for Judgement (Kachuful) card game</p>
+            <h2>What is Scokeep?</h2>
+            <p>A free mobile app that replaces the notebook when playing Judgement (also called Kachuful). One person runs it on their phone — tap in bids and scores, and the math is done automatically.</p>
+            <h2>Features</h2>
+            <ul>
+                <li>Phone-style keypad for fast score entry</li>
+                <li>Automatic scoring — bid 0 made = +10, bid 1 = +11, bid N = +N×10</li>
+                <li>Trump suit display and dealer rotation</li>
+                <li>Must-lose mode — forbidden bid greyed out</li>
+                <li>Game modes: Expert, Rookie, Friendly</li>
+                <li>Stats: leaderboard, bid accuracy, trends, awards</li>
+                <li>Works offline — install on your home screen</li>
+            </ul>
+            <h2>How to Play Judgement (Kachuful)</h2>
+            <p>Judgement is a trick-taking card game for 3-8 players. Each round, players are dealt cards (8 down to 1), bid how many tricks they'll win, then play. Score points for making your bid, lose points for missing.</p>
+            <h2>How to Use Scokeep</h2>
+            <ol>
+                <li>Create a room with a name and 4-digit PIN</li>
+                <li>Add player names and set the seating order</li>
+                <li>Choose game mode and settings, then start</li>
+                <li>Tap bids on the keypad — one player at a time</li>
+                <li>After the round, tap how many tricks each player won</li>
+                <li>Scores are calculated automatically</li>
+            </ol>
+        </div>
     </div>
     <script type="module" src="/static/js/app.js"></script>
     <script>
-        // Unregister service worker in dev; re-enable for production
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistrations().then(regs => {
-                regs.forEach(reg => reg.unregister());
-            });
+            navigator.serviceWorker.register('/static/sw.js');
         }
     </script>
 </body>
