@@ -2,7 +2,7 @@
 
 import { getBids, enterRoundEnd, resyncGame, guardPhase } from '../api.js';
 import { getRoundCards } from '../components/game-utils.js';
-import { renderGameIsland, renderRoundInfoBar, renderTrumpDisplay, attachEndGameHandler } from '../components/screen-parts.js';
+import { renderGameIsland, renderRoundInfoBar, renderTrumpDisplay, attachEndGameHandler, setScreenContext } from '../components/screen-parts.js';
 
 export const playScreen = {
     async mount(container, state, { navigate, params }) {
@@ -16,7 +16,7 @@ export const playScreen = {
         const players = game.players;
         const rps = settings.rounds_per_set || 8;
 
-        document.body.setAttribute('data-phase', 'playing');
+        setScreenContext('playing', game);
 
         let bidsHtml = '';
         if (mode === 'friendly') {

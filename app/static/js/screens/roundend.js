@@ -4,7 +4,7 @@ import { submitHands, endRound, extendGame, nextRound, resyncGame, guardPhase } 
 import { Keypad, InlineKeypad } from '../components/keypad.js';
 import { getRoundCards } from '../components/game-utils.js';
 import { getEntryOrder } from '../components/entry-utils.js';
-import { renderGameIsland, renderRoundInfoBar, renderTrumpDisplay, attachEndGameHandler, showError } from '../components/screen-parts.js';
+import { renderGameIsland, renderRoundInfoBar, renderTrumpDisplay, attachEndGameHandler, showError, setScreenContext } from '../components/screen-parts.js';
 import { soundScoreRound, soundNextRound } from '../components/sounds.js';
 
 export const roundendScreen = {
@@ -22,7 +22,7 @@ export const roundendScreen = {
         let handsCollected = {};
         let editingPi = null;
 
-        document.body.setAttribute('data-phase', 'roundend');
+        setScreenContext('roundend', game);
 
         function currentPlayer() { return entryOrder[entryPosition]; }
 

@@ -26,7 +26,9 @@ export const scoreboardScreen = {
         const isLastRound = game.current_round >= game.total_rounds;
         const isGameOver = game.status === 'finished';
 
+        const appearance = game.settings.appearance || 'standard';
         document.body.setAttribute('data-phase', 'scoreboard');
+        document.body.setAttribute('data-appearance', appearance);
 
         // Build score display
         let scoreTableHtml = '';
@@ -158,9 +160,14 @@ export const scoreboardScreen = {
             if (nextRoundBtn) {
                 nextRoundBtn.addEventListener('click', async () => {
                     try {
-                        await nextRound(gameId);
-                        soundNextRound();
-                        navigate(`bid/${gameId}`);
+                        const updated = await nextRound(gameId);
+                        if (updated.status === 'finished') {
+                            navigate(`scoreboard/${gameId}`);
+                            window.dispatchEvent(new HashChangeEvent('hashchange'));
+                        } else {
+                            soundNextRound();
+                            navigate(`bid/${gameId}`);
+                        }
                     } catch (error) {
                         showError(error.message);
                     }

@@ -4,7 +4,7 @@ import { submitBid, getBids, editBid, startRound, resyncGame, guardPhase } from 
 import { Keypad, InlineKeypad } from '../components/keypad.js';
 import { getRoundCards } from '../components/game-utils.js';
 import { getEntryOrder } from '../components/entry-utils.js';
-import { renderGameIsland, renderRoundInfoBar, renderTrumpDisplay, attachEndGameHandler, showError } from '../components/screen-parts.js';
+import { renderGameIsland, renderRoundInfoBar, renderTrumpDisplay, attachEndGameHandler, showError, setScreenContext } from '../components/screen-parts.js';
 import { soundStartRound } from '../components/sounds.js';
 
 export const biddingScreen = {
@@ -25,7 +25,7 @@ export const biddingScreen = {
         let editingPi = null;
         const backendHasBid = new Set();
 
-        document.body.setAttribute('data-phase', 'bidding');
+        setScreenContext('bidding', game);
 
         // Load existing bids
         try {

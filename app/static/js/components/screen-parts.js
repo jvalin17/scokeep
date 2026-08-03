@@ -8,6 +8,16 @@ import { getRoundCards, getTrump } from './game-utils.js';
 import { soundEndGame } from './sounds.js';
 
 /**
+ * Set the phase and appearance on document.body for CSS styling.
+ */
+export function setScreenContext(phase, game) {
+    document.body.setAttribute('data-phase', phase);
+    if (game && game.settings) {
+        document.body.setAttribute('data-appearance', game.settings.appearance || 'standard');
+    }
+}
+
+/**
  * Render the floating game-island bar (dealer, cards, round counter).
  */
 export function renderGameIsland(game, roundsPerSet) {
