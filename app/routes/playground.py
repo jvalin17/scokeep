@@ -146,3 +146,18 @@ async def clear_playground_stats(
         raise HTTPException(status_code=403, detail="Access denied")
     count = await AnalyticsService.clear_stats(db, playground.id)
     return {"deleted_games": count}
+
+
+@router.delete("")
+async def delete_playground(
+    data: PlaygroundAuth,
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete a playground and all its data. Requires name + PIN."""
+    playground = await PlaygroundService.get_by_name(db, data.name)
+    if not playground:
+        raise HTTPException(status_code=404, detail="Playground not found")
+    if not PlaygroundService.verify_pin(playground, data.pin):
+        raise HTTPException(status_code=401, detail="Invalid PIN")
+    await PlaygroundService.delete(db, playground)
+    return {"deleted": playground.name}

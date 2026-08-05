@@ -64,6 +64,22 @@ class PlaygroundService:
         return result.scalar_one_or_none()
 
     @staticmethod
+    async def delete(db: AsyncSession, playground: Playground) -> None:
+        """Delete a playground and all its games and rounds."""
+        from app.models.game import Game
+        from app.models.round import Round
+        game_ids_result = await db.execute(
+            select(Game.id).where(Game.playground_id == playground.id)
+        )
+        game_ids = [row[0] for row in game_ids_result.all()]
+        if game_ids:
+            from sqlalchemy import delete
+            await db.execute(delete(Round).where(Round.game_id.in_(game_ids)))
+            await db.execute(delete(Game).where(Game.id.in_(game_ids)))
+        await db.delete(playground)
+        await db.commit()
+
+    @staticmethod
     async def list_recent_names(db: AsyncSession, limit: int = 5) -> list[str]:
         result = await db.execute(
             select(Playground.name)
