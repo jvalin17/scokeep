@@ -98,6 +98,11 @@ export const homeScreen = {
                             <div class="howto-step">
                                 <strong>4. Play & Score</strong>
                                 <p>After the round, tap how many tricks each player won. You can edit results with inline editing — the last player auto-adjusts to match the total.</p>
+                                <p>Made a mistake? Undo the last round from the scoreboard to re-enter scores.</p>
+                            </div>
+                            <div class="howto-step">
+                                <strong>Takeover Anytime</strong>
+                                <p>Anyone with the room name and PIN can open the app and take over scoring mid-game. Just join the room — the game resumes exactly where it left off.</p>
                             </div>
                             <div class="howto-step">
                                 <strong>5. Extend or End</strong>

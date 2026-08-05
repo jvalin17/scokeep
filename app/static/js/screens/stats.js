@@ -1,6 +1,7 @@
 // Stats screen — leaderboard, game history, bid accuracy, head-to-head
 
 import { getPlaygroundStats, clearPlaygroundStats, getScoreboard } from '../api.js';
+import { getTrump } from '../components/game-utils.js';
 
 export const statsScreen = {
     async mount(container, state, { navigate, params }) {
@@ -390,13 +391,16 @@ export const statsScreen = {
                             <thead>
                                 <tr>
                                     <th>R#</th>
+                                    <th>Trump</th>
                                     ${players.map(name => `<th>${name}</th>`).join('')}
                                 </tr>
                             </thead>
                             <tbody>
                                 ${rounds.map(round => {
+                                    const trump = getTrump(round.round_num);
                                     return `<tr>
                                         <td>${round.round_num}</td>
+                                        <td class="${trump.isRed ? 'trump-red' : ''}">${trump.symbol}</td>
                                         ${players.map((_, idx) => {
                                             const key = String(idx);
                                             const score = round.scores[key] || 0;
@@ -416,6 +420,7 @@ export const statsScreen = {
                             <tfoot>
                                 <tr class="totals-row">
                                     <td><strong>Tot</strong></td>
+                                    <td></td>
                                     ${players.map((_, idx) => `<td><strong>${totals[String(idx)] || 0}</strong></td>`).join('')}
                                 </tr>
                             </tfoot>

@@ -1,6 +1,7 @@
 // Scoreboard screen — cumulative scores, next round / end game
 
 import { getGame, getScoreboard, undoRound, endGame, nextRound } from '../api.js';
+import { getTrump } from '../components/game-utils.js';
 import { soundNextRound, soundEndGame, soundUndo } from '../components/sounds.js';
 
 export const scoreboardScreen = {
@@ -82,13 +83,16 @@ export const scoreboardScreen = {
                         <thead>
                             <tr>
                                 <th>R#</th>
+                                <th>Trump</th>
                                 ${players.map(name => `<th>${name}</th>`).join('')}
                             </tr>
                         </thead>
                         <tbody>
                             ${rounds.map(round => {
+                                const trump = getTrump(round.round_num);
                                 return `<tr>
                                     <td>${round.round_num}</td>
+                                    <td class="${trump.isRed ? 'trump-red' : ''}">${trump.symbol}</td>
                                     ${players.map((_, idx) => {
                                         const roundScore = round.scores[String(idx)] || 0;
                                         return `<td class="${roundScore < 0 ? 'score-negative' : ''}">
@@ -100,7 +104,8 @@ export const scoreboardScreen = {
                         </tbody>
                         <tfoot>
                             <tr class="totals-row">
-                                <td><strong>Total</strong></td>
+                                <td><strong>Tot</strong></td>
+                                <td></td>
                                 ${players.map((_, idx) => `<td><strong>${totals[String(idx)] || 0}</strong></td>`).join('')}
                             </tr>
                         </tfoot>

@@ -144,3 +144,58 @@ class TestGetPlayground:
         )
 
         assert response.status_code == 404
+
+
+class TestDeletePlayground:
+
+    async def test_delete_with_correct_pin(self, client: AsyncClient):
+        """Delete playground with correct PIN removes it and all data."""
+        await client.post("/api/playground", json={
+            "name": "Delete Me", "pin": "4321",
+            "players": ["Nadia", "Carlos"],
+        })
+        # Create a game in it
+        auth = await client.post("/api/playground/auth", json={
+            "name": "Delete Me", "pin": "4321",
+        })
+        cookies = {"scokeep_session": auth.cookies.get("scokeep_session")}
+        await client.post("/api/game", json={
+            "playground_id": auth.json()["id"],
+            "players": ["Nadia", "Carlos"],
+            "settings": {},
+        }, cookies=cookies)
+
+        # Delete
+        resp = await client.request(
+            "DELETE", "/api/playground",
+            json={"name": "Delete Me", "pin": "4321"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["deleted"] == "Delete Me"
+
+        # Verify it's gone
+        auth2 = await client.post("/api/playground/auth", json={
+            "name": "Delete Me", "pin": "4321",
+        })
+        assert auth2.status_code == 404
+
+    async def test_delete_with_wrong_pin_returns_401(self, client: AsyncClient):
+        """Cannot delete playground with wrong PIN."""
+        await client.post("/api/playground", json={
+            "name": "Protected Room", "pin": "9999",
+            "players": ["Wei", "Priya"],
+        })
+
+        resp = await client.request(
+            "DELETE", "/api/playground",
+            json={"name": "Protected Room", "pin": "0000"},
+        )
+        assert resp.status_code == 401
+
+    async def test_delete_nonexistent_returns_404(self, client: AsyncClient):
+        """Cannot delete playground that doesn't exist."""
+        resp = await client.request(
+            "DELETE", "/api/playground",
+            json={"name": "Ghost Room", "pin": "1234"},
+        )
+        assert resp.status_code == 404
