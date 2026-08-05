@@ -133,4 +133,4 @@ GitHub Actions runs the agent-toolkit quality gate on every push — tests, lint
 
 ## Built With
 
-Built using [Claude Code](https://claude.ai/code) and [agent-toolkit](https://github.com/anthropics/claude-code) — AI-assisted development with TDD, skill workflows (/implementation, /debug, /evaluate, /reviewer), and automated quality gates.
+Built using [agent-toolkit](https://github.com/anthropics/claude-code) — a skill-driven development framework with TDD workflows (/implementation, /debug, /evaluate, /reviewer, /precommit), automated quality gates, and structured report-based code review. Every feature follows the slab-by-slab cycle: failing test first, then implementation, then precommit gate.
