@@ -22,6 +22,39 @@
     <link rel="manifest" href="/static/manifest.json">
     <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
     <link rel="stylesheet" href="/static/css/style.css">
+
+    <!-- Structured Data for Google -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Scokeep",
+        "alternateName": ["Judgement Score Tracker", "Kachuful Score Keeper"],
+        "url": "https://scokeep.onrender.com",
+        "description": "Free mobile score tracker for Judgement (Kachuful) card game. Track bids, scores, trump suits, dealer rotation, and player stats. No signup needed.",
+        "applicationCategory": "GameApplication",
+        "operatingSystem": "Any",
+        "browserRequirements": "Requires a modern web browser",
+        "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+        },
+        "featureList": [
+            "Score tracking for Judgement/Kachuful card game",
+            "Phone-style keypad for fast bid and score entry",
+            "Automatic scoring with Kachuful rules",
+            "Trump suit rotation and dealer tracking",
+            "Must-lose mode enforcement",
+            "Three game modes: Expert, Rookie, Friendly",
+            "Player stats, leaderboard, and awards",
+            "Installable as PWA on mobile",
+            "Works offline",
+            "Undo rounds and edit bids/scores"
+        ],
+        "screenshot": "https://scokeep.onrender.com/static/icons/icon-512.png"
+    }
+    </script>
 </head>
 <body data-appearance="standard" data-phase="home">
     <div id="app">

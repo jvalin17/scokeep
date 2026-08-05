@@ -77,6 +77,29 @@ async def google_verification():
     return FileResponse(STATIC_DIR / "google90ca41c797c60c6e.html")
 
 
+@app.get("/sitemap.xml")
+async def sitemap():
+    xml = """<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://scokeep.onrender.com/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>"""
+    from starlette.responses import Response as StarletteResponse
+    return StarletteResponse(content=xml, media_type="application/xml")
+
+
+@app.get("/robots.txt")
+async def robots():
+    content = """User-agent: *
+Allow: /
+Sitemap: https://scokeep.onrender.com/sitemap.xml"""
+    from starlette.responses import Response as StarletteResponse
+    return StarletteResponse(content=content, media_type="text/plain")
+
+
 @app.get("/apple-touch-icon-precomposed.png")
 async def apple_touch_icon_precomposed():
     return FileResponse(STATIC_DIR / "apple-touch-icon.png")
