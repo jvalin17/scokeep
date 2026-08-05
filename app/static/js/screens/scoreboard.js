@@ -83,7 +83,6 @@ export const scoreboardScreen = {
                         <thead>
                             <tr>
                                 <th>R#</th>
-                                <th>Trump</th>
                                 ${players.map(name => `<th>${name}</th>`).join('')}
                             </tr>
                         </thead>
@@ -91,8 +90,7 @@ export const scoreboardScreen = {
                             ${rounds.map(round => {
                                 const trump = getTrump(round.round_num);
                                 return `<tr>
-                                    <td>${round.round_num}</td>
-                                    <td class="${trump.isRed ? 'trump-red' : ''}">${trump.symbol}</td>
+                                    <td>${round.round_num}<span class="${trump.isRed ? 'trump-red' : ''}" style="font-size:0.7em;">${trump.symbol}</span></td>
                                     ${players.map((_, idx) => {
                                         const roundScore = round.scores[String(idx)] || 0;
                                         return `<td class="${roundScore < 0 ? 'score-negative' : ''}">
@@ -105,7 +103,6 @@ export const scoreboardScreen = {
                         <tfoot>
                             <tr class="totals-row">
                                 <td><strong>Tot</strong></td>
-                                <td></td>
                                 ${players.map((_, idx) => `<td><strong>${totals[String(idx)] || 0}</strong></td>`).join('')}
                             </tr>
                         </tfoot>

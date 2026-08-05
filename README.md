@@ -130,3 +130,7 @@ pytest tests/ -v
 ### CI
 
 GitHub Actions runs the agent-toolkit quality gate on every push — tests, lint, and skill report verification.
+
+## Built With
+
+Built using [Claude Code](https://claude.ai/code) and [agent-toolkit](https://github.com/anthropics/claude-code) — AI-assisted development with TDD, skill workflows (/implementation, /debug, /evaluate, /reviewer), and automated quality gates.
