@@ -72,6 +72,11 @@ async def apple_touch_icon():
     return FileResponse(STATIC_DIR / "apple-touch-icon.png")
 
 
+@app.get("/google90ca41c797c60c6e.html")
+async def google_verification():
+    return FileResponse(STATIC_DIR / "google90ca41c797c60c6e.html")
+
+
 @app.get("/apple-touch-icon-precomposed.png")
 async def apple_touch_icon_precomposed():
     return FileResponse(STATIC_DIR / "apple-touch-icon.png")
