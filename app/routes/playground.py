@@ -7,6 +7,12 @@ from slowapi.util import get_remote_address
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.constants import (
+    AUTH_RATE_LIMIT,
+    SESSION_COOKIE_NAME,
+    SESSION_MAX_AGE_AUTH,
+    SESSION_MAX_AGE_JOIN,
+)
 from app.database import get_db
 from app.schemas.playground import PlaygroundAuth, PlaygroundCreate, PlaygroundResponse
 from app.services.analytics import AnalyticsService
@@ -15,7 +21,6 @@ from app.services.playground import PlaygroundService
 router = APIRouter(prefix="/api/playground", tags=["playground"])
 limiter = Limiter(key_func=get_remote_address, enabled=settings.rate_limit_enabled)
 
-SESSION_COOKIE_NAME = "scokeep_session"
 signer = URLSafeSerializer(settings.secret_key)
 
 
@@ -52,7 +57,7 @@ async def create_playground(
 
 
 @router.post("/auth", response_model=PlaygroundResponse)
-@limiter.limit("5/minute")
+@limiter.limit(AUTH_RATE_LIMIT)
 async def auth_playground(
     request: Request,
     data: PlaygroundAuth,
@@ -73,7 +78,7 @@ async def auth_playground(
         httponly=True,
         samesite="lax",
         secure=True,
-        max_age=60 * 60 * 24 * 30,  # 30 days
+        max_age=SESSION_MAX_AGE_AUTH,
     )
     return playground
 
@@ -101,7 +106,7 @@ async def join_live_game(
         httponly=True,
         samesite="lax",
         secure=True,
-        max_age=60 * 60 * 2,  # 2 hours (shorter than PIN auth)
+        max_age=SESSION_MAX_AGE_JOIN,
     )
     return playground
 

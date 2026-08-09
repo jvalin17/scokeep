@@ -1,8 +1,9 @@
 """Trump rotation and round sequence utilities."""
 
-TRUMP_ORDER = ["spades", "diamonds", "clubs", "hearts"]
-ROUNDS_PER_SET = 8
-DECK_SIZE = 52
+from app.constants import DECK_SIZE, DEFAULT_ROUNDS_PER_SET, TRUMP_ORDER
+
+# Re-export for backward compatibility
+ROUNDS_PER_SET = DEFAULT_ROUNDS_PER_SET
 
 
 def max_cards_for_players(player_count: int) -> int:

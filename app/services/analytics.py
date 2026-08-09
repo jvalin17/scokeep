@@ -3,6 +3,7 @@
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.constants import HIGH_ROLLER_MIN_BID
 from app.models.game import Game
 from app.models.round import Round
 
@@ -313,7 +314,7 @@ class AnalyticsService:
                         career[name]["zero_master"] += 1
 
                     # Career: high roller (bid 3+ made)
-                    if bid >= 3 and made:
+                    if bid >= HIGH_ROLLER_MIN_BID and made:
                         career[name]["high_roller"] += 1
 
                     # Career: all-in (bid = cards dealt and made)

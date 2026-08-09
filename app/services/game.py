@@ -5,21 +5,31 @@ from datetime import datetime, timedelta
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.constants import (
+    ACTIVE_GAME_TTL_MINUTES,
+    DEFAULT_APPEARANCE,
+    DEFAULT_MODE,
+    DEFAULT_MUST_LOSE,
+    DEFAULT_NUM_SETS,
+    DEFAULT_ROUNDS_PER_SET,
+    DEFAULT_SCORING_FORMULA,
+    DEFAULT_TIMER_SECONDS,
+    TRUMP_ORDER,
+)
 from app.models.game import Game
 from app.utils.sanitize import sanitize_player_names
-from app.utils.trump import ROUNDS_PER_SET
 
-DEFAULT_NUM_SETS = 3
+ROUNDS_PER_SET = DEFAULT_ROUNDS_PER_SET
 
 DEFAULT_SETTINGS = {
     "game_type": "kachuful",
-    "mode": "expert",
-    "appearance": "standard",
-    "timer_seconds": 10,
-    "scoring_formula": "kachuful_standard",
+    "mode": DEFAULT_MODE,
+    "appearance": DEFAULT_APPEARANCE,
+    "timer_seconds": DEFAULT_TIMER_SECONDS,
+    "scoring_formula": DEFAULT_SCORING_FORMULA,
     "num_sets": DEFAULT_NUM_SETS,
-    "must_lose": False,
-    "trump_rotation": ["spades", "diamonds", "clubs", "hearts"],
+    "must_lose": DEFAULT_MUST_LOSE,
+    "trump_rotation": TRUMP_ORDER,
 }
 
 
@@ -56,7 +66,7 @@ class GameService:
     @staticmethod
     async def get_active_for_playground(db: AsyncSession, playground_id: int) -> Game | None:
         """Return active game only if updated within the last 10 minutes."""
-        cutoff = datetime.now(tz=None) - timedelta(minutes=30)  # noqa: DTZ005
+        cutoff = datetime.now(tz=None) - timedelta(minutes=ACTIVE_GAME_TTL_MINUTES)  # noqa: DTZ005
         result = await db.execute(
             select(Game)
             .where(

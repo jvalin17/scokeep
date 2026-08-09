@@ -7,10 +7,10 @@ import bcrypt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.constants import SHARE_CODE_LENGTH
 from app.models.playground import Playground
 from app.utils.sanitize import sanitize_player_names
 
-SHARE_CODE_LENGTH = 4
 SHARE_CODE_ALPHABET = string.ascii_uppercase + string.digits
 
 
