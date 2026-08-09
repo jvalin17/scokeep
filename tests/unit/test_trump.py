@@ -3,7 +3,12 @@
 Fixtures are synthetic — designed to cover rotation boundaries and multi-set games.
 """
 
-from app.utils.trump import TRUMP_ORDER, get_cards_for_round, get_trump_for_round
+from app.utils.trump import (
+    TRUMP_ORDER,
+    get_cards_for_round,
+    get_trump_for_round,
+    max_cards_for_players,
+)
 
 
 class TestGetTrumpForRound:
@@ -80,3 +85,28 @@ class TestGetCardsForRound:
         expected_set2 = [1, 2, 3, 4, 5]
         actual_set2 = [get_cards_for_round(r, rounds_per_set=5) for r in range(6, 11)]
         assert actual_set2 == expected_set2
+
+
+class TestMaxCardsForPlayers:
+    """Max cards = floor(52 / player_count). Standard 52-card deck."""
+
+    def test_2_players_max_26(self):
+        assert max_cards_for_players(2) == 26
+
+    def test_3_players_max_17(self):
+        assert max_cards_for_players(3) == 17
+
+    def test_4_players_max_13(self):
+        assert max_cards_for_players(4) == 13
+
+    def test_5_players_max_10(self):
+        assert max_cards_for_players(5) == 10
+
+    def test_6_players_max_8(self):
+        assert max_cards_for_players(6) == 8
+
+    def test_7_players_max_7(self):
+        assert max_cards_for_players(7) == 7
+
+    def test_8_players_max_6(self):
+        assert max_cards_for_players(8) == 6

@@ -76,10 +76,14 @@ export const lobbyScreen = {
                                 <option value="interactive" selected>Interactive</option>
                             </select>
 
-                            <label>Set type</label>
+                            <label>Cards per round</label>
                             <select id="setting-set-type">
-                                <option value="8" selected>Standard (8 cards)</option>
-                                <option value="4">Test (4 cards)</option>
+                                ${(() => {
+                                    const maxCards = Math.floor(52 / Math.max(players.length, 2));
+                                    return Array.from({length: maxCards}, (_, i) => maxCards - i)
+                                        .map(n => `<option value="${n}" ${n === Math.min(maxCards, 8) ? 'selected' : ''}>${n} card${n > 1 ? 's' : ''}</option>`)
+                                        .join('');
+                                })()}
                             </select>
 
                             <label>Sets</label>

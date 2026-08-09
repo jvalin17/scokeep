@@ -2,6 +2,12 @@
 
 TRUMP_ORDER = ["spades", "diamonds", "clubs", "hearts"]
 ROUNDS_PER_SET = 8
+DECK_SIZE = 52
+
+
+def max_cards_for_players(player_count: int) -> int:
+    """Max cards per round = floor(deck_size / players)."""
+    return DECK_SIZE // player_count
 
 
 def get_trump_for_round(round_num: int) -> str:

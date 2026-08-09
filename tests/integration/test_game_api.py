@@ -161,3 +161,44 @@ class TestEndGame:
         )
 
         assert response.status_code == 409
+
+
+class TestGameWithCustomRoundsPerSet:
+    """Games with different rounds_per_set based on player count."""
+
+    async def test_7_players_max_7_cards(self, client: AsyncClient):
+        """7 players can play with up to 7 cards per round (52/7=7)."""
+        pg = await _create_authenticated_playground(client)
+        players = ["Ana", "Ben", "Cal", "Dan", "Eve", "Fay", "Gil"]
+        resp = await client.post("/api/game", json={
+            "playground_id": pg["id"],
+            "players": players,
+            "settings": {"rounds_per_set": 7},
+        }, cookies=pg["cookies"])
+        assert resp.status_code == 201
+        game = resp.json()
+        assert game["settings"]["rounds_per_set"] == 7
+        assert game["total_rounds"] == 21  # 3 sets × 7
+
+    async def test_8_players_max_6_cards(self, client: AsyncClient):
+        """8 players can play with up to 6 cards per round (52/8=6)."""
+        pg = await _create_authenticated_playground(client)
+        players = ["P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8"]
+        resp = await client.post("/api/game", json={
+            "playground_id": pg["id"],
+            "players": players,
+            "settings": {"rounds_per_set": 6},
+        }, cookies=pg["cookies"])
+        assert resp.status_code == 201
+        assert resp.json()["settings"]["rounds_per_set"] == 6
+
+    async def test_custom_5_rounds_per_set(self, client: AsyncClient):
+        """Players can choose fewer rounds (e.g., 5) for shorter games."""
+        pg = await _create_authenticated_playground(client)
+        resp = await client.post("/api/game", json={
+            "playground_id": pg["id"],
+            "players": ["Alice", "Bob", "Charlie"],
+            "settings": {"rounds_per_set": 5},
+        }, cookies=pg["cookies"])
+        assert resp.status_code == 201
+        assert resp.json()["total_rounds"] == 15  # 3 sets × 5

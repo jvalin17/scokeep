@@ -55,10 +55,11 @@ export const homeScreen = {
                             <div class="howto-step">
                                 <strong>1. Deal</strong>
                                 <p>Cards are dealt in sets — 8 down to 1, then back up. Trump suit rotates: ♠ ♦ ♣ ♥</p>
+                                <p>The dealer rotates clockwise each round. Example: if players are seated Alice, Bob, Charlie — Round 1: Charlie deals, Alice bids first → Bob → Charlie (dealer always bids last). Round 2: Alice deals, Bob bids first → Charlie → Alice.</p>
                             </div>
                             <div class="howto-step">
                                 <strong>2. Bid</strong>
-                                <p>Each player bids how many tricks they'll win this round. The last player's bid can't make the total equal the cards dealt (must-lose rule).</p>
+                                <p>Each player bids how many tricks they'll win this round. The last player (dealer) can't make the total equal the cards dealt (must-lose rule).</p>
                             </div>
                             <div class="howto-step">
                                 <strong>3. Play</strong>
