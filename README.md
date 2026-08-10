@@ -6,6 +6,19 @@ Ditch the notebook. Scokeep is a mobile-first score tracker built for Kachuful (
 
 **Install it:** Open the site on your phone, tap "Add to Home Screen" — it runs like a native app (PWA with offline support).
 
+## Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/settings.png" width="200" alt="Game setup — players, mode, scoring rule">
+  <img src="docs/screenshots/confirm_bidding.png" width="200" alt="Confirm bids with inline editing">
+  <img src="docs/screenshots/hands.png" width="200" alt="Keypad for entering hands won">
+</p>
+<p align="center">
+  <img src="docs/screenshots/confirm_hands_won.png" width="200" alt="Confirm hands won with inline editing">
+  <img src="docs/screenshots/scoreboard.png" width="200" alt="Scoreboard after each round">
+  <img src="docs/screenshots/result.png" width="200" alt="Final result with scoresheet and rankings">
+</p>
+
 ## How It Works
 
 1. **Create a Room** — give your group a name and a 4-digit PIN
@@ -139,15 +152,6 @@ Highest priority — no data is lost mid-game:
 - **Refresh-safe.** Every screen calls `guardPhase()` on mount, which fetches the game's current state from the server and redirects to the correct screen if needed. Refreshing the browser always shows the real state.
 - **30-minute game recovery.** If the app is closed, the game remains active and resumable for 30 minutes. Reopening the room shows "Resume Game."
 
-### Connection Resilience
-
-Built for serverless PostgreSQL where connections drop frequently:
-
-- **`pool_pre_ping`** — every query pings the connection first; stale connections are replaced transparently
-- **`pool_recycle=600`** — connections recycled every 10 minutes, before Neon's idle timeout kills them
-- **Async throughout** — `asyncpg` driver with SQLAlchemy async sessions. No blocking I/O.
-- **`func.now()` for timestamps** — all timestamps generated server-side in SQL, avoiding Python datetime timezone issues with asyncpg
-
 ### Security
 
 - **PINs:** bcrypt-hashed, never stored in plaintext
@@ -167,26 +171,6 @@ Current scale: personal use (< 100 concurrent users). The architecture supports 
 - **No WebSockets** — pure REST. Each request is independent. Horizontal scaling is a load balancer away.
 - **JSONB flexibility** — player count (2-8), bid values, and scores are stored in JSONB dicts. No schema migrations needed when game rules change.
 - **Concurrent rooms** — each room is isolated by playground_id. Thousands of rooms can run simultaneously with no cross-talk.
-
-To scale further: add Redis for session storage, move to managed PostgreSQL with read replicas, and add a CDN for static assets.
-
-### Debugging & Observability
-
-- **Client-side logger** — `window.__scokeepLogs` captures every API call, phase transition, and error. Available in browser console.
-- **Phase resync** — if the client and server disagree on game phase, `guardPhase()` automatically redirects to the correct screen and logs the discrepancy.
-- **Structured errors** — every API error returns `{"detail": "human-readable message"}` with appropriate HTTP status codes (400, 401, 403, 404, 409).
-
-### Constants
-
-All magic numbers live in `app/constants.py`, organized by section:
-
-| Section | Constants |
-|---------|-----------|
-| Deck | `DECK_SIZE`, `MAX_PLAYERS`, `MIN_PLAYERS` |
-| Game defaults | `DEFAULT_ROUNDS_PER_SET`, `DEFAULT_NUM_SETS`, `DEFAULT_MODE`, `DEFAULT_SCORING_FORMULA` |
-| Session | `SESSION_COOKIE_NAME`, `SESSION_MAX_AGE_AUTH`, `SESSION_MAX_AGE_JOIN`, `ACTIVE_GAME_TTL_MINUTES` |
-| Playground | `SHARE_CODE_LENGTH` |
-| Awards | `HIGH_ROLLER_MIN_BID` |
 
 ### PWA
 
