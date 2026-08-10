@@ -81,10 +81,7 @@ export function attachEndGameHandler(container, gameId, navigate, state) {
         if (confirm('End this game? Scores so far will be saved.')) {
             await endGame(gameId);
             soundEndGame();
-            const roomPath = state?.playground
-                ? `playground/${state.playground.share_code}`
-                : '';
-            navigate(roomPath);
+            navigate(`scoreboard/${gameId}`);
         }
     });
 }
