@@ -134,7 +134,14 @@ async def get_playground_stats(
         raise HTTPException(status_code=404, detail="Playground not found")
     if playground.id != playground_id:
         raise HTTPException(status_code=403, detail="Access denied")
-    return await AnalyticsService.get_playground_stats(db, playground.id)
+    # Compute insights on first load if not yet computed
+    insights_blob = playground.insights
+    if insights_blob is None:
+        from app.services.insights import compute_insights
+        insights_blob = await compute_insights(db, playground.id)
+    return await AnalyticsService.get_playground_stats(
+        db, playground.id, insights_blob,
+    )
 
 
 @router.delete("/{share_code}/stats")

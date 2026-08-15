@@ -25,7 +25,7 @@ Ditch the notebook. Scokeep is a mobile-first score tracker built for Kachuful (
 2. **Add Players** — drag to set clockwise seating order
 3. **Configure** — game mode, scoring rule, cards per round, must-lose toggle
 4. **Play Rounds** — tap bids and scores on the keypad
-5. **See Stats** — leaderboard, accuracy, trends, awards
+5. **See Stats** — personality insights, awards, game history
 
 ## Features
 
@@ -76,20 +76,31 @@ Last player to bid cannot make total bids equal cards dealt. The forbidden numbe
 - **Standard** — clean, monochrome
 - **Interactive** (default) — phase-specific colors: yellow (bidding) → green (play) → blue (scoring) → indigo (scoreboard)
 
-### Stats & Awards
+### Player Insights
 
-**Tabs:**
-- **Leaderboard** — wins, win rate, average score, best/worst game
-- **Accuracy** — bid accuracy % bars per player
-- **Trends** — win streaks, overbid/underbid ratios, clutch factor
-- **Awards** — last game awards + career records
-- **Games** — expandable scoresheets with trump suits and overbid/underbid colors
+After 3 games, every player gets a **personality card** — a unique archetype based on their playstyle. No two players in the same room share a personality.
+
+**10 Personalities:** The Sniper, The Gambler, The Phoenix, The Rock, The Sprinter, The Ghost, The Architect, The Minimalist, The Comeback Kid, The Wildcard
+
+**Each card shows:**
+- Personality archetype with tagline
+- Accuracy breakdown by cards dealt (8→1)
+- Quick stats: wins, best suit, best round score, signature card count
+- 1 strength insight + 1 growth tip
+- Trend badge (improving / steady / cooling off)
+- Fun facts and kryptonite (weakest card count)
+
+Powered by cosine similarity to archetype centroids with James-Stein shrinkage and EMA smoothing — stable assignments that evolve with more data.
+
+### Awards
 
 **Last Game Awards:** MVP, Sharpshooter, Brick Wall, Bold Move, Sandbagger, Gambler, Cursed
 
 **Career Records:** Sniper, Zero Master, High Roller, All-in, Jinxed, Perfect Set
 
-**Recent Form:** Hot Hand, On Fire, Streak, Dodger
+### Game History
+
+Expandable scoresheets with trump suits and overbid/underbid colors for every finished game.
 
 ## Architecture
 
@@ -117,7 +128,7 @@ Last player to bid cannot make total bids equal cards dealt. The forbidden numbe
 │  ┌─────────────────┴───────────────────────┐ │
 │  │           Services Layer                 │ │
 │  │  Playground · Game · Round · Scoring     │ │
-│  │  Analytics · Scoreboard                  │ │
+│  │  Analytics · Scoreboard · Insights       │ │
 │  └─────────────────┬───────────────────────┘ │
 │  ┌─────────────────┴───────────────────────┐ │
 │  │         Models (SQLAlchemy ORM)          │ │
@@ -185,4 +196,4 @@ Current scale: personal use (< 100 concurrent users). The architecture supports 
 
 ## Built With
 
-Built using [agent-toolkit](https://github.com/anthropics/claude-code) — a skill-driven development framework with TDD workflows (/implementation, /debug, /evaluate, /reviewer, /precommit), automated quality gates, and structured report-based code review. Every feature follows the slab-by-slab cycle: failing test first, then implementation, then precommit gate. 316 tests covering scoring, game lifecycle, security, stats, and end-to-end flows.
+Built using [agent-toolkit](https://github.com/anthropics/claude-code) — a skill-driven development framework with TDD workflows (/implementation, /debug, /evaluate, /reviewer, /precommit), automated quality gates, and structured report-based code review. Every feature follows the slab-by-slab cycle: failing test first, then implementation, then precommit gate. 373 tests covering scoring, game lifecycle, security, insights, stats, and end-to-end flows.
