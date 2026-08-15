@@ -1,7 +1,7 @@
 """Integration tests for playground stats/analytics endpoint.
 
 Tests GET /api/playground/{share_code}/stats with real game data.
-Verifies leaderboard, bid accuracy, head-to-head, and game history.
+Verifies highlights, insights, and game history.
 """
 
 from httpx import AsyncClient
@@ -111,12 +111,10 @@ class TestPlaygroundStats:
         assert resp.status_code == 200
         body = resp.json()
         assert body["total_games"] == 0
-        assert body["leaderboard"] == []
         assert body["game_history"] == []
-        assert body["trends"] == []
 
     async def test_stats_after_one_game(self, client: AsyncClient):
-        """Stats after 1 finished game show correct leaderboard."""
+        """Stats after 1 finished game show correct game history."""
         pg, cookies = await _setup(client, "One Game Stats")
 
         # Alice bids 2 gets 2 → 20, Bob bids 3 gets 3 → 30, Charlie bids 1 gets 3 → -11
@@ -133,22 +131,45 @@ class TestPlaygroundStats:
         body = resp.json()
         assert body["total_games"] == 1
 
-        # Leaderboard should have Bob first (winner with 30 pts)
-        lb = body["leaderboard"]
-        assert len(lb) == 3
-        assert lb[0]["name"] == "Bob"
-        assert lb[0]["wins"] == 1
-        assert lb[0]["total_score"] == 30
-
         # Game history
         assert len(body["game_history"]) == 1
         assert body["game_history"][0]["winner"] == "Bob"
 
-    async def test_stats_bid_accuracy(self, client: AsyncClient):
-        """Bid accuracy is calculated correctly."""
-        pg, cookies = await _setup(client, "Accuracy Stats")
+        # Insights should exist (but players have < 3 games, so no personality yet)
+        assert "insights" in body
 
-        # Alice bids 2 gets 2 (hit), Bob bids 3 gets 1 (miss)
+    async def test_stats_insights_after_three_games(self, client: AsyncClient):
+        """After 3 games, players get personality assignments."""
+        pg, cookies = await _setup(client, "Insights 3 Games")
+
+        for _ in range(3):
+            await _play_full_game(
+                client, pg["id"], cookies,
+                players=["Alice", "Bob", "Charlie"],
+                bids=[2, 3, 1], hands=[2, 3, 3],
+            )
+
+        resp = await client.get(
+            f"/api/playground/{pg['share_code']}/stats", cookies=cookies,
+        )
+        body = resp.json()
+        assert body["total_games"] == 3
+        insights = body["insights"]
+        assert insights is not None
+        assert "players" in insights
+
+        # Each player should have a personality assigned
+        for name in ["Alice", "Bob", "Charlie"]:
+            player_insight = insights["players"][name]
+            assert player_insight["personality"] is not None
+            assert player_insight["games_analyzed"] == 3
+            assert len(player_insight["insights"]) == 2
+            assert "accuracy_by_cards" in player_insight
+
+    async def test_stats_insights_unlock_progress(self, client: AsyncClient):
+        """Players with < 3 games show unlock progress, not personality."""
+        pg, cookies = await _setup(client, "Insights Unlock")
+
         await _play_full_game(
             client, pg["id"], cookies,
             players=["Alice", "Bob"],
@@ -158,59 +179,10 @@ class TestPlaygroundStats:
         resp = await client.get(
             f"/api/playground/{pg['share_code']}/stats", cookies=cookies,
         )
-        lb = resp.json()["leaderboard"]
-        alice = next(p for p in lb if p["name"] == "Alice")
-        bob = next(p for p in lb if p["name"] == "Bob")
-
-        assert alice["bid_accuracy"] == 100  # 1/1 bids hit
-        assert bob["bid_accuracy"] == 0     # 0/1 bids hit
-
-    async def test_trends_overbid_underbid(self, client: AsyncClient):
-        """Trends track overbid/underbid counts per player."""
-        pg, cookies = await _setup(client, "Trends OB/UB")
-
-        # Alice bids 3, gets 1 (overbid). Bob bids 1, gets 7 (underbid).
-        await _play_full_game(
-            client, pg["id"], cookies,
-            players=["Alice", "Bob"],
-            bids=[3, 1], hands=[1, 7],
-        )
-
-        resp = await client.get(
-            f"/api/playground/{pg['share_code']}/stats", cookies=cookies,
-        )
-        trends = resp.json()["trends"]
-        alice = next(t for t in trends if t["name"] == "Alice")
-        bob = next(t for t in trends if t["name"] == "Bob")
-
-        assert alice["overbids"] == 1
-        assert alice["underbids"] == 0
-        assert bob["overbids"] == 0
-        assert bob["underbids"] == 1
-
-    async def test_trends_win_streaks(self, client: AsyncClient):
-        """Trends track current and longest win streaks."""
-        pg, cookies = await _setup(client, "Trends Streaks")
-
-        # Alice wins 2 games in a row
-        for _ in range(2):
-            await _play_full_game(
-                client, pg["id"], cookies,
-                players=["Alice", "Bob"],
-                bids=[3, 0], hands=[3, 5],  # Alice: +30, Bob: -10
-            )
-
-        resp = await client.get(
-            f"/api/playground/{pg['share_code']}/stats", cookies=cookies,
-        )
-        trends = resp.json()["trends"]
-        alice = next(t for t in trends if t["name"] == "Alice")
-        bob = next(t for t in trends if t["name"] == "Bob")
-
-        assert alice["current_streak"] == 2
-        assert alice["longest_streak"] == 2
-        assert bob["current_streak"] == 0
-        assert bob["longest_streak"] == 0
+        insights = resp.json()["insights"]
+        assert insights["players"]["Alice"]["personality"] is None
+        assert insights["players"]["Alice"]["games_analyzed"] == 1
+        assert insights["players"]["Alice"]["unlock_at"] == 3
 
     async def test_clear_stats_deletes_finished_games(
         self, client: AsyncClient,
@@ -243,7 +215,7 @@ class TestPlaygroundStats:
             f"/api/playground/{pg['share_code']}/stats", cookies=cookies,
         )
         assert resp.json()["total_games"] == 0
-        assert resp.json()["leaderboard"] == []
+        assert resp.json()["game_history"] == []
 
     async def test_clear_stats_keeps_active_game(
         self, client: AsyncClient,
@@ -370,26 +342,6 @@ class TestHighlights:
         assert alice["longest"] == 2  # missed both rounds
         assert bob["longest"] == 0   # made both rounds
 
-    async def test_recent_hot_hand_shows_highest_round_score(
-        self, client: AsyncClient,
-    ):
-        """Hot hand shows the highest single-round score in last 3 games."""
-        pg, cookies = await _setup(client, "HotHand Stats")
-
-        # Alice gets +50 (bid 5 made)
-        await _play_full_game(
-            client, pg["id"], cookies,
-            players=["Alice", "Bob"],
-            bids=[5, 0], hands=[5, 3],
-        )
-
-        resp = await client.get(
-            f"/api/playground/{pg['share_code']}/stats", cookies=cookies,
-        )
-        hot_hand = resp.json()["highlights"]["recent"]["hot_hand"]
-        assert hot_hand["name"] == "Alice"
-        assert hot_hand["score"] == 50
-
     async def test_highlights_empty_with_no_games(self, client: AsyncClient):
         """Highlights are empty when no games played."""
         pg, cookies = await _setup(client, "Empty Highlights")
@@ -400,7 +352,6 @@ class TestHighlights:
         body = resp.json()
         assert body["total_games"] == 0
         assert body["highlights"]["career"]["sniper"] == []
-        assert body["highlights"]["recent"]["hot_hand"] is None
         assert body["highlights"]["last_game"] is None
 
     async def test_last_game_awards(self, client: AsyncClient):

@@ -1,7 +1,8 @@
-// Stats screen — leaderboard, game history, bid accuracy, head-to-head
+// Stats screen — insights (personality cards), awards, game history
 
 import { getPlaygroundStats, clearPlaygroundStats, getScoreboard } from '../api.js';
 import { getTrump } from '../components/game-utils.js';
+import { renderPersonalityCards } from '../components/personality-card.js';
 
 export const statsScreen = {
     async mount(container, state, { navigate, params }) {
@@ -31,7 +32,7 @@ export const statsScreen = {
             return;
         }
 
-        let activeTab = 'leaderboard';
+        let activeTab = 'insights';
         let expandedGameId = null;
         let expandedData = null;
 
@@ -48,17 +49,13 @@ export const statsScreen = {
                     </div>
 
                     <div class="stats-tabs">
-                        <button class="stats-tab ${activeTab === 'leaderboard' ? 'active' : ''}" data-tab="leaderboard">Leaderboard</button>
-                        <button class="stats-tab ${activeTab === 'accuracy' ? 'active' : ''}" data-tab="accuracy">Accuracy</button>
-                        <button class="stats-tab ${activeTab === 'trends' ? 'active' : ''}" data-tab="trends">Trends</button>
+                        <button class="stats-tab ${activeTab === 'insights' ? 'active' : ''}" data-tab="insights">Insights</button>
                         <button class="stats-tab ${activeTab === 'highlights' ? 'active' : ''}" data-tab="highlights">Awards</button>
                         <button class="stats-tab ${activeTab === 'history' ? 'active' : ''}" data-tab="history">Games</button>
                     </div>
 
                     <div class="stats-content">
-                        ${activeTab === 'leaderboard' ? renderLeaderboard() : ''}
-                        ${activeTab === 'accuracy' ? renderAccuracy() : ''}
-                        ${activeTab === 'trends' ? renderTrends() : ''}
+                        ${activeTab === 'insights' ? renderInsights() : ''}
                         ${activeTab === 'highlights' ? renderHighlights() : ''}
                         ${activeTab === 'history' ? renderHistory() : ''}
                     </div>
@@ -67,13 +64,23 @@ export const statsScreen = {
                 </div>
             `;
 
+            bindTabListeners();
+            bindActionListeners();
+            if (activeTab === 'insights') {
+                bindCardFlipListeners();
+            }
+        }
+
+        function bindTabListeners() {
             container.querySelectorAll('.stats-tab').forEach(tab => {
                 tab.addEventListener('click', () => {
                     activeTab = tab.dataset.tab;
                     render();
                 });
             });
+        }
 
+        function bindActionListeners() {
             const gearBtn = container.querySelector('#stats-gear');
             if (gearBtn) {
                 gearBtn.addEventListener('click', () => {
@@ -114,234 +121,112 @@ export const statsScreen = {
             };
         }
 
-        function renderLeaderboard() {
-            const lb = stats.leaderboard;
-            return `
-                <div class="stats-section">
-                    ${lb.map((p, i) => `
-                        <div class="stats-card ${i === 0 ? 'stats-first' : ''}">
-                            <div class="stats-rank">${i === 0 ? '👑' : i + 1}</div>
-                            <div class="stats-card-body">
-                                <div class="stats-name">${p.name}</div>
-                                <div class="stats-detail">
-                                    <span>${p.wins}W / ${p.games_played}G</span>
-                                    <span class="stats-highlight">${p.win_rate}% win</span>
-                                </div>
-                                <div class="stats-detail">
-                                    <span>Total: ${p.total_score}</span>
-                                    <span>Avg: ${p.avg_score_per_round}/rnd</span>
-                                </div>
-                                <div class="stats-detail stats-muted">
-                                    Best: ${p.best_game} &nbsp; Worst: ${p.worst_game}
-                                </div>
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-            `;
+        function bindCardFlipListeners() {
+            container.querySelectorAll('.personality-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    card.classList.toggle('flipped');
+                });
+            });
         }
 
-        function renderAccuracy() {
-            const lb = stats.leaderboard.slice().sort((a, b) => b.bid_accuracy - a.bid_accuracy);
-            return `
-                <div class="stats-section">
-                    <h3 style="margin-bottom: 12px;">Bid Accuracy</h3>
-                    ${lb.map(p => {
-                        const pct = p.bid_accuracy;
-                        return `
-                            <div class="stats-bar-row">
-                                <span class="stats-bar-name">${p.name}</span>
-                                <div class="stats-bar-track">
-                                    <div class="stats-bar-fill ${pct >= 50 ? 'stats-bar-good' : ''}" style="width: ${pct}%"></div>
-                                </div>
-                                <span class="stats-bar-value">${pct}%</span>
-                            </div>
-                        `;
-                    }).join('')}
-                </div>
-            `;
+        // ── Insights tab ──
+
+        function renderInsights() {
+            const insights = stats.insights;
+            if (!insights || !insights.players) {
+                return '<p class="stats-empty">Play 3 games to unlock player insights!</p>';
+            }
+            return renderPersonalityCards(insights.players);
         }
 
-        function renderTrends() {
-            const trends = stats.trends;
-            if (!trends || !trends.length) return '<p class="stats-empty">No trend data yet.</p>';
-            return `
-                <div class="stats-section">
-                    <h3 style="margin-bottom: 12px;">Win Streaks</h3>
-                    ${trends.map(t => `
-                        <div class="stats-bar-row">
-                            <span class="stats-bar-name">${t.name}</span>
-                            <span class="stats-bar-value">${t.current_streak > 0 ? '🔥 ' + t.current_streak : '—'}</span>
-                            <span class="stats-muted" style="min-width:60px;text-align:right;">best: ${t.longest_streak}</span>
-                        </div>
-                    `).join('')}
-
-                    <h3 style="margin: 20px 0 12px;">Overbid / Underbid</h3>
-                    ${trends.filter(t => t.total_bid_rounds > 0).map(t => {
-                        const total = t.overbids + t.underbids;
-                        const exact = t.total_bid_rounds - total;
-                        const obPct = total > 0 ? Math.round(t.overbids / t.total_bid_rounds * 100) : 0;
-                        const ubPct = total > 0 ? Math.round(t.underbids / t.total_bid_rounds * 100) : 0;
-                        const exPct = 100 - obPct - ubPct;
-                        const style = t.overbids > t.underbids ? 'Aggressive' : t.underbids > t.overbids ? 'Conservative' : 'Balanced';
-                        return `
-                            <div class="stats-card" style="margin-bottom:8px;">
-                                <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
-                                    <span>${t.name}</span>
-                                    <span class="stats-muted">${style}</span>
-                                </div>
-                                <div class="stats-bar-track" style="display:flex;height:8px;border-radius:4px;overflow:hidden;">
-                                    <div style="width:${obPct}%;background:#BBDEFB;" title="Overbid ${obPct}%"></div>
-                                    <div style="width:${exPct}%;background:#C8E6C9;" title="Exact ${exPct}%"></div>
-                                    <div style="width:${ubPct}%;background:#FFE0B2;" title="Underbid ${ubPct}%"></div>
-                                </div>
-                                <div style="font-size:0.75rem;color:var(--text-muted);margin-top:6px;line-height:1.6;">
-                                    <div>Overbid: ${t.overbids} rounds</div>
-                                    <div>Exact: ${exact} rounds</div>
-                                    <div>Underbid: ${t.underbids} rounds</div>
-                                </div>
-                            </div>
-                        `;
-                    }).join('')}
-
-                    <h3 style="margin: 20px 0 12px;">Clutch Factor</h3>
-                    ${trends.filter(t => t.clutch_opportunities > 0).length === 0
-                        ? '<p class="stats-muted">Need more games for clutch data</p>'
-                        : trends.filter(t => t.clutch_opportunities > 0).map(t => {
-                            const pct = Math.round(t.clutch_wins / t.clutch_opportunities * 100);
-                            return `
-                                <div class="stats-bar-row">
-                                    <span class="stats-bar-name">${t.name}</span>
-                                    <div class="stats-bar-track">
-                                        <div class="stats-bar-fill ${pct >= 50 ? 'stats-bar-good' : ''}" style="width: ${pct}%"></div>
-                                    </div>
-                                    <span class="stats-bar-value">${pct}% (${t.clutch_wins}/${t.clutch_opportunities})</span>
-                                </div>
-                            `;
-                        }).join('')
-                    }
-                </div>
-            `;
-        }
+        // ── Awards tab ──
 
         function renderHighlights() {
             const highlights = stats.highlights;
             if (!highlights) return '<p class="stats-empty">No highlights yet.</p>';
 
-            const { career, recent } = highlights;
-
-            function careerTable(title, emoji, description, data, valueKey = 'count') {
-                if (!data || !data.length) return '';
-                const filtered = data.filter(p => p[valueKey] > 0);
-                if (!filtered.length) return '';
-                return `
-                    <div class="stats-card" style="margin-bottom:16px;padding:12px;">
-                        <h4 style="margin:0 0 4px;">${emoji} ${title}</h4>
-                        <p class="stats-muted" style="font-size:0.75rem;margin-bottom:8px;">${description}</p>
-                        <table class="awards-table">
-                            <thead>
-                                <tr><th>#</th><th>Player</th><th>Count</th></tr>
-                            </thead>
-                            <tbody>
-                                ${filtered.map((p, i) => `
-                                    <tr>
-                                        <td>${i + 1}</td>
-                                        <td>${p.name}</td>
-                                        <td><strong>${p[valueKey]}</strong></td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    </div>
-                `;
-            }
-
-            function recentCard(title, emoji, data) {
-                if (!data) return '';
-                let detail = '';
-                if (data.score !== undefined) {
-                    detail = `+${data.score} in Round ${data.round}`;
-                } else if (data.accuracy !== undefined) {
-                    detail = `${data.accuracy}% accuracy`;
-                } else if (data.count !== undefined) {
-                    detail = `${data.count} in a row`;
-                }
-                return `
-                    <div class="stats-card" style="margin-bottom:8px;padding:10px 12px;">
-                        <div style="display:flex;justify-content:space-between;align-items:center;">
-                            <span>${emoji} ${title}</span>
-                            <strong style="margin-left:8px;">${data.name}</strong>
-                        </div>
-                        <div class="stats-muted" style="margin-top:4px;font-size:0.8rem;">
-                            ${detail}
-                        </div>
-                    </div>
-                `;
-            }
-
-            function lastGameSection(lastGame) {
-                if (!lastGame) return '';
-                const awards = [
-                    { key: 'mvp', emoji: '🏆', title: 'MVP', desc: 'Highest total score', detail: lg => `${lg.score} points` },
-                    { key: 'sharpshooter', emoji: '🎯', title: 'Sharpshooter', desc: 'Best bid accuracy', detail: lg => `${lg.accuracy}% accuracy` },
-                    { key: 'brick_wall', emoji: '🧱', title: 'Brick Wall', desc: 'Most successful zero bids', detail: lg => `${lg.count} zero-bids made` },
-                    { key: 'bold_move', emoji: '🎲', title: 'Bold Move', desc: 'Highest bid that was made', detail: lg => `bid ${lg.bid} and made it` },
-                    { key: 'sandbagger', emoji: '🏖️', title: 'Sandbagger', desc: 'Most underbids — bid low, won more', detail: lg => `${lg.count} underbids` },
-                    { key: 'gambler', emoji: '🎰', title: 'Gambler', desc: 'Most overbids — bid high, fell short', detail: lg => `${lg.count} overbids` },
-                    { key: 'cursed', emoji: '😵', title: 'Cursed', desc: 'Longest streak of missed bids', detail: lg => `${lg.streak} misses in a row` },
-                ];
-                const cards = awards
-                    .filter(a => lastGame[a.key])
-                    .map(a => {
-                        const data = lastGame[a.key];
-                        return `
-                            <div class="stats-card" style="margin-bottom:8px;padding:10px 12px;">
-                                <div style="display:flex;justify-content:space-between;align-items:center;">
-                                    <span>${a.emoji} ${a.title}</span>
-                                    <strong style="margin-left:8px;">${data.name}</strong>
-                                </div>
-                                <div class="stats-muted" style="margin-top:2px;font-size:0.7rem;">${a.desc}</div>
-                                <div class="stats-muted" style="margin-top:2px;font-size:0.8rem;">
-                                    ${a.detail(data)}
-                                </div>
-                            </div>
-                        `;
-                    }).join('');
-                return `
-                    <h3 style="margin-bottom:12px;">Last Game</h3>
-                    ${cards}
-                `;
-            }
-
-            const hasRecent = recent.hot_hand || recent.on_fire
-                || recent.streak || recent.dodger;
+            const { career } = highlights;
 
             return `
                 <div class="stats-section">
-                    ${lastGameSection(highlights.last_game)}
-
-                    ${hasRecent ? `
-                        <h3 style="margin:20px 0 12px;">Recent Form (last 3 games)</h3>
-                        ${recentCard('Hot Hand', '🔥', recent.hot_hand)}
-                        ${recentCard('On Fire', '🎯', recent.on_fire)}
-                        ${recentCard('Streak', '⚡', recent.streak)}
-                        ${recentCard('Dodger', '🥷', recent.dodger)}
-                    ` : ''}
+                    ${renderLastGameAwards(highlights.last_game)}
 
                     <h3 style="margin:20px 0 12px;">Career Records</h3>
-                    ${careerTable('Sniper', '🎯', 'Bid exactly 1 and made it', career.sniper)}
-                    ${careerTable('Zero Master', '🥷', 'Bid 0 and won no tricks', career.zero_master)}
-                    ${careerTable('High Roller', '🎲', 'Bid 3 or more and made it', career.high_roller)}
-                    ${careerTable('All-in', '💎', 'Bid all cards dealt and made it', career.all_in)}
-                    ${careerTable('Jinxed', '😵', 'Longest streak of missed bids', career.jinxed, 'longest')}
-                    ${careerTable('Perfect Set', '⭐', 'Made every bid in a full set', career.perfect_set)}
+                    ${renderCareerTable('Sniper', '🎯', 'Bid exactly 1 and made it', career.sniper)}
+                    ${renderCareerTable('Zero Master', '🥷', 'Bid 0 and won no tricks', career.zero_master)}
+                    ${renderCareerTable('High Roller', '🎲', 'Bid 3 or more and made it', career.high_roller)}
+                    ${renderCareerTable('All-in', '💎', 'Bid all cards dealt and made it', career.all_in)}
+                    ${renderCareerTable('Jinxed', '😵', 'Longest streak of missed bids', career.jinxed, 'longest')}
+                    ${renderCareerTable('Perfect Set', '⭐', 'Made every bid in a full set', career.perfect_set)}
 
-                    ${!hasRecent && !career.sniper?.some(p => p.count > 0)
+                    ${!career.sniper?.some(p => p.count > 0)
                         ? '<p class="stats-muted">Play more games to unlock awards!</p>'
                         : ''}
                 </div>
             `;
         }
+
+        function renderCareerTable(title, emoji, description, data, valueKey = 'count') {
+            if (!data || !data.length) return '';
+            const filtered = data.filter(p => p[valueKey] > 0);
+            if (!filtered.length) return '';
+            return `
+                <div class="stats-card" style="margin-bottom:16px;padding:12px;">
+                    <h4 style="margin:0 0 4px;">${emoji} ${title}</h4>
+                    <p class="stats-muted" style="font-size:0.75rem;margin-bottom:8px;">${description}</p>
+                    <table class="awards-table">
+                        <thead>
+                            <tr><th>#</th><th>Player</th><th>Count</th></tr>
+                        </thead>
+                        <tbody>
+                            ${filtered.map((p, i) => `
+                                <tr>
+                                    <td>${i + 1}</td>
+                                    <td>${p.name}</td>
+                                    <td><strong>${p[valueKey]}</strong></td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function renderLastGameAwards(lastGame) {
+            if (!lastGame) return '';
+            const awards = [
+                { key: 'mvp', emoji: '🏆', title: 'MVP', desc: 'Highest total score', detail: lg => `${lg.score} points` },
+                { key: 'sharpshooter', emoji: '🎯', title: 'Sharpshooter', desc: 'Best bid accuracy', detail: lg => `${lg.accuracy}% accuracy` },
+                { key: 'brick_wall', emoji: '🧱', title: 'Brick Wall', desc: 'Most successful zero bids', detail: lg => `${lg.count} zero-bids made` },
+                { key: 'bold_move', emoji: '🎲', title: 'Bold Move', desc: 'Highest bid that was made', detail: lg => `bid ${lg.bid} and made it` },
+                { key: 'sandbagger', emoji: '🏖️', title: 'Sandbagger', desc: 'Most underbids — bid low, won more', detail: lg => `${lg.count} underbids` },
+                { key: 'gambler', emoji: '🎰', title: 'Gambler', desc: 'Most overbids — bid high, fell short', detail: lg => `${lg.count} overbids` },
+                { key: 'cursed', emoji: '😵', title: 'Cursed', desc: 'Longest streak of missed bids', detail: lg => `${lg.streak} misses in a row` },
+            ];
+            const cards = awards
+                .filter(a => lastGame[a.key])
+                .map(a => {
+                    const data = lastGame[a.key];
+                    return `
+                        <div class="stats-card" style="margin-bottom:8px;padding:10px 12px;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;">
+                                <span>${a.emoji} ${a.title}</span>
+                                <strong style="margin-left:8px;">${data.name}</strong>
+                            </div>
+                            <div class="stats-muted" style="margin-top:2px;font-size:0.7rem;">${a.desc}</div>
+                            <div class="stats-muted" style="margin-top:2px;font-size:0.8rem;">
+                                ${a.detail(data)}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            return `
+                <h3 style="margin-bottom:12px;">Last Game</h3>
+                ${cards}
+            `;
+        }
+
+        // ── Games tab ──
 
         function renderHistory() {
             return `

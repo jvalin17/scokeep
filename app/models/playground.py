@@ -14,6 +14,7 @@ class Playground(Base):
     pin_hash: Mapped[str] = mapped_column(String(128), nullable=False)
     share_code: Mapped[str] = mapped_column(String(8), unique=True, nullable=False)
     players: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    insights: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=func.now(), onupdate=func.now()

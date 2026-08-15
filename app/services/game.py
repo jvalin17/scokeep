@@ -94,6 +94,10 @@ class GameService:
         await db.commit()
         await db.refresh(game)
 
+        if game.status == "finished":
+            from app.services.insights import compute_insights
+            await compute_insights(db, game.playground_id)
+
     @staticmethod
     async def extend_game(db: AsyncSession, game: Game) -> None:
         """Add another set to the game."""
@@ -111,6 +115,9 @@ class GameService:
         game.finished_at = func.now()
         await db.commit()
         await db.refresh(game)
+
+        from app.services.insights import compute_insights
+        await compute_insights(db, game.playground_id)
 
     @staticmethod
     async def update_phase(db: AsyncSession, game: Game, phase: str) -> None:

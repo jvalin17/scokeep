@@ -11,34 +11,27 @@ from app.models.round import Round
 class AnalyticsService:
 
     @staticmethod
-    async def get_playground_stats(db: AsyncSession, playground_id: int) -> dict:
+    async def get_playground_stats(
+        db: AsyncSession, playground_id: int, insights_blob: dict | None = None,
+    ) -> dict:
         games, all_rounds = await AnalyticsService._load_data(db, playground_id)
         empty_highlights = {
             "career": {
                 "sniper": [], "zero_master": [], "high_roller": [],
                 "all_in": [], "jinxed": [], "perfect_set": [],
             },
-            "recent": {
-                "hot_hand": None, "on_fire": None,
-                "streak": None, "dodger": None,
-            },
             "last_game": None,
         }
         if not games:
             return {
-                "leaderboard": [],
                 "game_history": [],
-                "trends": [],
                 "highlights": empty_highlights,
+                "insights": insights_blob,
                 "total_games": 0,
             }
 
         rounds_by_game = AnalyticsService._group_rounds(all_rounds)
-        player_data, game_history = AnalyticsService._calc_player_stats(
-            games, rounds_by_game,
-        )
-        leaderboard = AnalyticsService._calc_leaderboard(player_data)
-        trends = AnalyticsService._calc_trends(
+        _player_data, game_history = AnalyticsService._calc_player_stats(
             games, rounds_by_game,
         )
         highlights = AnalyticsService._calc_highlights(
@@ -50,10 +43,9 @@ class AnalyticsService:
         highlights["last_game"] = last_game_awards
 
         return {
-            "leaderboard": leaderboard,
             "game_history": game_history[:20],
-            "trends": trends,
             "highlights": highlights,
+            "insights": insights_blob,
             "total_games": len(games),
         }
 
@@ -267,17 +259,7 @@ class AnalyticsService:
                 "perfect_sets": 0,
             }
 
-        # Recent form: track per-round scores for last 3 games
         sorted_games = sorted(games, key=lambda g: g.started_at or g.id)
-        recent_games = sorted_games[-3:]
-        recent_game_ids = {g.id for g in recent_games}
-
-        # Recent form trackers
-        hot_hand_best = None  # {"name", "score", "round", "game_id"}
-        recent_bids_made: dict[str, int] = dict.fromkeys(all_players, 0)
-        recent_bids_total: dict[str, int] = dict.fromkeys(all_players, 0)
-        current_bid_streak: dict[str, int] = dict.fromkeys(all_players, 0)
-        current_zero_streak: dict[str, int] = dict.fromkeys(all_players, 0)
 
         for game in sorted_games:
             players = game.players
@@ -285,7 +267,6 @@ class AnalyticsService:
             if not game_rounds:
                 continue
 
-            is_recent = game.id in recent_game_ids
             rounds_per_set = game.settings.get("rounds_per_set", 8)
 
             # Track per-set accuracy for perfect set detection
@@ -299,7 +280,6 @@ class AnalyticsService:
                     name = players[idx]
                     bid = r.bids.get(idx_str)
                     hand = r.hands_won.get(idx_str)
-                    score = r.scores.get(idx_str, 0)
                     if bid is None or hand is None:
                         continue
 
@@ -333,29 +313,6 @@ class AnalyticsService:
                     # Perfect set tracking
                     set_bids[name].append(made)
 
-                    # Recent: hot hand (highest single-round score)
-                    if is_recent:
-                        recent_bids_total[name] = recent_bids_total.get(name, 0) + 1
-                        if made:
-                            recent_bids_made[name] = recent_bids_made.get(name, 0) + 1
-                        if hot_hand_best is None or score > hot_hand_best["score"]:
-                            hot_hand_best = {
-                                "name": name, "score": score,
-                                "round": r.round_num, "game_id": game.id,
-                            }
-
-                    # Bid streak (consecutive bids made, resets on miss)
-                    if made:
-                        current_bid_streak[name] = current_bid_streak.get(name, 0) + 1
-                    else:
-                        current_bid_streak[name] = 0
-
-                    # Dodger (consecutive 0-bids made, resets on miss or non-0 bid)
-                    if bid == 0 and made:
-                        current_zero_streak[name] = current_zero_streak.get(name, 0) + 1
-                    else:
-                        current_zero_streak[name] = 0
-
                 # Check for perfect set at set boundaries
                 if (round_idx + 1) % rounds_per_set == 0:
                     for name in players:
@@ -377,28 +334,6 @@ class AnalyticsService:
             table.sort(key=lambda x: -x[sort_key])
             return table
 
-        # Build recent form
-        def best_by_value(tracker):
-            if not tracker:
-                return None
-            name, count = max(tracker.items(), key=lambda x: x[1])
-            return {"name": name, "count": count} if count > 0 else None
-
-        on_fire = None
-        if recent_bids_total:
-            best_recent = max(
-                recent_bids_total.keys(),
-                key=lambda n: (
-                    recent_bids_made.get(n, 0) / recent_bids_total[n]
-                ) if recent_bids_total[n] > 0 else 0,
-            )
-            if recent_bids_total[best_recent] > 0:
-                accuracy = round(
-                    recent_bids_made.get(best_recent, 0)
-                    / recent_bids_total[best_recent] * 100,
-                )
-                on_fire = {"name": best_recent, "accuracy": accuracy}
-
         return {
             "career": {
                 "sniper": career_table("sniper"),
@@ -409,12 +344,6 @@ class AnalyticsService:
                     "longest_miss_streak", "longest",
                 ),
                 "perfect_set": career_table("perfect_sets"),
-            },
-            "recent": {
-                "hot_hand": hot_hand_best,
-                "on_fire": on_fire,
-                "streak": best_by_value(current_bid_streak),
-                "dodger": best_by_value(current_zero_streak),
             },
         }
 

@@ -41,11 +41,14 @@ async def create_tables() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         # Add updated_at column to game table if missing (no migration tool)
-        try:
-            from sqlalchemy import text
+        import contextlib
 
-            await conn.execute(text(
-                "ALTER TABLE game ADD COLUMN updated_at TIMESTAMP DEFAULT NOW()"
-            ))
-        except Exception:  # noqa: S110
-            pass  # column already exists
+        from sqlalchemy import text
+
+        # Add columns if missing (no migration tool)
+        for statement in [
+            "ALTER TABLE game ADD COLUMN updated_at TIMESTAMP DEFAULT NOW()",
+            "ALTER TABLE playground ADD COLUMN insights JSON DEFAULT NULL",
+        ]:
+            with contextlib.suppress(Exception):
+                await conn.execute(text(statement))
