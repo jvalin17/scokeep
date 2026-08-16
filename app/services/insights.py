@@ -52,6 +52,7 @@ __all__ = [
     "assign_personalities_unique",
     "assign_personality",
     "compute_accuracy_by_cards",
+    "backfill_meta",
     "compute_feature_vector",
     "compute_insights",
     "compute_player_extras",
@@ -61,6 +62,16 @@ __all__ = [
     "james_stein_shrink",
     "min_max_normalize",
 ]
+
+
+def backfill_meta(insights_blob: dict | None) -> dict | None:
+    """Add personality meta to cached blobs that lack it."""
+    if not insights_blob:
+        return insights_blob
+    for data in insights_blob.get("players", {}).values():
+        if data.get("personality") and "meta" not in data:
+            data["meta"] = PERSONALITY_META.get(data["personality"], {})
+    return insights_blob
 
 
 class _GameWithRounds:

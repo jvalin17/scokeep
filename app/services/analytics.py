@@ -207,6 +207,21 @@ class AnalyticsService:
 # ── Helper functions (module-level, testable independently) ──
 
 
+def _iter_round_bids(players, game_rounds):
+    """Yield (name, bid, hand, score, rnd) for each valid player bid."""
+    for rnd in game_rounds:
+        for idx_str in rnd.bids:
+            idx = int(idx_str)
+            if idx >= len(players):
+                continue
+            bid = rnd.bids.get(idx_str)
+            hand = rnd.hands_won.get(idx_str)
+            if bid is None or hand is None:
+                continue
+            score = rnd.scores.get(idx_str, 0)
+            yield players[idx], bid, hand, score, rnd
+
+
 def _resolve_highlights(insights_blob, games, rounds_by_game):
     """Return cached highlights if fresh, otherwise recompute."""
     cached = (insights_blob or {}).get("highlights")
@@ -235,44 +250,40 @@ def _process_game_for_career(game, rounds_by_game, career):
     set_results: dict[str, list[bool]] = {n: [] for n in players}
 
     for round_idx, rnd in enumerate(game_rounds):
-        for idx_str in rnd.bids:
-            idx = int(idx_str)
-            if idx >= len(players):
-                continue
-            name = players[idx]
-            bid = rnd.bids.get(idx_str)
-            hand = rnd.hands_won.get(idx_str)
-            if bid is None or hand is None:
-                continue
-
+        for name, bid, hand, _score, cur_rnd in _iter_round_bids(players, [rnd]):
             made = bid == hand
-
-            # Apply all career rules
-            for rule_name, check in CAREER_RULES.items():
-                if check(bid, hand, rnd.cards_dealt):
-                    career[name][rule_name] += 1
-
-            # Miss streak
-            if not made:
-                career[name]["current_miss_streak"] += 1
-                current = career[name]["current_miss_streak"]
-                if current > career[name]["longest_miss_streak"]:
-                    career[name]["longest_miss_streak"] = current
-            else:
-                career[name]["current_miss_streak"] = 0
-
+            _apply_career_rules(career[name], bid, hand, made, cur_rnd.cards_dealt)
             set_results[name].append(made)
 
-        # Perfect set at set boundaries
+        _check_perfect_sets(
+            round_idx, rounds_per_set, players, set_results, career,
+        )
         if rounds_per_set > 0 and (round_idx + 1) % rounds_per_set == 0:
-            for name in players:
-                results = set_results.get(name, [])
-                if (
-                    len(results) >= rounds_per_set
-                    and all(results[-rounds_per_set:])
-                ):
-                    career[name]["perfect_sets"] += 1
             set_results = {n: [] for n in players}
+
+
+def _apply_career_rules(player_career, bid, hand, made, cards_dealt):
+    """Apply career rules and miss streak to one player bid."""
+    for rule_name, check in CAREER_RULES.items():
+        if check(bid, hand, cards_dealt):
+            player_career[rule_name] += 1
+    if not made:
+        player_career["current_miss_streak"] += 1
+        current = player_career["current_miss_streak"]
+        if current > player_career["longest_miss_streak"]:
+            player_career["longest_miss_streak"] = current
+    else:
+        player_career["current_miss_streak"] = 0
+
+
+def _check_perfect_sets(round_idx, rounds_per_set, players, set_results, career):
+    """Check for perfect sets at set boundaries."""
+    if rounds_per_set <= 0 or (round_idx + 1) % rounds_per_set != 0:
+        return
+    for name in players:
+        results = set_results.get(name, [])
+        if len(results) >= rounds_per_set and all(results[-rounds_per_set:]):
+            career[name]["perfect_sets"] += 1
 
 
 def _career_table(career, key, count_key="count"):
@@ -298,38 +309,27 @@ def _accumulate_game_stats(players, game_rounds):
     miss_streak = dict.fromkeys(players, 0)
     longest_miss = dict.fromkeys(players, 0)
 
-    for rnd in game_rounds:
-        for idx_str in rnd.bids:
-            idx = int(idx_str)
-            if idx >= len(players):
-                continue
-            name = players[idx]
-            bid = rnd.bids.get(idx_str)
-            hand = rnd.hands_won.get(idx_str)
-            score = rnd.scores.get(idx_str, 0)
-            if bid is None or hand is None:
-                continue
+    for name, bid, hand, score, _rnd in _iter_round_bids(players, game_rounds):
+        totals[name] += score
+        bids_total[name] += 1
+        made = bid == hand
 
-            totals[name] += score
-            bids_total[name] += 1
-            made = bid == hand
+        if made:
+            bids_made[name] += 1
+            miss_streak[name] = 0
+            if bid == 0:
+                zero_bids_made[name] += 1
+            if name not in best_bid or bid > best_bid[name]:
+                best_bid[name] = bid
+        else:
+            miss_streak[name] += 1
+            if miss_streak[name] > longest_miss[name]:
+                longest_miss[name] = miss_streak[name]
 
-            if made:
-                bids_made[name] += 1
-                miss_streak[name] = 0
-                if bid == 0:
-                    zero_bids_made[name] += 1
-                if name not in best_bid or bid > best_bid[name]:
-                    best_bid[name] = bid
-            else:
-                miss_streak[name] += 1
-                if miss_streak[name] > longest_miss[name]:
-                    longest_miss[name] = miss_streak[name]
-
-            if bid > hand:
-                overbids[name] += 1
-            elif bid < hand:
-                underbids[name] += 1
+        if bid > hand:
+            overbids[name] += 1
+        elif bid < hand:
+            underbids[name] += 1
 
     return {
         "totals": totals,

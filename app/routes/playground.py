@@ -16,6 +16,7 @@ from app.constants import (
 from app.database import get_db
 from app.schemas.playground import PlaygroundAuth, PlaygroundCreate, PlaygroundResponse
 from app.services.analytics import AnalyticsService
+from app.services.insights import backfill_meta
 from app.services.playground import PlaygroundService
 
 router = APIRouter(prefix="/api/playground", tags=["playground"])
@@ -135,7 +136,7 @@ async def get_playground_stats(
     if playground.id != playground_id:
         raise HTTPException(status_code=403, detail="Access denied")
     return await AnalyticsService.get_playground_stats(
-        db, playground.id, playground.insights,
+        db, playground.id, backfill_meta(playground.insights),
     )
 
 

@@ -12,6 +12,7 @@ from app.services.insights import (
     STRENGTH_TEMPLATES,
     assign_personalities_unique,
     assign_personality,
+    backfill_meta,
     compute_accuracy_by_cards,
     compute_feature_vector,
     compute_player_extras,
@@ -95,6 +96,49 @@ def _make_realistic_game(players, round_results, winner=None):
         winner = max(totals, key=lambda n: totals[n])
 
     return _make_game(players, rounds_data, winner)
+
+
+class TestBackfillMeta:
+    """Cached insights blobs without meta get backfilled from PERSONALITY_META."""
+
+    def test_adds_meta_when_missing(self):
+        blob = {
+            "players": {
+                "Ravi": {"personality": "sniper", "games_analyzed": 5},
+                "Meera": {"personality": "phoenix", "games_analyzed": 4},
+            },
+        }
+        result = backfill_meta(blob)
+        assert result["players"]["Ravi"]["meta"]["name"] == "The Sniper"
+        assert result["players"]["Ravi"]["meta"]["icon"] == "🎯"
+        assert result["players"]["Meera"]["meta"]["name"] == "The Phoenix"
+
+    def test_preserves_existing_meta(self):
+        custom_meta = {"name": "Custom", "tagline": "T", "color": "#000", "icon": "X"}
+        blob = {
+            "players": {
+                "Ravi": {"personality": "sniper", "meta": custom_meta},
+            },
+        }
+        result = backfill_meta(blob)
+        assert result["players"]["Ravi"]["meta"] == custom_meta
+
+    def test_skips_players_without_personality(self):
+        blob = {
+            "players": {
+                "Ravi": {"personality": None, "unlock_at": 3},
+            },
+        }
+        result = backfill_meta(blob)
+        assert "meta" not in result["players"]["Ravi"]
+
+    def test_returns_none_for_none_blob(self):
+        assert backfill_meta(None) is None
+
+    def test_handles_empty_players(self):
+        blob = {"players": {}}
+        result = backfill_meta(blob)
+        assert result["players"] == {}
 
 
 class TestCardCountWeights:

@@ -7,7 +7,55 @@ from app.services.analytics import (
     _best_player,
     _build_awards,
     _career_table,
+    _iter_round_bids,
 )
+
+
+class TestIterRoundBids:
+    """Shared generator that resolves player indices to names."""
+
+    def _make_round(self, bids, hands, scores):
+        class MockRound:
+            def __init__(self, bids, hands_won, scores):
+                self.bids = bids
+                self.hands_won = hands_won
+                self.scores = scores
+                self.cards_dealt = 8
+        return MockRound(bids, hands, scores)
+
+    def test_yields_name_bid_hand_score(self):
+        rounds = [self._make_round(
+            {"0": 2, "1": 3}, {"0": 2, "1": 1}, {"0": 20, "1": -30},
+        )]
+        results = list(_iter_round_bids(["Ravi", "Meera"], rounds))
+        assert len(results) == 2
+        assert results[0] == ("Ravi", 2, 2, 20, rounds[0])
+        assert results[1] == ("Meera", 3, 1, -30, rounds[0])
+
+    def test_skips_out_of_range_index(self):
+        rounds = [self._make_round(
+            {"0": 2, "5": 3}, {"0": 2, "5": 3}, {"0": 20, "5": 30},
+        )]
+        results = list(_iter_round_bids(["Ravi"], rounds))
+        assert len(results) == 1
+        assert results[0][0] == "Ravi"
+
+    def test_skips_none_bid_or_hand(self):
+        rounds = [self._make_round(
+            {"0": None}, {"0": 2}, {"0": 20},
+        )]
+        results = list(_iter_round_bids(["Ravi"], rounds))
+        assert len(results) == 0
+
+    def test_multiple_rounds(self):
+        rounds = [
+            self._make_round({"0": 1}, {"0": 1}, {"0": 11}),
+            self._make_round({"0": 3}, {"0": 2}, {"0": -30}),
+        ]
+        results = list(_iter_round_bids(["Ravi"], rounds))
+        assert len(results) == 2
+        assert results[0][1] == 1  # first round bid
+        assert results[1][1] == 3  # second round bid
 
 
 class TestCareerRulesConfig:
