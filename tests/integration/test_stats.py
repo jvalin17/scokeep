@@ -139,14 +139,20 @@ class TestPlaygroundStats:
         assert "insights" in body
 
     async def test_stats_insights_after_three_games(self, client: AsyncClient):
-        """After 3 games, players get personality assignments."""
+        """After 3 games, players get full personality with extras."""
         pg, cookies = await _setup(client, "Insights 3 Games")
 
-        for _ in range(3):
+        # Vary bids each game for differentiation
+        game_bids = [
+            ([2, 3, 1], [2, 3, 3]),   # Alice exact, Bob exact, Charlie miss
+            ([3, 0, 2], [3, 0, 5]),   # Alice exact, Bob zero-bid, Charlie miss
+            ([1, 4, 0], [1, 4, 3]),   # Alice exact, Bob exact, Charlie miss
+        ]
+        for bids, hands in game_bids:
             await _play_full_game(
                 client, pg["id"], cookies,
                 players=["Alice", "Bob", "Charlie"],
-                bids=[2, 3, 1], hands=[2, 3, 3],
+                bids=bids, hands=hands,
             )
 
         resp = await client.get(
@@ -157,14 +163,44 @@ class TestPlaygroundStats:
         insights = body["insights"]
         assert insights is not None
         assert "players" in insights
+        assert "version" in insights
 
-        # Each player should have a personality assigned
+        # Each player should have full personality data
+        valid_personalities = {
+            "sniper", "gambler", "phoenix", "rock", "sprinter",
+            "ghost", "architect", "minimalist", "comeback_kid", "wildcard",
+        }
         for name in ["Alice", "Bob", "Charlie"]:
-            player_insight = insights["players"][name]
-            assert player_insight["personality"] is not None
-            assert player_insight["games_analyzed"] == 3
-            assert len(player_insight["insights"]) == 2
-            assert "accuracy_by_cards" in player_insight
+            player_data = insights["players"][name]
+            # Personality is a valid archetype string
+            assert isinstance(player_data["personality"], str)
+            assert player_data["personality"] in valid_personalities
+            assert player_data["games_analyzed"] == 3
+            # 2 insight strings
+            assert len(player_data["insights"]) == 2
+            assert all(isinstance(s, str) and len(s) > 5 for s in player_data["insights"])
+            # Accuracy breakdown exists with valid data
+            accuracy = player_data["accuracy_by_cards"]
+            assert isinstance(accuracy, dict)
+            assert len(accuracy) > 0
+            for card_data in accuracy.values():
+                assert 0 <= card_data["pct"] <= 100
+                assert card_data["rounds"] > 0
+            # Extras with valid fields
+            extras = player_data["extras"]
+            assert extras["games_played"] == 3
+            assert extras["total_rounds"] > 0
+            assert extras["bidding_style"] in ("aggressive", "conservative", "balanced")
+            assert extras["consistency"] in ("high", "medium", "low")
+            # Confidence score
+            assert 0.0 <= player_data["confidence"] <= 1.0
+            # Meta served from API (single source of truth)
+            meta = player_data["meta"]
+            assert "name" in meta
+            assert "tagline" in meta
+            assert "color" in meta
+            assert "icon" in meta
+            assert meta["name"].startswith("The ")
 
     async def test_stats_insights_unlock_progress(self, client: AsyncClient):
         """Players with < 3 games show unlock progress, not personality."""
@@ -183,6 +219,168 @@ class TestPlaygroundStats:
         assert insights["players"]["Alice"]["personality"] is None
         assert insights["players"]["Alice"]["games_analyzed"] == 1
         assert insights["players"]["Alice"]["unlock_at"] == 3
+
+    async def test_insights_unique_personalities(self, client: AsyncClient):
+        """All players get different personality types."""
+        pg, cookies = await _setup(client, "Unique Personality")
+
+        # 3 games with varied results to differentiate players
+        await _play_full_game(
+            client, pg["id"], cookies,
+            players=["Alice", "Bob", "Charlie"],
+            bids=[3, 0, 1], hands=[3, 0, 5],
+        )
+        await _play_full_game(
+            client, pg["id"], cookies,
+            players=["Alice", "Bob", "Charlie"],
+            bids=[2, 0, 2], hands=[2, 0, 6],
+        )
+        await _play_full_game(
+            client, pg["id"], cookies,
+            players=["Alice", "Bob", "Charlie"],
+            bids=[1, 0, 3], hands=[1, 0, 7],
+        )
+
+        resp = await client.get(
+            f"/api/playground/{pg['share_code']}/stats", cookies=cookies,
+        )
+        insights = resp.json()["insights"]
+        personalities = [
+            insights["players"][name]["personality"]
+            for name in ["Alice", "Bob", "Charlie"]
+        ]
+        assert len(set(personalities)) == 3  # all unique
+
+    async def test_insights_full_pipeline_with_extras(
+        self, client: AsyncClient,
+    ):
+        """Full pipeline: play varied games, verify extras in response."""
+        pg, cookies = await _setup(client, "Pipeline Test")
+
+        # Game 1: Alice overbids, Bob plays safe
+        await _play_full_game(
+            client, pg["id"], cookies,
+            players=["Alice", "Bob"],
+            bids=[5, 0], hands=[2, 6],
+        )
+        # Game 2: Alice exact, Bob exact
+        await _play_full_game(
+            client, pg["id"], cookies,
+            players=["Alice", "Bob"],
+            bids=[3, 5], hands=[3, 5],
+        )
+        # Game 3: Alice underbids, Bob overbids
+        await _play_full_game(
+            client, pg["id"], cookies,
+            players=["Alice", "Bob"],
+            bids=[1, 7], hands=[4, 4],
+        )
+
+        resp = await client.get(
+            f"/api/playground/{pg['share_code']}/stats", cookies=cookies,
+        )
+        body = resp.json()
+        assert body["total_games"] == 3
+
+        for name in ["Alice", "Bob"]:
+            player = body["insights"]["players"][name]
+            assert isinstance(player["personality"], str)
+            assert len(player["personality"]) > 0
+            assert "extras" in player
+            extras = player["extras"]
+            assert extras["games_played"] == 3
+            assert "bidding_style" in extras
+            assert extras["bidding_style"] in (
+                "aggressive", "conservative", "balanced",
+            )
+            assert "consistency" in extras
+            assert "trend" in extras
+            assert isinstance(player["accuracy_by_cards"], dict)
+            assert isinstance(player["insights"], list)
+            assert len(player["insights"]) == 2
+            assert "version" in body["insights"]
+
+    async def test_highlights_cached_in_insights_blob(
+        self, client: AsyncClient,
+    ):
+        """Highlights computed post-game and cached in insights blob."""
+        pg, cookies = await _setup(client, "Highlights Cache")
+
+        for _ in range(3):
+            await _play_full_game(
+                client, pg["id"], cookies,
+                players=["Alice", "Bob"],
+                bids=[2, 3], hands=[2, 6],
+            )
+
+        resp = await client.get(
+            f"/api/playground/{pg['share_code']}/stats", cookies=cookies,
+        )
+        body = resp.json()
+        # Highlights should be in the response
+        assert "highlights" in body
+        assert body["highlights"]["last_game"] is not None
+        # Insights blob should contain cached highlights
+        insights = body["insights"]
+        assert "highlights" in insights
+        assert "last_game" in insights["highlights"]
+        # Career records in cached highlights
+        career = insights["highlights"]["career"]
+        assert "sniper" in career
+        assert "zero_master" in career
+
+    async def test_insights_from_multi_round_games(
+        self, client: AsyncClient,
+    ):
+        """Insights computed correctly from realistic multi-round games."""
+        pg, cookies = await _setup(client, "MultiRound Insights")
+
+        # Play 3 multi-round games (4 rounds each) with varied bids
+        for _ in range(3):
+            rounds = [
+                # Round 1 (8 cards): Alice exact, Bob overbids, Charlie zero
+                ([3, 5, 0], [3, 2, 3]),
+                # Round 2 (7 cards): varied
+                ([2, 0, 4], [2, 0, 5]),
+                # Round 3 (6 cards): Alice miss, Bob exact
+                ([4, 3, 1], [2, 3, 1]),
+                # Round 4 (5 cards): all make it
+                ([2, 2, 1], [2, 2, 1]),
+            ]
+            await _play_multi_round_game(
+                client, pg["id"], cookies,
+                players=["Alice", "Bob", "Charlie"],
+                rounds_data=rounds,
+                settings={"num_sets": 1, "rounds_per_set": 8},
+            )
+
+        resp = await client.get(
+            f"/api/playground/{pg['share_code']}/stats", cookies=cookies,
+        )
+        body = resp.json()
+        assert body["total_games"] == 3
+
+        insights = body["insights"]
+        assert insights is not None
+
+        # All players should have personalities from multi-round data
+        for name in ["Alice", "Bob", "Charlie"]:
+            player_data = insights["players"][name]
+            assert player_data["personality"] is not None
+            assert player_data["games_analyzed"] == 3
+            # Accuracy should have multiple card counts (4 different per game)
+            accuracy = player_data["accuracy_by_cards"]
+            assert len(accuracy) >= 4
+            # Extras should show meaningful data
+            extras = player_data["extras"]
+            assert extras["total_rounds"] == 12  # 4 rounds × 3 games
+
+        # Personalities should all be unique
+        personalities = [
+            insights["players"][n]["personality"]
+            for n in ["Alice", "Bob", "Charlie"]
+        ]
+        assert len(set(personalities)) == 3
 
     async def test_clear_stats_deletes_finished_games(
         self, client: AsyncClient,

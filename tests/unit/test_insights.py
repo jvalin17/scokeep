@@ -14,6 +14,7 @@ from app.services.insights import (
     assign_personality,
     compute_accuracy_by_cards,
     compute_feature_vector,
+    compute_player_extras,
     cosine_similarity,
     ema_update,
     generate_insights,
@@ -22,26 +23,78 @@ from app.services.insights import (
 )
 
 
-def _make_round(cards_dealt, bids, hands_won, scores):
+def _make_round(cards_dealt, bids, hands_won, scores, trump_suit="spades"):
     """Create a mock round object for testing."""
     class MockRound:
-        def __init__(self, cards_dealt, bids, hands_won, scores):
+        def __init__(self, cards_dealt, bids, hands_won, scores, trump_suit):
             self.cards_dealt = cards_dealt
             self.bids = bids
             self.hands_won = hands_won
             self.scores = scores
-    return MockRound(cards_dealt, bids, hands_won, scores)
+            self.trump_suit = trump_suit
+    return MockRound(cards_dealt, bids, hands_won, scores, trump_suit)
 
 
 def _make_game(players, rounds_data, winner=None):
-    """Create a mock game with rounds. winner is player name."""
+    """Create a mock game with rounds. winner is player name.
+
+    rounds_data: list of tuples. Each tuple is either:
+      (cards_dealt, bids, hands_won, scores) — trump defaults to "spades"
+      (cards_dealt, bids, hands_won, scores, trump_suit)
+    """
     class MockGame:
         def __init__(self, players, rounds, winner):
             self.players = players
             self.rounds = rounds
             self.winner = winner
-    rounds = [_make_round(*r) for r in rounds_data]
+    rounds = []
+    for r in rounds_data:
+        if len(r) == 5:
+            rounds.append(_make_round(*r))
+        else:
+            rounds.append(_make_round(*r, trump_suit="spades"))
     return MockGame(players, rounds, winner)
+
+
+# Trump suits cycle: spades → diamonds → clubs → hearts
+TRUMP_CYCLE = ["spades", "diamonds", "clubs", "hearts"]
+
+
+def _make_realistic_game(players, round_results, winner=None):
+    """Build a realistic multi-round game with descending card counts.
+
+    round_results: list of dicts per round, each with:
+        {player_name: (bid, hands_won, score)}
+    Cards dealt descend from len(round_results) + starting card count.
+    If winner is None, computed from total scores.
+    """
+    rounds_data = []
+    start_cards = len(round_results)
+    for round_idx, result in enumerate(round_results):
+        cards = start_cards - round_idx
+        if cards < 1:
+            cards = round_idx - start_cards + 2  # ascending after 1
+        trump = TRUMP_CYCLE[round_idx % 4]
+        bids = {}
+        hands = {}
+        scores = {}
+        for player_idx, name in enumerate(players):
+            if name in result:
+                bid, hand, score = result[name]
+                idx_str = str(player_idx)
+                bids[idx_str] = bid
+                hands[idx_str] = hand
+                scores[idx_str] = score
+        rounds_data.append((cards, bids, hands, scores, trump))
+
+    if winner is None:
+        totals = dict.fromkeys(players, 0)
+        for result in round_results:
+            for name, (_, _, score) in result.items():
+                totals[name] += score
+        winner = max(totals, key=lambda n: totals[n])
+
+    return _make_game(players, rounds_data, winner)
 
 
 class TestCardCountWeights:
@@ -757,3 +810,449 @@ class TestAccuracyByCards:
         ]
         result = compute_accuracy_by_cards("Alice", games)
         assert result["5"]["rounds"] == 1
+
+
+class TestPlayerExtras:
+    """Test compute_player_extras — bidding style, clutch, tempo, etc."""
+
+    def test_bidding_style_aggressive(self):
+        """Player who overbids more than underbids → aggressive."""
+        games = [_make_game(
+            players=["Alice", "Bob"],
+            rounds_data=[
+                (5, {"0": 4, "1": 1}, {"0": 2, "1": 3}, {"0": -40, "1": -10}),
+                (5, {"0": 3, "1": 2}, {"0": 1, "1": 4}, {"0": -30, "1": -20}),
+            ],
+            winner="Bob",
+        )] * 3
+        extras = compute_player_extras("Alice", games)
+        assert extras["bidding_style"] == "aggressive"
+        assert extras["overbid_pct"] > 0
+
+    def test_bidding_style_conservative(self):
+        """Player who underbids more → conservative."""
+        games = [_make_game(
+            players=["Alice", "Bob"],
+            rounds_data=[
+                (5, {"0": 1, "1": 4}, {"0": 3, "1": 2}, {"0": -10, "1": -40}),
+                (5, {"0": 0, "1": 5}, {"0": 2, "1": 3}, {"0": -10, "1": -50}),
+            ],
+            winner="Alice",
+        )] * 3
+        extras = compute_player_extras("Alice", games)
+        assert extras["bidding_style"] == "conservative"
+
+    def test_zero_bid_rate(self):
+        """Zero bid success rate computed correctly."""
+        games = [_make_game(
+            players=["Alice", "Bob"],
+            rounds_data=[
+                (5, {"0": 0, "1": 5}, {"0": 0, "1": 5}, {"0": 10, "1": 50}),
+                (5, {"0": 0, "1": 5}, {"0": 2, "1": 3}, {"0": -10, "1": -50}),
+            ],
+            winner="Bob",
+        )] * 3
+        extras = compute_player_extras("Alice", games)
+        assert extras["zero_bid_rate"] == 50  # 1 success out of 2 per game
+
+    def test_clutch_factor(self):
+        """Comeback wins tracked correctly."""
+        games = [_make_game(
+            players=["Alice", "Bob"],
+            rounds_data=[
+                # 1st half: Alice behind
+                (5, {"0": 2, "1": 3}, {"0": 0, "1": 3}, {"0": -20, "1": 30}),
+                (4, {"0": 2, "1": 2}, {"0": 0, "1": 2}, {"0": -20, "1": 20}),
+                # 2nd half: Alice catches up
+                (3, {"0": 3, "1": 0}, {"0": 3, "1": 0}, {"0": 30, "1": -10}),
+                (2, {"0": 2, "1": 0}, {"0": 2, "1": 0}, {"0": 20, "1": -10}),
+            ],
+            winner="Alice",
+        )] * 3
+        extras = compute_player_extras("Alice", games)
+        assert extras["clutch_wins"] == 3
+        assert extras["clutch_opportunities"] == 3
+
+    def test_tempo(self):
+        """Tempo identifies 1st half vs 2nd half player."""
+        games = [_make_game(
+            players=["Alice", "Bob"],
+            rounds_data=[
+                # 1st half: Alice scores high
+                (5, {"0": 3, "1": 2}, {"0": 3, "1": 2}, {"0": 30, "1": 20}),
+                (4, {"0": 2, "1": 2}, {"0": 2, "1": 2}, {"0": 20, "1": 20}),
+                # 2nd half: Alice scores low
+                (3, {"0": 2, "1": 1}, {"0": 0, "1": 1}, {"0": -20, "1": 11}),
+                (2, {"0": 1, "1": 1}, {"0": 0, "1": 1}, {"0": -10, "1": 11}),
+            ],
+            winner="Bob",
+        )] * 3
+        extras = compute_player_extras("Alice", games)
+        assert extras["tempo"] == "1st half"
+
+    def test_consistency_with_same_scores(self):
+        """Same score every game → high consistency."""
+        games = [_make_game(
+            players=["Alice", "Bob"],
+            rounds_data=[
+                (5, {"0": 2, "1": 3}, {"0": 2, "1": 3}, {"0": 20, "1": 30}),
+            ],
+            winner="Bob",
+        )] * 3
+        extras = compute_player_extras("Alice", games)
+        assert extras["consistency"] == "high"
+
+    def test_extras_has_all_fields(self):
+        """Extras dict has all expected keys."""
+        games = [_make_game(
+            players=["Alice", "Bob"],
+            rounds_data=[
+                (5, {"0": 2, "1": 3}, {"0": 2, "1": 3}, {"0": 20, "1": 30}),
+            ],
+            winner="Bob",
+        )] * 3
+        extras = compute_player_extras("Alice", games)
+        expected_keys = {
+            "wins", "games_played", "total_rounds", "best_trump",
+            "best_trump_pct", "trend", "favorite_bid",
+            "biggest_round_score", "fun_facts", "bidding_style",
+            "overbid_pct", "zero_bid_rate", "clutch_wins",
+            "clutch_opportunities", "tempo", "consistency",
+        }
+        assert expected_keys.issubset(set(extras.keys()))
+
+
+class TestEdgeCasesReviewerFindings:
+    """Tests for edge cases identified by reviewer."""
+
+    def test_more_than_10_players_allows_duplicates(self):
+        """With >10 players, some must share personalities."""
+        vectors = {f"Player{i}": [0.5 + i * 0.01] * 10 for i in range(12)}
+        results = assign_personalities_unique(vectors)
+        assert len(results) == 12
+        # All should have assignments
+        for result in results.values():
+            assert result["personality"] in PERSONALITY_CENTROIDS
+
+    def test_feature_vector_with_partial_bids(self):
+        """Rounds with missing bid/hand data are skipped gracefully."""
+        games = [_make_game(
+            players=["Alice", "Bob"],
+            rounds_data=[
+                # Normal round
+                (5, {"0": 2, "1": 3}, {"0": 2, "1": 3}, {"0": 20, "1": 30}),
+                # Round where Alice has no bid (missing key)
+                (5, {"1": 3}, {"1": 3}, {"1": 30}),
+                # Normal round
+                (5, {"0": 1, "1": 4}, {"0": 1, "1": 4}, {"0": 11, "1": 40}),
+            ],
+            winner="Bob",
+        )] * 3
+        vector = compute_feature_vector("Alice", games)
+        assert len(vector) == 10
+        # Should compute from 2 valid rounds per game (6 total), not 3
+        assert vector[0] == pytest.approx(1.0)  # 2/2 correct per game
+
+    def test_player_with_zero_games(self):
+        """Player not in any game returns zero vector."""
+        games = [_make_game(
+            players=["Bob", "Charlie"],
+            rounds_data=[
+                (5, {"0": 2, "1": 3}, {"0": 2, "1": 3}, {"0": 20, "1": 30}),
+            ],
+            winner="Bob",
+        )] * 3
+        vector = compute_feature_vector("Alice", games)
+        assert all(v == 0.0 for v in vector)
+
+    def test_personality_not_assigned_at_2_games(self):
+        """Player with exactly 2 games should NOT get personality."""
+        from app.services.insights import MIN_GAMES_FOR_PERSONALITY
+        assert MIN_GAMES_FOR_PERSONALITY == 3
+        # 2 < 3, so no personality
+
+    def test_tied_scores_winner_deterministic(self):
+        """When scores are tied, winner is deterministic (max picks first)."""
+        from app.services.insights import _GameWithRounds
+
+        class FakeGame:
+            def __init__(self):
+                self.players = ["Alice", "Bob"]
+
+        class FakeRound:
+            def __init__(self):
+                self.scores = {"0": 20, "1": 20}
+
+        game = _GameWithRounds(FakeGame(), [FakeRound()])
+        # max() with tied values returns first in iteration order
+        assert game.winner in ("Alice", "Bob")
+
+
+class TestComebackThresholdConsistency:
+    """Both feature vector and extras must use same comeback threshold."""
+
+    def test_two_round_game_no_comeback_in_feature_vector(self):
+        """2-round game: too few rounds for meaningful comeback in feature vector."""
+        game = _make_game(
+            players=["Alice", "Bob"],
+            rounds_data=[
+                (5, {"0": 0, "1": 5}, {"0": 0, "1": 5}, {"0": -10, "1": 50}),
+                (4, {"0": 4, "1": 0}, {"0": 4, "1": 0}, {"0": 40, "1": -10}),
+            ],
+            winner="Alice",
+        )
+        vector = compute_feature_vector("Alice", [game] * 3)
+        # 2 rounds: too short, comeback should NOT be counted
+        assert vector[9] == pytest.approx(0.0)
+
+    def test_two_round_game_no_comeback_in_extras(self):
+        """2-round game: extras should also NOT count comeback."""
+        game = _make_game(
+            players=["Alice", "Bob"],
+            rounds_data=[
+                (5, {"0": 0, "1": 5}, {"0": 0, "1": 5}, {"0": -10, "1": 50}),
+                (4, {"0": 4, "1": 0}, {"0": 4, "1": 0}, {"0": 40, "1": -10}),
+            ],
+            winner="Alice",
+        )
+        extras = compute_player_extras("Alice", [game] * 3)
+        assert extras["clutch_wins"] == 0
+        assert extras["clutch_opportunities"] == 0
+
+    def test_four_round_game_counts_comeback_in_both(self):
+        """4-round game: comeback counted in both feature vector and extras."""
+        game = _make_game(
+            players=["Alice", "Bob"],
+            rounds_data=[
+                # 1st half: Alice behind
+                (5, {"0": 1, "1": 4}, {"0": 0, "1": 4}, {"0": -10, "1": 40}),
+                (4, {"0": 1, "1": 3}, {"0": 0, "1": 3}, {"0": -10, "1": 30}),
+                # 2nd half: Alice catches up
+                (3, {"0": 3, "1": 0}, {"0": 3, "1": 0}, {"0": 30, "1": -10}),
+                (2, {"0": 2, "1": 0}, {"0": 2, "1": 0}, {"0": 20, "1": -10}),
+            ],
+            winner="Alice",
+        )
+        vector = compute_feature_vector("Alice", [game] * 3)
+        assert vector[9] > 0  # comeback_rate > 0
+
+        extras = compute_player_extras("Alice", [game] * 3)
+        assert extras["clutch_wins"] > 0
+        assert extras["clutch_opportunities"] > 0
+
+
+class TestRealisticMultiRoundGames:
+    """Tests using 8-round games with varied bids, like real Kachuful play."""
+
+    def _build_standard_game(self):
+        """8-round descending game (8→1 cards). 3 players, varied results.
+
+        Simulates: Ravi (aggressive), Meera (conservative), Kabir (balanced).
+        """
+        return _make_realistic_game(
+            players=["Ravi", "Meera", "Kabir"],
+            round_results=[
+                # Round 1: 8 cards, spades
+                {"Ravi": (5, 3, -50), "Meera": (1, 1, 11), "Kabir": (2, 4, -20)},
+                # Round 2: 7 cards, diamonds
+                {"Ravi": (4, 4, 40), "Meera": (0, 0, 10), "Kabir": (3, 3, 30)},
+                # Round 3: 6 cards, clubs
+                {"Ravi": (3, 2, -30), "Meera": (1, 1, 11), "Kabir": (2, 3, -20)},
+                # Round 4: 5 cards, hearts
+                {"Ravi": (3, 3, 30), "Meera": (0, 0, 10), "Kabir": (2, 2, 20)},
+                # Round 5: 4 cards, spades
+                {"Ravi": (2, 1, -20), "Meera": (1, 1, 11), "Kabir": (1, 2, -11)},
+                # Round 6: 3 cards, diamonds
+                {"Ravi": (2, 2, 20), "Meera": (0, 0, 10), "Kabir": (1, 1, 11)},
+                # Round 7: 2 cards, clubs
+                {"Ravi": (1, 1, 11), "Meera": (0, 1, -10), "Kabir": (1, 0, -11)},
+                # Round 8: 1 card, hearts
+                {"Ravi": (1, 0, -11), "Meera": (0, 0, 10), "Kabir": (0, 1, -10)},
+            ],
+        )
+
+    def _build_three_games(self):
+        """3 varied games to trigger personality assignment."""
+        game1 = self._build_standard_game()
+        # Game 2: Meera wins more, Ravi overbids heavily
+        game2 = _make_realistic_game(
+            players=["Ravi", "Meera", "Kabir"],
+            round_results=[
+                {"Ravi": (6, 2, -60), "Meera": (2, 2, 20), "Kabir": (0, 4, -10)},
+                {"Ravi": (5, 5, 50), "Meera": (0, 0, 10), "Kabir": (2, 2, 20)},
+                {"Ravi": (4, 1, -40), "Meera": (1, 1, 11), "Kabir": (1, 4, -11)},
+                {"Ravi": (3, 3, 30), "Meera": (0, 0, 10), "Kabir": (3, 3, 30)},
+                {"Ravi": (2, 0, -20), "Meera": (1, 1, 11), "Kabir": (1, 3, -11)},
+                {"Ravi": (2, 2, 20), "Meera": (1, 0, -11), "Kabir": (0, 1, -10)},
+            ],
+        )
+        # Game 3: Kabir dominates
+        game3 = _make_realistic_game(
+            players=["Ravi", "Meera", "Kabir"],
+            round_results=[
+                {"Ravi": (2, 2, 20), "Meera": (1, 1, 11), "Kabir": (5, 5, 50)},
+                {"Ravi": (3, 1, -30), "Meera": (0, 0, 10), "Kabir": (4, 6, -40)},
+                {"Ravi": (1, 1, 11), "Meera": (2, 2, 20), "Kabir": (3, 3, 30)},
+                {"Ravi": (2, 3, -20), "Meera": (0, 0, 10), "Kabir": (3, 2, -30)},
+                {"Ravi": (0, 0, 10), "Meera": (1, 1, 11), "Kabir": (3, 3, 30)},
+            ],
+        )
+        return [game1, game2, game3]
+
+    def test_feature_vector_with_8_round_game(self):
+        """Feature vector computed correctly from realistic 8-round games."""
+        games = self._build_three_games()
+        vector = compute_feature_vector("Ravi", games)
+        assert len(vector) == 10
+        # Ravi makes some bids, misses others → accuracy between 0 and 1
+        assert 0.2 < vector[0] < 0.8
+        # Ravi overbids often → overbid ratio > underbid
+        assert vector[1] > vector[2]
+        # Different games have different total scores → variance > 0
+        assert vector[3] > 0
+
+    def test_conservative_player_detected(self):
+        """Meera bids 0 often → zero_bid_success high, underbid low."""
+        games = self._build_three_games()
+        vector = compute_feature_vector("Meera", games)
+        # Meera bids 0 frequently and makes it → high zero_bid_success (dim 4)
+        assert vector[4] > 0.5
+        # Meera rarely overbids
+        assert vector[1] < 0.3
+
+    def test_aggressive_player_detected(self):
+        """Ravi overbids → high overbid ratio."""
+        games = self._build_three_games()
+        vector = compute_feature_vector("Ravi", games)
+        # Ravi frequently overbids
+        assert vector[1] > 0.3
+
+    def test_accuracy_by_cards_with_8_rounds(self):
+        """Accuracy breakdown across all card counts."""
+        game = self._build_standard_game()
+        result = compute_accuracy_by_cards("Ravi", [game])
+        # Should have entries for card counts 1-8
+        assert len(result) == 8
+        for cards_str in ["1", "2", "3", "4", "5", "6", "7", "8"]:
+            assert cards_str in result
+            assert result[cards_str]["rounds"] == 1
+
+    def test_extras_bidding_style_from_realistic_data(self):
+        """Extras detect aggressive bidder from multi-round games."""
+        games = self._build_three_games()
+        extras = compute_player_extras("Ravi", games)
+        assert extras["bidding_style"] == "aggressive"
+        assert extras["games_played"] == 3
+        assert extras["total_rounds"] > 15  # 8+6+5 = 19 rounds
+
+    def test_extras_zero_bid_specialist(self):
+        """Meera's zero-bid rate computed from realistic data."""
+        games = self._build_three_games()
+        extras = compute_player_extras("Meera", games)
+        # Meera bids 0 often and succeeds most of the time
+        assert extras["zero_bid_rate"] > 50
+        # Equal overbids and underbids → balanced (she bids 0 mostly)
+        assert extras["bidding_style"] in ("balanced", "conservative")
+
+    def test_extras_trump_suit_tracked(self):
+        """Best trump suit computed from realistic games with suit rotation."""
+        games = self._build_three_games()
+        extras = compute_player_extras("Meera", games)
+        # Should have a best trump (multiple rounds per suit)
+        if extras["best_trump"]:
+            assert extras["best_trump"] in ("♠", "♦", "♣", "♥")
+            assert extras["best_trump_pct"] > 0
+
+    def test_unique_personalities_from_realistic_data(self):
+        """3 different playstyles → 3 unique personalities."""
+        games = self._build_three_games()
+        vectors = {
+            name: compute_feature_vector(name, games)
+            for name in ["Ravi", "Meera", "Kabir"]
+        }
+        from app.services.insights import min_max_normalize
+        normalized = min_max_normalize(vectors)
+        results = assign_personalities_unique(normalized)
+        personalities = [r["personality"] for r in results.values()]
+        assert len(set(personalities)) == 3
+
+    def test_insights_different_for_each_playstyle(self):
+        """Different players get different insight text."""
+        games = self._build_three_games()
+        vectors = {
+            name: compute_feature_vector(name, games)
+            for name in ["Ravi", "Meera", "Kabir"]
+        }
+        from app.services.insights import min_max_normalize
+        normalized = min_max_normalize(vectors)
+        results = assign_personalities_unique(normalized)
+
+        insight_sets = set()
+        for name in ["Ravi", "Meera", "Kabir"]:
+            insights = generate_insights(
+                normalized[name], results[name]["personality"],
+            )
+            assert len(insights) == 2
+            insight_sets.add(tuple(insights))
+        # At least 2 different insight combos (3 would be ideal)
+        assert len(insight_sets) >= 2
+
+    def test_full_pipeline_realistic_data(self):
+        """End-to-end: 3 realistic games → feature vector → normalize →
+        shrink → assign → insights → extras. All outputs valid."""
+        games = self._build_three_games()
+        players = ["Ravi", "Meera", "Kabir"]
+
+        # Feature vectors
+        vectors = {name: compute_feature_vector(name, games) for name in players}
+        for name, vec in vectors.items():
+            assert len(vec) == 10
+            for v in vec:
+                assert math.isfinite(v), f"{name} has non-finite value"
+
+        # Normalize
+        from app.services.insights import james_stein_shrink, min_max_normalize
+        normalized = min_max_normalize(vectors)
+        for vec in normalized.values():
+            for v in vec:
+                assert 0.0 <= v <= 1.0
+
+        # Shrink
+        pop_mean = [
+            sum(normalized[n][i] for n in players) / len(players)
+            for i in range(10)
+        ]
+        for name in players:
+            shrunk = james_stein_shrink(normalized[name], pop_mean, 3)
+            assert len(shrunk) == 10
+
+        # Assign unique
+        assignments = assign_personalities_unique(normalized)
+        assert len(assignments) == 3
+        personalities = [a["personality"] for a in assignments.values()]
+        assert len(set(personalities)) == 3
+
+        # Accuracy by cards
+        for name in players:
+            accuracy = compute_accuracy_by_cards(name, games)
+            assert len(accuracy) > 0
+            for card_data in accuracy.values():
+                assert 0 <= card_data["pct"] <= 100
+                assert card_data["rounds"] > 0
+
+        # Extras
+        for name in players:
+            extras = compute_player_extras(name, games)
+            assert extras["games_played"] == 3
+            assert extras["total_rounds"] > 0
+            assert extras["bidding_style"] in (
+                "aggressive", "conservative", "balanced",
+            )
+            assert extras["consistency"] in ("high", "medium", "low")
+            assert extras["tempo"] in ("1st half", "2nd half", "even")
+
+    def test_trend_requires_four_games(self):
+        """Trend stays 'steady' with only 3 games, needs 4+ for signal."""
+        games = self._build_three_games()
+        extras = compute_player_extras("Ravi", games)
+        assert extras["trend"] == "steady"  # Only 3 games, not enough

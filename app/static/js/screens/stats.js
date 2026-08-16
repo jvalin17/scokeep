@@ -103,28 +103,35 @@ export const statsScreen = {
             }
 
             // Expand game detail in history tab
-            window._expandGame = async (gameId) => {
-                if (expandedGameId === gameId) {
-                    expandedGameId = null;
-                    expandedData = null;
-                } else {
-                    expandedGameId = gameId;
-                    expandedData = 'loading';
-                    render();
-                    try {
-                        expandedData = await getScoreboard(gameId);
-                    } catch {
-                        expandedData = 'error';
+            container.querySelectorAll('.expand-game-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const gameId = Number(btn.dataset.gameId);
+                    if (expandedGameId === gameId) {
+                        expandedGameId = null;
+                        expandedData = null;
+                    } else {
+                        expandedGameId = gameId;
+                        expandedData = 'loading';
+                        render();
+                        try {
+                            expandedData = await getScoreboard(gameId);
+                        } catch {
+                            expandedData = 'error';
+                        }
                     }
-                }
-                render();
-            };
+                    render();
+                });
+            });
         }
 
         function bindCardFlipListeners() {
             container.querySelectorAll('.personality-card').forEach(card => {
+                let flipping = false;
                 card.addEventListener('click', () => {
+                    if (flipping) return;
+                    flipping = true;
                     card.classList.toggle('flipped');
+                    setTimeout(() => { flipping = false; }, 600);
                 });
             });
         }
@@ -247,7 +254,7 @@ export const statsScreen = {
                                     </div>
                                 `).join('')}
                             </div>
-                            <button class="btn-small" style="width:100%;margin-top:8px;" onclick="window._expandGame(${g.game_id})">${expandedGameId === g.game_id ? '▲ Hide scoresheet' : '▼ View scoresheet'}</button>
+                            <button class="btn-small expand-game-btn" style="width:100%;margin-top:8px;" data-game-id="${g.game_id}">${expandedGameId === g.game_id ? '▲ Hide scoresheet' : '▼ View scoresheet'}</button>
                             ${expandedGameId === g.game_id ? (
                                 expandedData === 'loading' ? '<p class="stats-muted" style="padding:8px;text-align:center;">Loading...</p>' :
                                 expandedData === 'error' ? '<p class="stats-muted" style="padding:8px;text-align:center;">Could not load game details</p>' :

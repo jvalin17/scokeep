@@ -1,17 +1,7 @@
 // Personality card component — flippable cards with avatar, insights, accuracy chart
+// Personality metadata served from API (Python is single source of truth)
 
-const PERSONALITY_META = {
-    sniper:       { name: 'The Sniper',       tagline: 'Calls the shot. Makes the shot.', color: '#1B5E20', icon: '🎯' },
-    gambler:      { name: 'The Gambler',      tagline: 'Goes big. Sometimes it pays off.', color: '#E65100', icon: '🎲' },
-    phoenix:      { name: 'The Phoenix',      tagline: 'Slow start? That\'s the plan.', color: '#BF360C', icon: '🔥' },
-    rock:         { name: 'The Rock',         tagline: 'Steady hands. No surprises.', color: '#37474F', icon: '🪨' },
-    sprinter:     { name: 'The Sprinter',     tagline: 'Out of the gate like lightning.', color: '#0D47A1', icon: '⚡' },
-    ghost:        { name: 'The Ghost',        tagline: 'Bids nothing. Wins everything.', color: '#4A148C', icon: '👻' },
-    architect:    { name: 'The Architect',    tagline: 'Give them more cards, they build more.', color: '#006064', icon: '🏗️' },
-    minimalist:   { name: 'The Minimalist',   tagline: 'Less is more. Always.', color: '#3E2723', icon: '✨' },
-    comeback_kid: { name: 'The Comeback Kid', tagline: 'Don\'t count them out.', color: '#880E4F', icon: '🦅' },
-    wildcard:     { name: 'The Wildcard',     tagline: 'You never know what you\'re gonna get.', color: '#FF6F00', icon: '🃏' },
-};
+const FALLBACK_META = { name: 'Unknown', tagline: '', color: '#37474F', icon: '❓' };
 
 export function renderPersonalityCards(players) {
     const names = Object.keys(players);
@@ -33,7 +23,7 @@ function renderSingleCard(playerName, data) {
         return renderLockedCard(playerName, data);
     }
 
-    const meta = PERSONALITY_META[data.personality] || PERSONALITY_META.rock;
+    const meta = data.meta || FALLBACK_META;
 
     return `
         <div class="personality-card" style="--card-color: ${meta.color}">
@@ -68,14 +58,49 @@ function renderLockedCard(playerName, data) {
 }
 
 function renderCardFront(playerName, data, meta) {
+    const overallAccuracy = computeOverallAccuracy(data.accuracy_by_cards);
+
     return `
         <div class="personality-front">
             <div class="personality-badge" title="Based on all games played">ℹ overall insights</div>
             <div class="personality-icon">${meta.icon}</div>
             <div class="personality-type">${meta.name}</div>
             <div class="personality-tagline">${meta.tagline}</div>
+            ${overallAccuracy !== null ? renderAccuracyDial(overallAccuracy) : ''}
             <div class="personality-player-name">${playerName}</div>
             <div class="personality-flip-hint">tap to flip</div>
+        </div>
+    `;
+}
+
+function computeOverallAccuracy(accuracyByCards) {
+    if (!accuracyByCards) return null;
+    let totalCorrect = 0;
+    let totalRounds = 0;
+    for (const data of Object.values(accuracyByCards)) {
+        totalRounds += data.rounds;
+        totalCorrect += Math.round(data.pct / 100 * data.rounds);
+    }
+    if (totalRounds === 0) return null;
+    return Math.round(totalCorrect / totalRounds * 100);
+}
+
+function renderAccuracyDial(pct) {
+    // SVG ring dial — 0-100%
+    const radius = 28;
+    const circumference = 2 * Math.PI * radius;
+    const offset = circumference - (pct / 100) * circumference;
+
+    return `
+        <div class="accuracy-dial">
+            <svg width="70" height="70" viewBox="0 0 70 70">
+                <circle cx="35" cy="35" r="${radius}" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="5"/>
+                <circle cx="35" cy="35" r="${radius}" fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="5"
+                    stroke-dasharray="${circumference}" stroke-dashoffset="${offset}"
+                    stroke-linecap="round" transform="rotate(-90 35 35)"/>
+                <text x="35" y="38" text-anchor="middle" fill="white" font-size="14" font-weight="700">${pct}%</text>
+            </svg>
+            <div class="accuracy-dial-label">Accuracy</div>
         </div>
     `;
 }
@@ -85,64 +110,129 @@ function renderCardBack(playerName, data) {
     const insights = data.insights || [];
     const extras = data.extras || {};
     const gamesAnalyzed = data.games_analyzed || 0;
+    const overallAccuracy = computeOverallAccuracy(accuracy);
 
     const previousNote = data.previous_personality
-        ? `<div class="personality-evolution">Evolved from ${PERSONALITY_META[data.previous_personality]?.name || data.previous_personality}</div>`
+        ? `<div class="personality-evolution">Evolved from ${data.previous_personality}</div>`
         : '';
 
     return `
         <div class="personality-back">
-            ${renderQuickStats(data, extras)}
+            ${renderTopBar(overallAccuracy, extras)}
             ${renderAccuracyChart(accuracy)}
+            ${renderStatsTable(extras)}
 
             <div class="personality-insights">
                 ${insights[0] ? `<div class="insight-strength">💡 ${insights[0]}</div>` : ''}
                 ${insights[1] ? `<div class="insight-growth">🌱 ${insights[1]}</div>` : ''}
             </div>
 
-            ${renderExtras(data, extras)}
+            ${renderFunFacts(extras.fun_facts)}
 
             <div class="personality-meta">
                 <span>${gamesAnalyzed} games · ${extras.total_rounds || 0} rounds</span>
                 <span>${renderTrendBadge(extras.trend)}</span>
             </div>
             ${previousNote}
-            ${renderFunFacts(extras.fun_facts)}
             <div class="personality-flip-hint">tap to flip</div>
         </div>
     `;
 }
 
-function renderQuickStats(data, extras) {
-    const items = [];
-    if (extras.wins !== undefined) {
-        items.push(`<div class="quick-stat"><span class="quick-stat-value">${extras.wins}/${extras.games_played}</span><span class="quick-stat-label">Wins</span></div>`);
-    }
-    if (data.signature_round) {
-        items.push(`<div class="quick-stat"><span class="quick-stat-value">${data.signature_round} cards</span><span class="quick-stat-label">Best at</span></div>`);
-    }
-    if (extras.best_trump) {
-        const isRed = extras.best_trump === '♦' || extras.best_trump === '♥';
-        const suitColor = isRed ? 'color:#D32F2F;' : 'color:#222;';
-        items.push(`<div class="quick-stat"><span class="quick-stat-value"><span style="${suitColor}">${extras.best_trump}</span> ${extras.best_trump_pct}%</span><span class="quick-stat-label">Best suit</span></div>`);
-    }
-    if (extras.biggest_round_score > 0) {
-        items.push(`<div class="quick-stat"><span class="quick-stat-value">+${extras.biggest_round_score}</span><span class="quick-stat-label">Best round</span></div>`);
-    }
-    if (!items.length) return '';
-    return `<div class="quick-stats-row">${items.join('')}</div>`;
+function renderTopBar(overallAccuracy, extras) {
+    const winsText = extras.wins !== undefined
+        ? `<span class="top-bar-wins">${extras.wins}/${extras.games_played} W</span>`
+        : '';
+
+    const dialHtml = overallAccuracy !== null
+        ? renderAccuracyDialSmall(overallAccuracy)
+        : '';
+
+    return `<div class="card-top-bar">${dialHtml}${winsText}</div>`;
 }
 
-function renderExtras(data, extras) {
-    const chips = [];
+function renderAccuracyDialSmall(pct) {
+    const radius = 18;
+    const circumference = 2 * Math.PI * radius;
+    const offset = circumference - (pct / 100) * circumference;
+
+    return `
+        <div class="accuracy-dial-small">
+            <svg width="46" height="46" viewBox="0 0 46 46">
+                <circle cx="23" cy="23" r="${radius}" fill="none" stroke="#eee" stroke-width="4"/>
+                <circle cx="23" cy="23" r="${radius}" fill="none" stroke="#43A047" stroke-width="4"
+                    stroke-dasharray="${circumference}" stroke-dashoffset="${offset}"
+                    stroke-linecap="round" transform="rotate(-90 23 23)"/>
+                <text x="23" y="27" text-anchor="middle" fill="#333" font-size="11" font-weight="700">${pct}%</text>
+            </svg>
+        </div>
+    `;
+}
+
+function renderStatsTable(extras) {
+    const rows = [];
+
+    // Bidding style
+    if (extras.bidding_style) {
+        const styleLabel = extras.bidding_style === 'aggressive' ? 'Aggressive'
+            : extras.bidding_style === 'conservative' ? 'Conservative' : 'Balanced';
+        rows.push(['Style', styleLabel]);
+    }
+
+    // Clutch
+    if (extras.clutch_opportunities > 0) {
+        const clutchPct = Math.round(extras.clutch_wins / extras.clutch_opportunities * 100);
+        rows.push(['Clutch', `${extras.clutch_wins}/${extras.clutch_opportunities} (${clutchPct}%)`]);
+    }
+
+    // Zero bids
+    if (extras.zero_bid_rate > 0) {
+        rows.push(['Zero bids', `${extras.zero_bid_rate}% success`]);
+    }
+
+    // Best suit
+    if (extras.best_trump) {
+        const isRed = extras.best_trump === '♦' || extras.best_trump === '♥';
+        const suitHtml = isRed
+            ? `<span style="color:#D32F2F;">${extras.best_trump}</span>`
+            : `<span>${extras.best_trump}</span>`;
+        rows.push(['Best suit', `${suitHtml} ${extras.best_trump_pct}%`]);
+    }
+
+    // Tempo
+    if (extras.tempo && extras.tempo !== 'even') {
+        const tempoLabel = extras.tempo === '1st half' ? '1st half player' : '2nd half player';
+        rows.push(['Tempo', tempoLabel]);
+    }
+
+    // Favorite bid
     if (extras.favorite_bid !== null && extras.favorite_bid !== undefined) {
-        chips.push(`<span class="insight-chip">Favorite bid: ${extras.favorite_bid}</span>`);
+        rows.push(['Fav bid', extras.favorite_bid]);
     }
-    if (data.kryptonite) {
-        chips.push(`<span class="insight-chip insight-chip-warn">Weakest: ${data.kryptonite} cards</span>`);
+
+    // Best round
+    if (extras.biggest_round_score > 0) {
+        rows.push(['Best round', `+${extras.biggest_round_score}`]);
     }
-    if (!chips.length) return '';
-    return `<div class="insight-chips">${chips.join('')}</div>`;
+
+    // Consistency
+    if (extras.consistency) {
+        rows.push(['Consistency', extras.consistency === 'high' ? 'Reliable'
+            : extras.consistency === 'medium' ? 'Mixed' : 'Unpredictable']);
+    }
+
+    if (!rows.length) return '';
+
+    return `
+        <div class="stats-table-compact">
+            ${rows.map(([label, value]) => `
+                <div class="stats-table-row">
+                    <span class="stats-table-label">${label}</span>
+                    <span class="stats-table-value">${value}</span>
+                </div>
+            `).join('')}
+        </div>
+    `;
 }
 
 function renderTrendBadge(trend) {
@@ -152,7 +242,9 @@ function renderTrendBadge(trend) {
 }
 
 function renderFunFacts(facts) {
-    if (!facts || !facts.length) return '';
+    if (!facts || !facts.length) {
+        return '<div class="fun-facts"><div class="fun-fact stats-muted">Keep playing to unlock fun facts</div></div>';
+    }
     return `
         <div class="fun-facts">
             ${facts.map(f => `<div class="fun-fact">⚡ ${f}</div>`).join('')}
@@ -161,6 +253,9 @@ function renderFunFacts(facts) {
 }
 
 function renderAccuracyChart(accuracy) {
+    if (!accuracy || typeof accuracy !== 'object') {
+        return '<div class="stats-muted" style="padding: 8px 0;">No accuracy data yet</div>';
+    }
     const cardCounts = Object.keys(accuracy)
         .map(Number)
         .sort((a, b) => b - a);
