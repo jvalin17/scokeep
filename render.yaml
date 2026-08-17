@@ -1,8 +1,24 @@
 services:
+  # Production — watches 'prod' branch
   - type: web
     name: scokeep
     runtime: docker
     plan: free
+    branch: prod
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: CSRF_SECRET
+        generateValue: true
+
+  # Stable (staging) — watches 'main' branch
+  - type: web
+    name: scokeep-stable
+    runtime: docker
+    plan: free
+    branch: main
     envVars:
       - key: DATABASE_URL
         sync: false
