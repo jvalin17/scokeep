@@ -60,16 +60,29 @@ from starlette.responses import Response  # noqa: E402
 from app.config import settings  # noqa: E402
 
 
-class NoCacheStaticMiddleware(BaseHTTPMiddleware):
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response: Response = await call_next(request)
-        if request.url.path.startswith("/static/"):
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "script-src 'self'; "
+            "img-src 'self' data:; "
+            "connect-src 'self'"
+        )
+        if not settings.debug:
+            response.headers["Strict-Transport-Security"] = (
+                "max-age=31536000; includeSubDomains"
+            )
+        if settings.debug and request.url.path.startswith("/static/"):
             response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
         return response
 
 
-if settings.debug:
-    app.add_middleware(NoCacheStaticMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
 app.include_router(playground.router)
 app.include_router(game.router)
 app.include_router(round_routes.router)

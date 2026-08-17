@@ -97,72 +97,19 @@ class AnalyticsService:
         """Build game history for the Games tab."""
         history = []
         for game in games:
-            players = game.players
             game_rounds = rounds_by_game.get(game.id, [])
-            if not game_rounds:
-                continue
-
-            game_totals = dict.fromkeys(players, 0)
-            for rnd in game_rounds:
-                for idx_str, score in rnd.scores.items():
-                    idx = int(idx_str)
-                    if idx < len(players):
-                        game_totals[players[idx]] += score
-
-            winner = (
-                max(game_totals, key=lambda n: game_totals[n])
-                if game_totals else None
-            )
-
-            history.append({
-                "game_id": game.id,
-                "date": (
-                    game.started_at.isoformat()
-                    if game.started_at else None
-                ),
-                "players": players,
-                "scores": game_totals,
-                "winner": winner,
-                "rounds_played": len(game_rounds),
-                "mode": game.settings.get("mode", "expert"),
-            })
+            if game_rounds:
+                history.append(_game_to_history(game, game_rounds))
         return history
 
     @staticmethod
     def _calc_highlights(games, rounds_by_game) -> dict:
         """Career records: one pass, rule-driven."""
         all_players = {name for g in games for name in g.players}
-        career = {
-            name: dict.fromkeys(CAREER_RULES, 0)
-            | {
-                "current_miss_streak": 0,
-                "longest_miss_streak": 0,
-                "perfect_sets": 0,
-            }
-            for name in all_players
-        }
-
-        sorted_games = sorted(
-            games, key=lambda g: g.started_at or g.id,
-        )
-
-        for game in sorted_games:
-            _process_game_for_career(
-                game, rounds_by_game, career,
-            )
-
-        return {
-            "career": {
-                "sniper": _career_table(career, "sniper"),
-                "zero_master": _career_table(career, "zero_master"),
-                "high_roller": _career_table(career, "high_roller"),
-                "all_in": _career_table(career, "all_in"),
-                "jinxed": _career_table(
-                    career, "longest_miss_streak", "longest",
-                ),
-                "perfect_set": _career_table(career, "perfect_sets"),
-            },
-        }
+        career = _init_career(all_players)
+        for game in sorted(games, key=lambda g: g.started_at or g.id):
+            _process_game_for_career(game, rounds_by_game, career)
+        return {"career": _career_tables(career)}
 
     @staticmethod
     def _calc_last_game_awards(games, rounds_by_game) -> dict | None:
@@ -276,6 +223,48 @@ def _apply_career_rules(player_career, bid, hand, made, cards_dealt):
         player_career["current_miss_streak"] = 0
 
 
+def _game_to_history(game, game_rounds):
+    """Convert one game + rounds into a history entry dict."""
+    players = game.players
+    game_totals = dict.fromkeys(players, 0)
+    for rnd in game_rounds:
+        for idx_str, score in rnd.scores.items():
+            idx = int(idx_str)
+            if idx < len(players):
+                game_totals[players[idx]] += score
+    winner = max(game_totals, key=lambda n: game_totals[n]) if game_totals else None
+    return {
+        "game_id": game.id,
+        "date": game.started_at.isoformat() if game.started_at else None,
+        "players": players,
+        "scores": game_totals,
+        "winner": winner,
+        "rounds_played": len(game_rounds),
+        "mode": game.settings.get("mode", "expert"),
+    }
+
+
+def _init_career(all_players):
+    """Initialize career counters for all players."""
+    return {
+        name: dict.fromkeys(CAREER_RULES, 0)
+        | {"current_miss_streak": 0, "longest_miss_streak": 0, "perfect_sets": 0}
+        for name in all_players
+    }
+
+
+def _career_tables(career):
+    """Build sorted career tables from counters."""
+    return {
+        "sniper": _career_table(career, "sniper"),
+        "zero_master": _career_table(career, "zero_master"),
+        "high_roller": _career_table(career, "high_roller"),
+        "all_in": _career_table(career, "all_in"),
+        "jinxed": _career_table(career, "longest_miss_streak", "longest"),
+        "perfect_set": _career_table(career, "perfect_sets"),
+    }
+
+
 def _check_perfect_sets(round_idx, rounds_per_set, players, set_results, career):
     """Check for perfect sets at set boundaries."""
     if rounds_per_set <= 0 or (round_idx + 1) % rounds_per_set != 0:
@@ -299,48 +288,44 @@ def _career_table(career, key, count_key="count"):
 
 def _accumulate_game_stats(players, game_rounds):
     """Collect per-player stats from one game's rounds."""
-    totals = dict.fromkeys(players, 0)
-    bids_made = dict.fromkeys(players, 0)
-    bids_total = dict.fromkeys(players, 0)
-    zero_bids_made = dict.fromkeys(players, 0)
-    overbids = dict.fromkeys(players, 0)
-    underbids = dict.fromkeys(players, 0)
-    best_bid: dict[str, int] = {}
+    s = {
+        "totals": dict.fromkeys(players, 0),
+        "bids_made": dict.fromkeys(players, 0),
+        "bids_total": dict.fromkeys(players, 0),
+        "zero_bids_made": dict.fromkeys(players, 0),
+        "overbids": dict.fromkeys(players, 0),
+        "underbids": dict.fromkeys(players, 0),
+        "best_bid": {},
+        "longest_miss": dict.fromkeys(players, 0),
+    }
     miss_streak = dict.fromkeys(players, 0)
-    longest_miss = dict.fromkeys(players, 0)
 
     for name, bid, hand, score, _rnd in _iter_round_bids(players, game_rounds):
-        totals[name] += score
-        bids_total[name] += 1
+        s["totals"][name] += score
+        s["bids_total"][name] += 1
         made = bid == hand
+        _tally_bid(s, miss_streak, name, bid, hand, made, score)
 
-        if made:
-            bids_made[name] += 1
-            miss_streak[name] = 0
-            if bid == 0:
-                zero_bids_made[name] += 1
-            if name not in best_bid or bid > best_bid[name]:
-                best_bid[name] = bid
-        else:
-            miss_streak[name] += 1
-            if miss_streak[name] > longest_miss[name]:
-                longest_miss[name] = miss_streak[name]
+    return s
 
-        if bid > hand:
-            overbids[name] += 1
-        elif bid < hand:
-            underbids[name] += 1
 
-    return {
-        "totals": totals,
-        "bids_made": bids_made,
-        "bids_total": bids_total,
-        "zero_bids_made": zero_bids_made,
-        "overbids": overbids,
-        "underbids": underbids,
-        "best_bid": best_bid,
-        "longest_miss": longest_miss,
-    }
+def _tally_bid(s, miss_streak, name, bid, hand, made, score):
+    """Update stat counters for a single bid result."""
+    if made:
+        s["bids_made"][name] += 1
+        miss_streak[name] = 0
+        if bid == 0:
+            s["zero_bids_made"][name] += 1
+        if name not in s["best_bid"] or bid > s["best_bid"][name]:
+            s["best_bid"][name] = bid
+    else:
+        miss_streak[name] += 1
+        if miss_streak[name] > s["longest_miss"][name]:
+            s["longest_miss"][name] = miss_streak[name]
+    if bid > hand:
+        s["overbids"][name] += 1
+    elif bid < hand:
+        s["underbids"][name] += 1
 
 
 def _best_player(data, key="value"):
@@ -354,37 +339,25 @@ def _best_player(data, key="value"):
 def _build_awards(stats):
     """Transform accumulated stats into award dicts."""
     totals = stats["totals"]
-    bids_made = stats["bids_made"]
-    bids_total = stats["bids_total"]
-
     mvp_name = max(totals, key=lambda n: totals[n])
-
-    accuracies = {
-        name: round(bids_made[name] / bids_total[name] * 100)
-        for name in totals if bids_total[name] > 0
-    }
-    sharpshooter = None
-    if accuracies:
-        best = max(accuracies, key=lambda n: accuracies[n])
-        sharpshooter = {"name": best, "accuracy": accuracies[best]}
-
-    bold_move = None
-    if stats["best_bid"]:
-        boldest = max(
-            stats["best_bid"], key=lambda n: stats["best_bid"][n],
-        )
-        if stats["best_bid"][boldest] > 0:
-            bold_move = {
-                "name": boldest,
-                "bid": stats["best_bid"][boldest],
-            }
-
     return {
         "mvp": {"name": mvp_name, "score": totals[mvp_name]},
-        "sharpshooter": sharpshooter,
+        "sharpshooter": _best_accuracy(stats),
         "brick_wall": _best_player(stats["zero_bids_made"], "count"),
-        "bold_move": bold_move,
+        "bold_move": _best_player(stats["best_bid"], "bid"),
         "cursed": _best_player(stats["longest_miss"], "streak"),
         "sandbagger": _best_player(stats["underbids"], "count"),
         "gambler": _best_player(stats["overbids"], "count"),
     }
+
+
+def _best_accuracy(stats):
+    """Find player with best bid accuracy."""
+    accuracies = {
+        name: round(stats["bids_made"][name] / stats["bids_total"][name] * 100)
+        for name in stats["totals"] if stats["bids_total"][name] > 0
+    }
+    if not accuracies:
+        return None
+    best = max(accuracies, key=lambda n: accuracies[n])
+    return {"name": best, "accuracy": accuracies[best]}

@@ -94,12 +94,7 @@ class _GameWithRounds:
 
 
 async def compute_insights(db: AsyncSession, playground_id: int) -> dict | None:
-    """Full pipeline: compute and store insights for all players.
-
-    Called after every game finishes. Loads all historical data,
-    computes feature vectors, normalizes, shrinks, smooths, assigns
-    personalities, generates insights, and stores in playground.insights.
-    """
+    """Full pipeline: compute and store insights for all players."""
     playground = await db.get(Playground, playground_id)
     if not playground:
         return None
@@ -117,37 +112,48 @@ async def compute_insights(db: AsyncSession, playground_id: int) -> dict | None:
     all_players = set(player_game_counts.keys())
     existing_players = (playground.insights or {}).get("players", {})
 
-    raw_vectors = {
+    raw_vectors = _compute_raw_vectors(all_players, player_game_counts, wrapped_games)
+    if not raw_vectors:
+        return await _store_unlock_only(db, playground, all_players, player_game_counts)
+
+    insights_blob = _assemble_blob(
+        raw_vectors, player_game_counts, existing_players,
+        all_players, wrapped_games, games, rounds_by_game,
+    )
+    playground.insights = insights_blob
+    await db.commit()
+    return insights_blob
+
+
+def _compute_raw_vectors(all_players, player_game_counts, wrapped_games):
+    """Compute feature vectors for players with enough games."""
+    return {
         name: compute_feature_vector(name, wrapped_games)
         for name in all_players
         if player_game_counts[name] >= MIN_GAMES_FOR_PERSONALITY
     }
 
-    if not raw_vectors:
-        return await _store_unlock_only(db, playground, all_players, player_game_counts)
 
+def _assemble_blob(
+    raw_vectors, player_game_counts, existing_players,
+    all_players, wrapped_games, games, rounds_by_game,
+):
+    """Build the full insights blob from vectors and assignments."""
     smoothed_vectors = _normalize_shrink_smooth(
         raw_vectors, player_game_counts, existing_players,
     )
     assignments = assign_personalities_unique(smoothed_vectors)
-
     players_data = _build_player_data(
         all_players, player_game_counts, assignments,
         smoothed_vectors, existing_players, wrapped_games,
     )
-
-    highlights = _compute_cached_highlights(games, rounds_by_game)
-
-    insights_blob = {
+    return {
         "version": 1,
         "computed_at": datetime.now(UTC).isoformat(),
         "players": players_data,
-        "highlights": highlights,
+        "highlights": _compute_cached_highlights(games, rounds_by_game),
         "total_games": len(games),
     }
-    playground.insights = insights_blob
-    await db.commit()
-    return insights_blob
 
 
 async def _load_game_data(db: AsyncSession, playground_id: int):
