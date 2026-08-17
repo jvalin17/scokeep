@@ -21,9 +21,30 @@ logging.basicConfig(
 STATIC_DIR = Path(__file__).parent / "static"
 
 
+async def _recompute_all_insights():
+    """Recompute insights for all playgrounds on startup."""
+    from sqlalchemy import select
+
+    from app.database import async_session_factory
+    from app.models.playground import Playground
+    from app.services.insights import compute_insights
+
+    logger = logging.getLogger("scokeep.startup")
+    async with async_session_factory() as db:
+        result = await db.execute(select(Playground.id))
+        pg_ids = [row[0] for row in result.all()]
+        for pg_id in pg_ids:
+            try:
+                await compute_insights(db, pg_id)
+            except Exception:
+                logger.warning("Failed to recompute insights for playground %s", pg_id)
+        logger.info("Recomputed insights for %d playgrounds", len(pg_ids))
+
+
 @asynccontextmanager
 async def lifespan(application: FastAPI):
     await create_tables()
+    await _recompute_all_insights()
     yield
 
 
