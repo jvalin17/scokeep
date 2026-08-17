@@ -266,7 +266,7 @@ export const statsScreen = {
             `;
         }
 
-        const CHART_COLORS = ['#1B5E20', '#E65100', '#0D47A1', '#880E4F', '#4A148C', '#006064'];
+        const CHART_COLORS = ['#E53935', '#1E88E5', '#43A047', '#FB8C00', '#8E24AA', '#00ACC1'];
 
         function buildCumulativeTotals(players, rounds) {
             const cumulative = players.map(() => [0]);
