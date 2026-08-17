@@ -16,6 +16,11 @@ async function request(method, path, body = null) {
         options.body = JSON.stringify(body);
     }
     const response = await fetch(`${BASE}${path}`, options);
+    if (response.status === 401) {
+        logger.apiError(method, path, 401, 'Session expired');
+        window.location.hash = '';
+        throw new Error('Session expired — please re-enter your PIN');
+    }
     if (!response.ok) {
         const error = await response.json().catch(() => ({ detail: 'Request failed' }));
         const detail = error.detail;
