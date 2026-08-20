@@ -196,8 +196,8 @@ class TestAccumulateGameStats:
 class TestBuildAwards:
     """Award dicts built from accumulated stats."""
 
-    def test_mvp_is_highest_scorer(self):
-        stats = {
+    def _make_stats(self, **overrides):
+        base = {
             "totals": {"Ravi": 50, "Meera": 30},
             "bids_made": {"Ravi": 3, "Meera": 2},
             "bids_total": {"Ravi": 4, "Meera": 4},
@@ -206,40 +206,52 @@ class TestBuildAwards:
             "underbids": {"Ravi": 0, "Meera": 1},
             "best_bid": {"Ravi": 5},
             "longest_miss": {"Ravi": 1, "Meera": 2},
+            "best_round": {"Ravi": 30, "Meera": 20},
+            "worst_round": {"Ravi": -10, "Meera": -20},
+            "longest_hit": {"Ravi": 3, "Meera": 2},
         }
-        awards = _build_awards(stats)
+        base.update(overrides)
+        return base
+
+    def test_mvp_is_highest_scorer(self):
+        awards = _build_awards(self._make_stats())
         assert awards["mvp"]["name"] == "Ravi"
         assert awards["mvp"]["score"] == 50
 
+    def test_wooden_spoon_is_lowest_scorer(self):
+        awards = _build_awards(self._make_stats())
+        assert awards["wooden_spoon"]["name"] == "Meera"
+        assert awards["wooden_spoon"]["score"] == 30
+
+    def test_on_fire_longest_hit_streak(self):
+        awards = _build_awards(self._make_stats())
+        assert awards["on_fire"]["name"] == "Ravi"
+        assert awards["on_fire"]["streak"] == 3
+
+    def test_best_round_highest_single(self):
+        awards = _build_awards(self._make_stats())
+        assert awards["best_round"]["name"] == "Ravi"
+        assert awards["best_round"]["score"] == 30
+
+    def test_worst_round_lowest_single(self):
+        awards = _build_awards(self._make_stats())
+        assert awards["worst_round"]["name"] == "Meera"
+        assert awards["worst_round"]["score"] == -20
+
     def test_sharpshooter_best_accuracy(self):
-        stats = {
-            "totals": {"Ravi": 50, "Meera": 30},
-            "bids_made": {"Ravi": 2, "Meera": 4},
-            "bids_total": {"Ravi": 4, "Meera": 4},
-            "zero_bids_made": {"Ravi": 0, "Meera": 0},
-            "overbids": {"Ravi": 0, "Meera": 0},
-            "underbids": {"Ravi": 0, "Meera": 0},
-            "best_bid": {},
-            "longest_miss": {"Ravi": 0, "Meera": 0},
-        }
-        awards = _build_awards(stats)
+        awards = _build_awards(self._make_stats(
+            bids_made={"Ravi": 2, "Meera": 4},
+            overbids={"Ravi": 0, "Meera": 0},
+            underbids={"Ravi": 0, "Meera": 0},
+        ))
         assert awards["sharpshooter"]["name"] == "Meera"
         assert awards["sharpshooter"]["accuracy"] == 100
 
     def test_all_award_keys_present(self):
-        stats = {
-            "totals": {"Ravi": 10},
-            "bids_made": {"Ravi": 1},
-            "bids_total": {"Ravi": 2},
-            "zero_bids_made": {"Ravi": 0},
-            "overbids": {"Ravi": 1},
-            "underbids": {"Ravi": 0},
-            "best_bid": {},
-            "longest_miss": {"Ravi": 1},
-        }
-        awards = _build_awards(stats)
+        awards = _build_awards(self._make_stats())
         expected_keys = {
             "mvp", "sharpshooter", "brick_wall", "bold_move",
             "cursed", "sandbagger", "gambler",
+            "on_fire", "best_round", "worst_round", "wooden_spoon",
         }
         assert set(awards.keys()) == expected_keys

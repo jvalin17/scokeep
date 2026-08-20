@@ -311,7 +311,11 @@ export const statsScreen = {
             if (!lastGame) return '';
             const awards = [
                 { key: 'mvp', emoji: '🏆', title: 'MVP', desc: 'Highest total score', detail: lg => `${lg.score} points` },
+                { key: 'wooden_spoon', emoji: '🥄', title: 'Wooden Spoon', desc: 'Lowest total score', detail: lg => `${lg.score} points` },
                 { key: 'sharpshooter', emoji: '🎯', title: 'Sharpshooter', desc: 'Best bid accuracy', detail: lg => `${lg.accuracy}% accuracy` },
+                { key: 'on_fire', emoji: '🔥', title: 'On Fire', desc: 'Longest streak of bids made', detail: lg => `${lg.streak} in a row` },
+                { key: 'best_round', emoji: '💥', title: 'Best Round', desc: 'Highest single round score', detail: lg => `+${lg.score} points` },
+                { key: 'worst_round', emoji: '💀', title: 'Worst Round', desc: 'Biggest single round loss', detail: lg => `${lg.score} points` },
                 { key: 'brick_wall', emoji: '🧱', title: 'Brick Wall', desc: 'Most successful zero bids', detail: lg => `${lg.count} zero-bids made` },
                 { key: 'bold_move', emoji: '🎲', title: 'Bold Move', desc: 'Highest bid that was made', detail: lg => `bid ${lg.bid} and made it` },
                 { key: 'sandbagger', emoji: '🏖️', title: 'Sandbagger', desc: 'Most underbids — bid low, won more', detail: lg => `${lg.count} underbids` },
