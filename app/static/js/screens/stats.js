@@ -63,8 +63,8 @@ export const statsScreen = {
                         <button class="btn-refresh" id="stats-gear" title="Settings">⚙</button>
                     </div>
                     <div id="stats-actions" class="stats-actions hidden">
-                        <button class="btn ${editMode ? 'btn-primary' : 'btn-secondary'}" id="toggle-edit">${editMode ? '✏️ Edit Mode ON' : '✏️ Edit Mode'}</button>
-                        <button class="btn btn-danger" id="clear-stats">Clear All Stats</button>
+                        <button class="btn-small ${editMode ? 'btn-primary' : ''}" id="toggle-edit" style="font-size:0.8rem;padding:6px 12px;">${editMode ? '✏️ Edit Mode ON' : '✏️ Edit Mode'}</button>
+                        ${editMode ? '<div id="admin-input-wrap" style="margin-top:8px;display:none;"></div>' : ''}
                     </div>
 
                     <div class="stats-tabs">
@@ -114,26 +114,32 @@ export const statsScreen = {
                     if (editMode) {
                         sessionStorage.removeItem('scokeep_admin_key');
                         editMode = false;
+                        render();
                     } else {
-                        const key = prompt('Enter admin password:');
-                        if (key) {
-                            sessionStorage.setItem('scokeep_admin_key', key);
-                            editMode = true;
-                        }
-                    }
-                    render();
-                });
-            }
-
-            const clearBtn = container.querySelector('#clear-stats');
-            if (clearBtn) {
-                clearBtn.addEventListener('click', async () => {
-                    if (!confirm('Clear all game history and stats for this room? This cannot be undone.')) return;
-                    try {
-                        await clearPlaygroundStats(shareCode);
-                        navigate(`stats/${shareCode}`);
-                    } catch {
-                        /* clear failed silently — user can retry */
+                        // Show password input inline
+                        const wrap = document.createElement('div');
+                        wrap.style.cssText = 'margin-top:8px;display:flex;gap:6px;align-items:center;';
+                        const input = document.createElement('input');
+                        input.type = 'password';
+                        input.placeholder = 'Admin password';
+                        input.style.cssText = 'flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:0.85rem;';
+                        const go = document.createElement('button');
+                        go.textContent = 'Go';
+                        go.className = 'btn-small btn-primary';
+                        go.style.cssText = 'padding:6px 12px;font-size:0.8rem;';
+                        const submit = () => {
+                            if (input.value) {
+                                sessionStorage.setItem('scokeep_admin_key', input.value);
+                                editMode = true;
+                                render();
+                            }
+                        };
+                        go.addEventListener('click', submit);
+                        input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
+                        wrap.appendChild(input);
+                        wrap.appendChild(go);
+                        editBtn.parentNode.appendChild(wrap);
+                        input.focus();
                     }
                 });
             }
