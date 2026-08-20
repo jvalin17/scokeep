@@ -297,49 +297,35 @@ def _accumulate_game_stats(players, game_rounds):
         "underbids": dict.fromkeys(players, 0),
         "best_bid": {},
         "longest_miss": dict.fromkeys(players, 0),
-        "best_round": {},
-        "worst_round": {},
-        "hit_streak": dict.fromkeys(players, 0),
-        "longest_hit": dict.fromkeys(players, 0),
     }
     miss_streak = dict.fromkeys(players, 0)
-    hit_streak = dict.fromkeys(players, 0)
 
     for name, bid, hand, score, _rnd in _iter_round_bids(players, game_rounds):
         s["totals"][name] += score
         s["bids_total"][name] += 1
         made = bid == hand
-        _tally_bid(s, miss_streak, hit_streak, name, bid, hand, made, score)
+        _tally_bid(s, miss_streak, name, bid, hand, made, score)
 
     return s
 
 
-def _tally_bid(s, miss_streak, hit_streak, name, bid, hand, made, score):
+def _tally_bid(s, miss_streak, name, bid, hand, made, score):
     """Update stat counters for a single bid result."""
     if made:
         s["bids_made"][name] += 1
         miss_streak[name] = 0
-        hit_streak[name] += 1
-        if hit_streak[name] > s["longest_hit"][name]:
-            s["longest_hit"][name] = hit_streak[name]
         if bid == 0:
             s["zero_bids_made"][name] += 1
         if name not in s["best_bid"] or bid > s["best_bid"][name]:
             s["best_bid"][name] = bid
     else:
         miss_streak[name] += 1
-        hit_streak[name] = 0
         if miss_streak[name] > s["longest_miss"][name]:
             s["longest_miss"][name] = miss_streak[name]
     if bid > hand:
         s["overbids"][name] += 1
     elif bid < hand:
         s["underbids"][name] += 1
-    # Track best/worst single round scores
-    if name not in s["best_round"] or score > s["best_round"][name]:
-        s["best_round"][name] = score
-    if name not in s["worst_round"] or score < s["worst_round"][name]:
-        s["worst_round"][name] = score
 
 
 def _best_player(data, key="value"):
@@ -354,7 +340,6 @@ def _build_awards(stats):
     """Transform accumulated stats into award dicts."""
     totals = stats["totals"]
     mvp_name = max(totals, key=lambda n: totals[n])
-    worst_name = min(totals, key=lambda n: totals[n])
     return {
         "mvp": {"name": mvp_name, "score": totals[mvp_name]},
         "sharpshooter": _best_accuracy(stats),
@@ -363,19 +348,7 @@ def _build_awards(stats):
         "cursed": _best_player(stats["longest_miss"], "streak"),
         "sandbagger": _best_player(stats["underbids"], "count"),
         "gambler": _best_player(stats["overbids"], "count"),
-        "on_fire": _best_player(stats["longest_hit"], "streak"),
-        "best_round": _best_player(stats["best_round"], "score"),
-        "worst_round": _worst_player(stats["worst_round"], "score"),
-        "wooden_spoon": {"name": worst_name, "score": totals[worst_name]},
     }
-
-
-def _worst_player(data, key="value"):
-    """Find player with lowest (most negative) value."""
-    if not data:
-        return None
-    name = min(data, key=lambda n: data[n])
-    return {"name": name, key: data[name]} if data[name] < 0 else None
 
 
 def _best_accuracy(stats):

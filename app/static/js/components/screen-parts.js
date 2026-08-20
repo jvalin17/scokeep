@@ -5,7 +5,6 @@
 
 import { endGame } from '../api.js';
 import { getRoundCards, getTrump } from './game-utils.js';
-import { confirmModal } from './modal.js';
 import { soundEndGame } from './sounds.js';
 
 /**
@@ -79,7 +78,7 @@ export function attachEndGameHandler(container, gameId, navigate, state) {
     const btn = container.querySelector('#end-game-btn');
     if (!btn) return;
     btn.addEventListener('click', async () => {
-        if (await confirmModal('End Game', 'End this game? Scores so far will be saved.', 'End Game', true)) {
+        if (confirm('End this game? Scores so far will be saved.')) {
             await endGame(gameId);
             soundEndGame();
             navigate(`scoreboard/${gameId}`);

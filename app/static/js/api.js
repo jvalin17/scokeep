@@ -79,10 +79,6 @@ export function getPlayground(shareCode) {
     return request('GET', `/playground/${shareCode}`);
 }
 
-export function deletePlayground(name, pin) {
-    return request('DELETE', '/playground', { name, pin });
-}
-
 export function getPlaygroundStats(shareCode) {
     return request('GET', `/playground/${shareCode}/stats`);
 }

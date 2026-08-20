@@ -2,7 +2,6 @@
 
 import { getGame, getScoreboard, undoRound, endGame, nextRound } from '../api.js';
 import { getTrump } from '../components/game-utils.js';
-import { confirmModal } from '../components/modal.js';
 import { soundNextRound, soundEndGame, soundUndo } from '../components/sounds.js';
 
 export const scoreboardScreen = {
@@ -180,7 +179,6 @@ export const scoreboardScreen = {
             const endGameBtn = container.querySelector('#end-game');
             if (endGameBtn) {
                 endGameBtn.addEventListener('click', async () => {
-                    if (!await confirmModal('End Game', 'End this game early? Scores so far will be saved.', 'End Game', true)) return;
                     try {
                         await endGame(gameId);
                         soundEndGame();

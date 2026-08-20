@@ -1,7 +1,6 @@
 // Stats screen — insights (personality cards), awards, game history
 
-import { getPlaygroundStats, clearPlaygroundStats, getScoreboard, deletePlayground } from '../api.js';
-import { confirmModal, typeConfirmModal } from '../components/modal.js';
+import { getPlaygroundStats, clearPlaygroundStats, getScoreboard } from '../api.js';
 import { getTrump } from '../components/game-utils.js';
 import { renderPersonalityCards } from '../components/personality-card.js';
 
@@ -67,17 +66,15 @@ export const statsScreen = {
 
         function render() {
             container.innerHTML = `
-                <div class="stats ${editMode ? 'edit-mode' : ''}">
-                    ${editMode ? '<div class="edit-mode-banner">✏️ EDIT MODE — tap any score to change it</div>' : ''}
+                <div class="stats">
                     <div class="round-info">
                         <span>Stats</span>
                         <span>${stats.total_games} game${stats.total_games !== 1 ? 's' : ''}</span>
                         <button class="btn-refresh" id="stats-gear" title="Settings">⚙</button>
                     </div>
-                    <div id="stats-actions" class="stats-actions hidden" style="display:none;gap:6px;flex-wrap:wrap;">
+                    <div id="stats-actions" class="stats-actions hidden">
                         <button class="btn-small ${editMode ? 'btn-primary' : ''}" id="toggle-edit" style="font-size:0.8rem;padding:6px 12px;">${editMode ? '✏️ Edit Mode ON' : '✏️ Edit Mode'}</button>
-                        <button class="btn-small" id="clear-stats" style="font-size:0.8rem;padding:6px 12px;background:var(--danger);color:#fff;">Clear Stats</button>
-                        <button class="btn-small" id="delete-group" style="font-size:0.8rem;padding:6px 12px;background:#333;color:#fff;">Delete Group</button>
+                        <button class="btn-small" id="clear-stats" style="font-size:0.8rem;padding:6px 12px;background:var(--danger);color:#fff;margin-top:6px;">Clear All Stats</button>
                     </div>
 
                     <div class="stats-tabs">
@@ -117,8 +114,7 @@ export const statsScreen = {
             if (gearBtn) {
                 gearBtn.addEventListener('click', () => {
                     const actions = container.querySelector('#stats-actions');
-                    const isHidden = actions.style.display === 'none' || actions.style.display === '';
-                    actions.style.display = isHidden ? 'flex' : 'none';
+                    actions.classList.toggle('hidden');
                 });
             }
 
@@ -175,28 +171,11 @@ export const statsScreen = {
             const clearBtn = container.querySelector('#clear-stats');
             if (clearBtn) {
                 clearBtn.addEventListener('click', async () => {
-                    if (!await typeConfirmModal('Clear Stats', 'This will permanently delete all game history, stats, and insights for this room.', 'clear stats', 'Clear All', 'warning')) return;
+                    if (!confirm('Clear all game history and stats? This cannot be undone.')) return;
                     try {
                         await clearPlaygroundStats(shareCode);
                         navigate(`stats/${shareCode}`);
                     } catch { /* retry */ }
-                });
-            }
-
-            const deleteBtn = container.querySelector('#delete-group');
-            if (deleteBtn) {
-                deleteBtn.addEventListener('click', async () => {
-                    if (!await typeConfirmModal('Delete Group', 'This will permanently delete this group, all games, stats, and insights. This cannot be undone.', 'delete group', 'Delete', 'danger')) return;
-                    const pin = prompt('Enter group PIN to confirm:');
-                    if (!pin) return;
-                    try {
-                        const pgName = state.playground?.name;
-                        if (!pgName) { alert('Could not find group name'); return; }
-                        await deletePlayground(pgName, pin);
-                        navigate('');
-                    } catch (err) {
-                        alert(err.message);
-                    }
                 });
             }
 
@@ -332,11 +311,7 @@ export const statsScreen = {
             if (!lastGame) return '';
             const awards = [
                 { key: 'mvp', emoji: '🏆', title: 'MVP', desc: 'Highest total score', detail: lg => `${lg.score} points` },
-                { key: 'wooden_spoon', emoji: '🥄', title: 'Wooden Spoon', desc: 'Lowest total score', detail: lg => `${lg.score} points` },
                 { key: 'sharpshooter', emoji: '🎯', title: 'Sharpshooter', desc: 'Best bid accuracy', detail: lg => `${lg.accuracy}% accuracy` },
-                { key: 'on_fire', emoji: '🔥', title: 'On Fire', desc: 'Longest streak of bids made', detail: lg => `${lg.streak} in a row` },
-                { key: 'best_round', emoji: '💥', title: 'Best Round', desc: 'Highest single round score', detail: lg => `+${lg.score} points` },
-                { key: 'worst_round', emoji: '💀', title: 'Worst Round', desc: 'Biggest single round loss', detail: lg => `${lg.score} points` },
                 { key: 'brick_wall', emoji: '🧱', title: 'Brick Wall', desc: 'Most successful zero bids', detail: lg => `${lg.count} zero-bids made` },
                 { key: 'bold_move', emoji: '🎲', title: 'Bold Move', desc: 'Highest bid that was made', detail: lg => `bid ${lg.bid} and made it` },
                 { key: 'sandbagger', emoji: '🏖️', title: 'Sandbagger', desc: 'Most underbids — bid low, won more', detail: lg => `${lg.count} underbids` },

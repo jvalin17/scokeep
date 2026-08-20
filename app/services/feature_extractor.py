@@ -23,13 +23,9 @@ TREND_IMPROVEMENT_THRESHOLD = 0.1
 # Tempo detection: avg score difference threshold between game halves
 TEMPO_DIFFERENCE_THRESHOLD = 3
 
-# Consistency buckets: stddev of per-game total scores
-# Kachuful totals range ~50-300, so stddev needs higher thresholds
-CONSISTENCY_HIGH_THRESHOLD = 60    # below = reliable
-CONSISTENCY_MEDIUM_THRESHOLD = 120  # below = mixed, above = unpredictable
-
-# Bidding style: minimum gap between overbids and underbids (as % of total)
-STYLE_MARGIN_PCT = 10
+# Consistency buckets: stddev of per-game scores
+CONSISTENCY_HIGH_THRESHOLD = 30   # below = reliable
+CONSISTENCY_MEDIUM_THRESHOLD = 60  # below = mixed, above = unpredictable
 
 # Minimum rounds on a trump suit before it counts as "best suit"
 MIN_ROUNDS_FOR_BEST_SUIT = 2
@@ -404,13 +400,11 @@ class _ExtrasAccumulator:
         if total_bids == 0:
             return "balanced", 0
         overbid_pct = round(self.overbids / total_bids * 100)
-        underbid_pct = round(self.underbids / total_bids * 100)
-        gap = abs(overbid_pct - underbid_pct)
-        if gap < STYLE_MARGIN_PCT:
-            return "balanced", overbid_pct
         if self.overbids > self.underbids:
             return "aggressive", overbid_pct
-        return "conservative", underbid_pct
+        if self.underbids > self.overbids:
+            return "conservative", overbid_pct
+        return "balanced", overbid_pct
 
     def _tempo(self) -> str:
         first_avg = (

@@ -39,17 +39,10 @@ body {
 [data-appearance="interactive"] { font-size: 1.1em; }
 
 #app {
-    max-width: 480px;
+    max-width: 420px;
     margin: 0 auto;
     padding: 16px;
     min-height: 100dvh;
-}
-
-@media (min-width: 768px) {
-    #app { max-width: 600px; padding: 24px; }
-}
-@media (min-width: 1024px) {
-    #app { max-width: 700px; }
 }
 
 /* Typography */
@@ -1007,32 +1000,3 @@ input::placeholder { color: var(--text-muted); }
     color: var(--text-muted, #666);
     padding: 2px 0;
 }
-
-/* Edit mode indicator */
-.stats.edit-mode { background: #EDE7F6; border-radius: var(--radius); padding: 12px; margin: -12px; }
-.stats.edit-mode .round-info { background: #4527A0; color: #fff; border-radius: var(--radius-sm); padding: 8px 12px; }
-.stats.edit-mode .round-info span { color: #fff; }
-.edit-mode-banner {
-    background: #4527A0; color: #fff; text-align: center;
-    padding: 4px 8px; border-radius: var(--radius-sm);
-    font-size: 0.75rem; font-weight: 600; margin-bottom: 8px;
-}
-
-/* Confirm modal */
-.modal-overlay {
-    position: fixed; inset: 0; z-index: 100;
-    background: rgba(0,0,0,0.45);
-    display: flex; align-items: center; justify-content: center;
-    padding: 24px;
-}
-.modal-box {
-    background: var(--bg-card); border-radius: var(--radius);
-    box-shadow: var(--shadow-lg); padding: 24px;
-    max-width: 340px; width: 100%; text-align: center;
-}
-.modal-box.modal-warning { background: #FFF3E0; border: 2px solid #E65100; }
-.modal-box.modal-danger { background: #FFEBEE; border: 2px solid #C62828; }
-.modal-box h3 { font-size: 1.1rem; margin-bottom: 8px; }
-.modal-box p { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 20px; }
-.modal-actions { display: flex; gap: 10px; justify-content: center; }
-.modal-actions .btn { flex: 1; }
