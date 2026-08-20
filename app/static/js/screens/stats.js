@@ -64,7 +64,7 @@ export const statsScreen = {
                     </div>
                     <div id="stats-actions" class="stats-actions hidden">
                         <button class="btn-small ${editMode ? 'btn-primary' : ''}" id="toggle-edit" style="font-size:0.8rem;padding:6px 12px;">${editMode ? '✏️ Edit Mode ON' : '✏️ Edit Mode'}</button>
-                        ${editMode ? '<div id="admin-input-wrap" style="margin-top:8px;display:none;"></div>' : ''}
+                        <button class="btn-small" id="clear-stats" style="font-size:0.8rem;padding:6px 12px;background:var(--danger);color:#fff;margin-top:6px;">Clear All Stats</button>
                     </div>
 
                     <div class="stats-tabs">
@@ -141,6 +141,17 @@ export const statsScreen = {
                         editBtn.parentNode.appendChild(wrap);
                         input.focus();
                     }
+                });
+            }
+
+            const clearBtn = container.querySelector('#clear-stats');
+            if (clearBtn) {
+                clearBtn.addEventListener('click', async () => {
+                    if (!confirm('Clear all game history and stats? This cannot be undone.')) return;
+                    try {
+                        await clearPlaygroundStats(shareCode);
+                        navigate(`stats/${shareCode}`);
+                    } catch { /* retry */ }
                 });
             }
 

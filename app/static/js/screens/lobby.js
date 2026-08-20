@@ -38,7 +38,10 @@ export const lobbyScreen = {
                     ${activeGame ? `
                         <div class="active-game-actions">
                             <button id="resume-game" class="btn btn-primary btn-large">Resume Game (Round ${activeGame.current_round})</button>
-                            <button id="end-active-game" class="btn btn-large" style="background:var(--danger);color:#fff;">End Game</button>
+                            <button id="game-settings-toggle" class="btn-text" style="font-size:0.8rem;margin-top:8px;">⚙ Options</button>
+                            <div id="game-settings-panel" class="hidden" style="margin-top:8px;">
+                                <button id="end-active-game" class="btn-small" style="background:var(--danger);color:#fff;font-size:0.8rem;">End Game</button>
+                            </div>
                         </div>
                     ` : ''}
 
@@ -137,6 +140,14 @@ export const lobbyScreen = {
                     addBtn.click();
                 }
             });
+
+            // Game settings toggle
+            const settingsToggle = container.querySelector('#game-settings-toggle');
+            if (settingsToggle) {
+                settingsToggle.addEventListener('click', () => {
+                    container.querySelector('#game-settings-panel').classList.toggle('hidden');
+                });
+            }
 
             // Resume active game
             const resumeBtn = container.querySelector('#resume-game');
