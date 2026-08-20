@@ -1,6 +1,7 @@
 // Stats screen — insights (personality cards), awards, game history
 
 import { getPlaygroundStats, clearPlaygroundStats, getScoreboard } from '../api.js';
+import { confirmModal } from '../components/modal.js';
 import { getTrump } from '../components/game-utils.js';
 import { renderPersonalityCards } from '../components/personality-card.js';
 
@@ -171,7 +172,7 @@ export const statsScreen = {
             const clearBtn = container.querySelector('#clear-stats');
             if (clearBtn) {
                 clearBtn.addEventListener('click', async () => {
-                    if (!confirm('Clear all game history and stats? This cannot be undone.')) return;
+                    if (!await confirmModal('Clear Stats', 'Clear all game history and stats? This cannot be undone.', 'Clear All', true)) return;
                     try {
                         await clearPlaygroundStats(shareCode);
                         navigate(`stats/${shareCode}`);

@@ -2,6 +2,7 @@
 
 import { getPlayground, createGame, getActiveGame, endGame } from '../api.js';
 import { initDragReorder } from '../components/drag-reorder.js';
+import { confirmModal } from '../components/modal.js';
 import { isMuted, toggleMute, soundEndGame } from '../components/sounds.js';
 
 export const lobbyScreen = {
@@ -168,7 +169,7 @@ export const lobbyScreen = {
             const endActiveBtn = container.querySelector('#end-active-game');
             if (endActiveBtn) {
                 endActiveBtn.addEventListener('click', async () => {
-                    if (confirm('End this game? Scores so far will be saved.')) {
+                    if (await confirmModal('End Game', 'End this game? Scores so far will be saved.', 'End Game', true)) {
                         const gameId = activeGame.id;
                         await endGame(gameId);
                         soundEndGame();
