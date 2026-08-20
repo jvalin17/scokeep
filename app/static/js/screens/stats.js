@@ -4,10 +4,28 @@ import { getPlaygroundStats, clearPlaygroundStats, getScoreboard } from '../api.
 import { getTrump } from '../components/game-utils.js';
 import { renderPersonalityCards } from '../components/personality-card.js';
 
+async function patchScore(gameId, roundNum, playerIndex, score, adminKey) {
+    const resp = await fetch(`/api/game/${gameId}/round/${roundNum}/score`, {
+        method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Admin-Key': adminKey,
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify({ player_index: playerIndex, score }),
+    });
+    if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ detail: 'Failed' }));
+        throw new Error(err.detail || `HTTP ${resp.status}`);
+    }
+    return resp.json();
+}
+
 export const statsScreen = {
     async mount(container, state, { navigate, params }) {
         const shareCode = params[0];
         let stats;
+        let editMode = !!sessionStorage.getItem('scokeep_admin_key');
         try {
             stats = await getPlaygroundStats(shareCode);
         } catch {
@@ -45,6 +63,7 @@ export const statsScreen = {
                         <button class="btn-refresh" id="stats-gear" title="Settings">⚙</button>
                     </div>
                     <div id="stats-actions" class="stats-actions hidden">
+                        <button class="btn ${editMode ? 'btn-primary' : 'btn-secondary'}" id="toggle-edit">${editMode ? '✏️ Edit Mode ON' : '✏️ Edit Mode'}</button>
                         <button class="btn btn-danger" id="clear-stats">Clear All Stats</button>
                     </div>
 
@@ -89,6 +108,23 @@ export const statsScreen = {
                 });
             }
 
+            const editBtn = container.querySelector('#toggle-edit');
+            if (editBtn) {
+                editBtn.addEventListener('click', () => {
+                    if (editMode) {
+                        sessionStorage.removeItem('scokeep_admin_key');
+                        editMode = false;
+                    } else {
+                        const key = prompt('Enter admin password:');
+                        if (key) {
+                            sessionStorage.setItem('scokeep_admin_key', key);
+                            editMode = true;
+                        }
+                    }
+                    render();
+                });
+            }
+
             const clearBtn = container.querySelector('#clear-stats');
             if (clearBtn) {
                 clearBtn.addEventListener('click', async () => {
@@ -122,6 +158,37 @@ export const statsScreen = {
                     render();
                 });
             });
+
+            // Tap score cell to edit (only in edit mode)
+            if (editMode) {
+                container.querySelectorAll('.score-cell').forEach(cell => {
+                    cell.style.cursor = 'pointer';
+                    cell.addEventListener('click', async () => {
+                        const gameId = Number(cell.dataset.gameId);
+                        const roundNum = Number(cell.dataset.round);
+                        const playerIdx = Number(cell.dataset.player);
+                        const current = Number(cell.dataset.score);
+                        const newVal = prompt(`Edit score (round ${roundNum}):`, current);
+                        if (newVal === null) return;
+                        const parsed = parseInt(newVal, 10);
+                        if (isNaN(parsed)) return;
+                        const adminKey = sessionStorage.getItem('scokeep_admin_key');
+                        try {
+                            await patchScore(gameId, roundNum, playerIdx, parsed, adminKey);
+                            expandedData = await getScoreboard(gameId);
+                            stats = await getPlaygroundStats(shareCode);
+                            render();
+                        } catch (err) {
+                            if (err.message.includes('Admin')) {
+                                sessionStorage.removeItem('scokeep_admin_key');
+                                editMode = false;
+                                render();
+                            }
+                            alert(err.message);
+                        }
+                    });
+                });
+            }
         }
 
         function bindCardFlipListeners() {
@@ -383,7 +450,8 @@ export const statsScreen = {
                                             if (bid !== null && hand !== null && bid !== hand) {
                                                 cellClass = bid > hand ? 'cell-overbid' : 'cell-underbid';
                                             }
-                                            return `<td class="${cellClass} ${score < 0 ? 'score-negative' : ''}">
+                                            return `<td class="score-cell ${cellClass} ${score < 0 ? 'score-negative' : ''}"
+                                                data-game-id="${game.game_id}" data-round="${round.round_num}" data-player="${idx}" data-score="${score}">
                                                 ${score > 0 ? '+' : ''}${score}
                                             </td>`;
                                         }).join('')}

@@ -158,3 +158,4 @@ export function getScoreboard(gameId) {
 export function undoRound(gameId) {
     return request('POST', `/game/${gameId}/undo`);
 }
+

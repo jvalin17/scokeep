@@ -1,5 +1,7 @@
 """Scoreboard API routes — scores, history, undo, admin correction."""
 
+import hmac
+
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -69,9 +71,8 @@ async def correct_score(
     db: AsyncSession = Depends(get_db),
     x_admin_key: str = Header(default=""),
 ):
-    if not settings.admin_key or x_admin_key != settings.admin_key:
-        raise HTTPException(status_code=403, detail="Admin access required")
-
+    if not settings.admin_key or not hmac.compare_digest(x_admin_key, settings.admin_key):
+        raise HTTPException(status_code=403, detail="Admin key required")
     game = await get_game_with_auth(db, game_id, playground_id)
     if body.player_index < 0 or body.player_index >= len(game.players):
         raise HTTPException(status_code=400, detail="Invalid player index")

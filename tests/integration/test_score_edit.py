@@ -1,10 +1,9 @@
-"""Integration tests for admin score correction endpoint."""
+"""Integration tests for score correction endpoint."""
 
 from httpx import AsyncClient
 
 from app.config import settings
 
-# Set admin key for tests
 settings.admin_key = "test-admin-secret"
 
 
@@ -54,7 +53,7 @@ async def _setup(client: AsyncClient):
 
 
 class TestScoreCorrection:
-    """PATCH /api/game/{game_id}/round/{round_num}/score — admin only."""
+    """PATCH /api/game/{game_id}/round/{round_num}/score — admin key required."""
 
     async def test_correct_score_with_admin_key(self, client: AsyncClient):
         game_id, cookies = await _setup(client)
@@ -90,7 +89,7 @@ class TestScoreCorrection:
         resp = await client.patch(
             f"/api/game/{game_id}/round/1/score",
             json={"player_index": 0, "score": 99},
-            headers={"X-Admin-Key": "wrong-key"},
+            headers={"X-Admin-Key": "wrong"},
             cookies=cookies,
         )
         assert resp.status_code == 403
