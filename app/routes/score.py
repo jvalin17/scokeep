@@ -90,4 +90,8 @@ async def correct_score(
     rnd.scores = updated_scores
     await db.commit()
 
+    # Recompute insights (career records, highlights, personalities)
+    from app.services.insights import compute_insights
+    await compute_insights(db, game.playground_id)
+
     return {"status": "corrected", "round_num": round_num, "updated_score": body.score}
