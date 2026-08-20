@@ -38,10 +38,11 @@ export const finalScreen = {
                 </div>
 
                 <div class="final-actions">
-                    <button onclick="location.hash=''" class="btn btn-primary">Home</button>
+                    <button id="final-home" class="btn btn-primary">Home</button>
                 </div>
             </div>
         `;
+        container.querySelector('#final-home').addEventListener('click', () => { location.hash = ''; });
     },
 
     unmount() {},

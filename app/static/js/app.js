@@ -86,10 +86,12 @@ async function render() {
             <div class="error-screen">
                 <h2>Something went wrong</h2>
                 <p>${error.message}</p>
-                <button onclick="location.hash=''" class="btn">Go Home</button>
-                <button onclick="location.reload()" class="btn" style="margin-top:8px;">Reload</button>
+                <button id="err-home" class="btn">Go Home</button>
+                <button id="err-reload" class="btn" style="margin-top:8px;">Reload</button>
             </div>
         `;
+        appElement.querySelector('#err-home').addEventListener('click', () => { location.hash = ''; });
+        appElement.querySelector('#err-reload').addEventListener('click', () => { location.reload(); });
     }
 }
 

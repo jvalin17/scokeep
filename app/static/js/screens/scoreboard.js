@@ -138,7 +138,7 @@ export const scoreboardScreen = {
                 ${isGameOver ? winnerHtml : `
                     <div class="round-info">
                         <span>After Round ${game.current_round}</span>
-                        ${state.playground ? `<button class="btn-home" onclick="location.hash='playground/${state.playground.share_code}'">🏠</button>` : ''}
+                        ${state.playground ? `<button class="btn-home" data-nav="playground/${state.playground.share_code}">🏠</button>` : ''}
                     </div>
                 `}
 
@@ -146,7 +146,7 @@ export const scoreboardScreen = {
 
                 <div class="scoreboard-actions">
                     ${isGameOver ? `
-                        <button onclick="location.hash='${state.playground ? `playground/${state.playground.share_code}` : ''}'" class="btn btn-primary">🏠 Back to Room</button>
+                        <button class="btn btn-primary" data-nav="${state.playground ? `playground/${state.playground.share_code}` : ''}">🏠 Back to Room</button>
                     ` : `
                         <button id="next-round" class="btn btn-primary">${isLastRound ? 'Finish Game' : 'Next Round'}</button>
                         <button id="end-game" class="btn-text" style="margin-top: 32px; color: var(--danger);">End Game</button>
@@ -156,6 +156,11 @@ export const scoreboardScreen = {
                 <p id="scoreboard-error" class="error hidden"></p>
             </div>
         `;
+
+        // Bind data-nav buttons
+        container.querySelectorAll('[data-nav]').forEach(el => {
+            el.addEventListener('click', () => { location.hash = el.dataset.nav; });
+        });
 
         if (!isGameOver) {
             const nextRoundBtn = container.querySelector('#next-round');

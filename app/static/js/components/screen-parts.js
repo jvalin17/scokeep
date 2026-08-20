@@ -40,7 +40,7 @@ export function renderGameIsland(game, roundsPerSet) {
 export function renderRoundInfoBar(state) {
     return `
         <div class="round-info">
-            ${state.playground ? `<button class="btn-home" onclick="location.hash='playground/${state.playground.share_code}'">🏠</button>` : ''}
+            ${state.playground ? `<button class="btn-home" data-nav="playground/${state.playground.share_code}">🏠</button>` : ''}
             <button class="btn-end-game" id="end-game-btn">End Game</button>
         </div>
     `;
@@ -75,6 +75,11 @@ export function renderTrumpDisplay(roundNum, mode, size = 'small') {
  * Attach the End Game click handler to #end-game-btn in the container.
  */
 export function attachEndGameHandler(container, gameId, navigate, state) {
+    // Bind data-nav buttons (replaces inline onclick)
+    container.querySelectorAll('[data-nav]').forEach(el => {
+        el.addEventListener('click', () => { location.hash = el.dataset.nav; });
+    });
+
     const btn = container.querySelector('#end-game-btn');
     if (!btn) return;
     btn.addEventListener('click', async () => {

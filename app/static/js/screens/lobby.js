@@ -30,7 +30,7 @@ export const lobbyScreen = {
             container.innerHTML = `
                 <div class="lobby">
                     <div class="lobby-header">
-                        <button class="btn-text" onclick="location.hash=''" style="position:absolute;left:16px;">← Home</button>
+                        <button class="btn-text" id="lobby-home" style="position:absolute;left:16px;">← Home</button>
                         <h2>${playground.name}</h2>
                         <p class="share-code">Code: <strong>${playground.share_code}</strong></p>
                     </div>
@@ -124,6 +124,10 @@ export const lobbyScreen = {
         }
 
         function bindEvents() {
+            // Home button
+            const homeBtn = container.querySelector('#lobby-home');
+            if (homeBtn) homeBtn.addEventListener('click', () => { location.hash = ''; });
+
             // Add player
             const addBtn = container.querySelector('#add-player-btn');
             const newPlayerInput = container.querySelector('#new-player');

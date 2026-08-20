@@ -43,9 +43,10 @@ export const statsScreen = {
                 <div class="stats">
                     <div class="round-info"><span>Stats</span></div>
                     <p class="stats-empty">No games played yet. Play some rounds first!</p>
-                    <button class="btn btn-primary" onclick="history.back()">Back</button>
+                    <button class="btn btn-primary btn-back">Back</button>
                 </div>
             `;
+            container.querySelector('.btn-back').addEventListener('click', () => history.back());
             return;
         }
 
@@ -54,9 +55,10 @@ export const statsScreen = {
                 <div class="stats">
                     <div class="round-info"><span>Stats</span></div>
                     <p class="stats-empty">No games played yet. Play some rounds first!</p>
-                    <button class="btn btn-primary" onclick="history.back()">Back</button>
+                    <button class="btn btn-primary btn-back">Back</button>
                 </div>
             `;
+            container.querySelector('.btn-back').addEventListener('click', () => history.back());
             return;
         }
 
@@ -89,7 +91,7 @@ export const statsScreen = {
                         ${activeTab === 'history' ? renderHistory() : ''}
                     </div>
 
-                    <button class="btn btn-primary" style="margin-top: 16px;" onclick="history.back()">Back</button>
+                    <button class="btn btn-primary btn-back" style="margin-top: 16px;">Back</button>
                 </div>
             `;
 
@@ -98,6 +100,9 @@ export const statsScreen = {
             if (activeTab === 'insights') {
                 bindCardFlipListeners();
             }
+            container.querySelectorAll('.btn-back').forEach(b => {
+                b.addEventListener('click', () => history.back());
+            });
         }
 
         function bindTabListeners() {
