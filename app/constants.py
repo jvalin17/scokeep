@@ -25,7 +25,7 @@ TRUMP_ORDER = ["spades", "diamonds", "clubs", "hearts"]
 SESSION_COOKIE_NAME = "scokeep_session"
 SESSION_MAX_AGE_AUTH = 60 * 60 * 24 * 30    # 30 days (PIN auth)
 SESSION_MAX_AGE_JOIN = 60 * 60 * 2          # 2 hours (share code join)
-ACTIVE_GAME_TTL_MINUTES = 30               # game considered active within this window
+ACTIVE_GAME_TTL_MINUTES = 60 * 24          # 24 hours — game resumable for a full day
 
 # --- Playground ---
 SHARE_CODE_LENGTH = 4
