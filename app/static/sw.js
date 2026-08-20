@@ -1,6 +1,6 @@
 // Service worker — cache app shell for offline use
 
-const CACHE_NAME = 'scokeep-v39';
+const CACHE_NAME = 'scokeep-v40';
 const APP_SHELL = [
     '/',
     '/static/css/style.css',
