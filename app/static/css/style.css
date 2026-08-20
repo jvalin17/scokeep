@@ -1009,11 +1009,11 @@ input::placeholder { color: var(--text-muted); }
 }
 
 /* Edit mode indicator */
-.stats.edit-mode { background: #FFF3E0; border-radius: var(--radius); padding: 12px; margin: -12px; }
-.stats.edit-mode .round-info { background: #E65100; color: #fff; border-radius: var(--radius-sm); padding: 8px 12px; }
+.stats.edit-mode { background: #EDE7F6; border-radius: var(--radius); padding: 12px; margin: -12px; }
+.stats.edit-mode .round-info { background: #4527A0; color: #fff; border-radius: var(--radius-sm); padding: 8px 12px; }
 .stats.edit-mode .round-info span { color: #fff; }
 .edit-mode-banner {
-    background: #E65100; color: #fff; text-align: center;
+    background: #4527A0; color: #fff; text-align: center;
     padding: 4px 8px; border-radius: var(--radius-sm);
     font-size: 0.75rem; font-weight: 600; margin-bottom: 8px;
 }
