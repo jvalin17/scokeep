@@ -25,7 +25,17 @@ export const statsScreen = {
     async mount(container, state, { navigate, params }) {
         const shareCode = params[0];
         let stats;
-        let editMode = !!sessionStorage.getItem('scokeep_admin_key');
+        let editMode = false;
+        const storedKey = sessionStorage.getItem('scokeep_admin_key');
+        if (storedKey) {
+            try {
+                const vr = await fetch('/api/game/admin/verify', {
+                    method: 'POST', headers: { 'X-Admin-Key': storedKey }, credentials: 'same-origin',
+                });
+                editMode = vr.ok;
+            } catch { /* not valid */ }
+            if (!editMode) sessionStorage.removeItem('scokeep_admin_key');
+        }
         try {
             stats = await getPlaygroundStats(shareCode);
         } catch {
@@ -127,11 +137,25 @@ export const statsScreen = {
                         go.textContent = 'Go';
                         go.className = 'btn-small btn-primary';
                         go.style.cssText = 'padding:6px 12px;font-size:0.8rem;';
-                        const submit = () => {
-                            if (input.value) {
+                        const submit = async () => {
+                            if (!input.value) return;
+                            try {
+                                const resp = await fetch('/api/game/admin/verify', {
+                                    method: 'POST',
+                                    headers: { 'X-Admin-Key': input.value },
+                                    credentials: 'same-origin',
+                                });
+                                if (!resp.ok) {
+                                    input.value = '';
+                                    input.placeholder = 'Wrong password';
+                                    input.style.borderColor = 'var(--danger)';
+                                    return;
+                                }
                                 sessionStorage.setItem('scokeep_admin_key', input.value);
                                 editMode = true;
                                 render();
+                            } catch {
+                                input.placeholder = 'Error — try again';
                             }
                         };
                         go.addEventListener('click', submit);

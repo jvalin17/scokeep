@@ -57,6 +57,16 @@ async def undo_last_round(
     return {"status": "undone", "current_round": game.current_round}
 
 
+@router.post("/admin/verify")
+async def verify_admin_key(
+    _playground_id: int = Depends(require_auth),
+    x_admin_key: str = Header(default=""),
+):
+    if not settings.admin_key or not hmac.compare_digest(x_admin_key, settings.admin_key):
+        raise HTTPException(status_code=403, detail="Invalid admin key")
+    return {"status": "ok"}
+
+
 class ScoreCorrectionRequest(BaseModel):
     player_index: int
     score: int
