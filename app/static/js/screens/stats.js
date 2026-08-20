@@ -1,7 +1,7 @@
 // Stats screen — insights (personality cards), awards, game history
 
-import { getPlaygroundStats, clearPlaygroundStats, getScoreboard } from '../api.js';
-import { confirmModal } from '../components/modal.js';
+import { getPlaygroundStats, clearPlaygroundStats, getScoreboard, deletePlayground } from '../api.js';
+import { confirmModal, typeConfirmModal } from '../components/modal.js';
 import { getTrump } from '../components/game-utils.js';
 import { renderPersonalityCards } from '../components/personality-card.js';
 
@@ -67,15 +67,17 @@ export const statsScreen = {
 
         function render() {
             container.innerHTML = `
-                <div class="stats">
+                <div class="stats ${editMode ? 'edit-mode' : ''}">
+                    ${editMode ? '<div class="edit-mode-banner">✏️ EDIT MODE — tap any score to change it</div>' : ''}
                     <div class="round-info">
                         <span>Stats</span>
                         <span>${stats.total_games} game${stats.total_games !== 1 ? 's' : ''}</span>
                         <button class="btn-refresh" id="stats-gear" title="Settings">⚙</button>
                     </div>
-                    <div id="stats-actions" class="stats-actions hidden">
+                    <div id="stats-actions" class="stats-actions hidden" style="display:none;gap:6px;flex-wrap:wrap;">
                         <button class="btn-small ${editMode ? 'btn-primary' : ''}" id="toggle-edit" style="font-size:0.8rem;padding:6px 12px;">${editMode ? '✏️ Edit Mode ON' : '✏️ Edit Mode'}</button>
-                        <button class="btn-small" id="clear-stats" style="font-size:0.8rem;padding:6px 12px;background:var(--danger);color:#fff;margin-top:6px;">Clear All Stats</button>
+                        <button class="btn-small" id="clear-stats" style="font-size:0.8rem;padding:6px 12px;background:var(--danger);color:#fff;">Clear Stats</button>
+                        <button class="btn-small" id="delete-group" style="font-size:0.8rem;padding:6px 12px;background:#333;color:#fff;">Delete Group</button>
                     </div>
 
                     <div class="stats-tabs">
@@ -115,7 +117,8 @@ export const statsScreen = {
             if (gearBtn) {
                 gearBtn.addEventListener('click', () => {
                     const actions = container.querySelector('#stats-actions');
-                    actions.classList.toggle('hidden');
+                    const isHidden = actions.style.display === 'none' || actions.style.display === '';
+                    actions.style.display = isHidden ? 'flex' : 'none';
                 });
             }
 
@@ -172,11 +175,28 @@ export const statsScreen = {
             const clearBtn = container.querySelector('#clear-stats');
             if (clearBtn) {
                 clearBtn.addEventListener('click', async () => {
-                    if (!await confirmModal('Clear Stats', 'Clear all game history and stats? This cannot be undone.', 'Clear All', true)) return;
+                    if (!await typeConfirmModal('Clear Stats', 'This will permanently delete all game history, stats, and insights for this room.', 'clear stats', 'Clear All', 'warning')) return;
                     try {
                         await clearPlaygroundStats(shareCode);
                         navigate(`stats/${shareCode}`);
                     } catch { /* retry */ }
+                });
+            }
+
+            const deleteBtn = container.querySelector('#delete-group');
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', async () => {
+                    if (!await typeConfirmModal('Delete Group', 'This will permanently delete this group, all games, stats, and insights. This cannot be undone.', 'delete group', 'Delete', 'danger')) return;
+                    const pin = prompt('Enter group PIN to confirm:');
+                    if (!pin) return;
+                    try {
+                        const pgName = state.playground?.name;
+                        if (!pgName) { alert('Could not find group name'); return; }
+                        await deletePlayground(pgName, pin);
+                        navigate('');
+                    } catch (err) {
+                        alert(err.message);
+                    }
                 });
             }
 
