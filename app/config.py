@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     debug: bool = False
     app_port: int = 8050
     rate_limit_enabled: bool = True
+    admin_key: str = ""
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
