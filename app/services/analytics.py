@@ -58,7 +58,7 @@ class AnalyticsService:
             "game_history": game_history[:20],
             "highlights": highlights,
             "insights": insights_blob,
-            "total_games": len(games),
+            "total_games": len(game_history),
         }
 
     @staticmethod

@@ -618,3 +618,38 @@ class TestHighlights:
         # Alice: 2/2 = 100%, Bob: 1/2 = 50%
         assert last_game["sharpshooter"]["name"] == "Alice"
         assert last_game["sharpshooter"]["accuracy"] == 100
+
+    async def test_empty_finished_games_not_counted(
+        self, client: AsyncClient,
+    ):
+        """Games ended without any scored rounds should not inflate total_games."""
+        pg, cookies = await _setup(client, "Empty Game Count")
+
+        # Play one real game
+        await _play_full_game(
+            client, pg["id"], cookies,
+            players=["Alice", "Bob", "Charlie"],
+            bids=[2, 1, 0], hands=[2, 1, 5],
+        )
+
+        # Create and immediately end a game (no rounds played)
+        game_resp = await client.post("/api/game", json={
+            "playground_id": pg["id"],
+            "players": ["Alice", "Bob", "Charlie"],
+            "settings": {"num_sets": 1},
+        }, cookies=cookies)
+        empty_game_id = game_resp.json()["id"]
+        await client.post(
+            f"/api/game/{empty_game_id}/end", cookies=cookies,
+        )
+
+        resp = await client.get(
+            f"/api/playground/{pg['share_code']}/stats", cookies=cookies,
+        )
+        body = resp.json()
+        # total_games should match game_history length — empty games excluded
+        assert body["total_games"] == 1, (
+            f"Expected 1 real game, got {body['total_games']} "
+            f"(game_history has {len(body['game_history'])} entries)"
+        )
+        assert len(body["game_history"]) == 1

@@ -1006,3 +1006,35 @@ input::placeholder { color: var(--text-muted); }
 
 /* Clear stats mode — red tint */
 .stats.clear-mode { background: #FFCDD2; border-radius: var(--radius); }
+
+/* ── Responsive breakpoints ── */
+
+/* Tablet (portrait & landscape) */
+@media (min-width: 600px) {
+    #app {
+        max-width: 560px;
+        padding: 24px;
+    }
+    .logo { margin-top: 64px; font-size: 2.8rem; }
+    .keypad-grid { gap: 12px; }
+    .keypad-grid button { padding: 18px; font-size: 1.6rem; }
+    .personality-card { height: 520px; }
+}
+
+/* Desktop / large tablet */
+@media (min-width: 900px) {
+    #app {
+        max-width: 680px;
+        padding: 32px 40px;
+        margin-top: 24px;
+        margin-bottom: 24px;
+        background: var(--bg-card);
+        border-radius: 16px;
+        box-shadow: var(--shadow-lg);
+        min-height: calc(100dvh - 48px);
+    }
+    body { background: #EEEEEE; }
+    .logo { margin-top: 48px; }
+    .btn-primary { max-width: 400px; margin-left: auto; margin-right: auto; }
+    .scoresheet { font-size: 0.95rem; }
+}

@@ -27,7 +27,8 @@ export const statsScreen = {
         let stats;
         let editMode = false;
         let clearMode = false;
-        const storedKey = sessionStorage.getItem('scokeep_admin_key');
+        const adminStorageKey = `scokeep_admin_key_${shareCode}`;
+        const storedKey = sessionStorage.getItem(adminStorageKey);
         if (storedKey) {
             try {
                 const vr = await fetch('/api/game/admin/verify', {
@@ -35,7 +36,7 @@ export const statsScreen = {
                 });
                 editMode = vr.ok;
             } catch { /* not valid */ }
-            if (!editMode) sessionStorage.removeItem('scokeep_admin_key');
+            if (!editMode) sessionStorage.removeItem(adminStorageKey);
         }
         try {
             stats = await getPlaygroundStats(shareCode);
@@ -129,7 +130,7 @@ export const statsScreen = {
             if (editBtn) {
                 editBtn.addEventListener('click', () => {
                     if (editMode) {
-                        sessionStorage.removeItem('scokeep_admin_key');
+                        sessionStorage.removeItem(adminStorageKey);
                         editMode = false;
                         render();
                     } else {
@@ -158,7 +159,7 @@ export const statsScreen = {
                                     input.style.borderColor = 'var(--danger)';
                                     return;
                                 }
-                                sessionStorage.setItem('scokeep_admin_key', input.value);
+                                sessionStorage.setItem(adminStorageKey, input.value);
                                 editMode = true;
                                 render();
                             } catch {
@@ -230,7 +231,7 @@ export const statsScreen = {
                         if (newVal === null) return;
                         const parsed = parseInt(newVal, 10);
                         if (isNaN(parsed)) return;
-                        const adminKey = sessionStorage.getItem('scokeep_admin_key');
+                        const adminKey = sessionStorage.getItem(adminStorageKey);
                         try {
                             await patchScore(gameId, roundNum, playerIdx, parsed, adminKey);
                             expandedData = await getScoreboard(gameId);
@@ -238,7 +239,7 @@ export const statsScreen = {
                             render();
                         } catch (err) {
                             if (err.message.includes('Admin')) {
-                                sessionStorage.removeItem('scokeep_admin_key');
+                                sessionStorage.removeItem(adminStorageKey);
                                 editMode = false;
                                 render();
                             }
