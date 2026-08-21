@@ -26,6 +26,7 @@ export const statsScreen = {
         const shareCode = params[0];
         let stats;
         let editMode = false;
+        let clearMode = false;
         const storedKey = sessionStorage.getItem('scokeep_admin_key');
         if (storedKey) {
             try {
@@ -67,8 +68,9 @@ export const statsScreen = {
         let expandedData = null;
 
         function render() {
+            const modeClass = clearMode ? 'clear-mode' : editMode ? 'edit-mode' : '';
             container.innerHTML = `
-                <div class="stats">
+                <div class="stats ${modeClass}">
                     <div class="round-info">
                         <span>Stats</span>
                         <span>${stats.total_games} game${stats.total_games !== 1 ? 's' : ''}</span>
@@ -176,11 +178,21 @@ export const statsScreen = {
             const clearBtn = container.querySelector('#clear-stats');
             if (clearBtn) {
                 clearBtn.addEventListener('click', async () => {
-                    if (!confirm('Clear all game history and stats? This cannot be undone.')) return;
+                    clearMode = true;
+                    render();
+                    if (!confirm('Clear all game history and stats? This cannot be undone.')) {
+                        clearMode = false;
+                        render();
+                        return;
+                    }
                     try {
                         await clearPlaygroundStats(shareCode);
+                        clearMode = false;
                         navigate(`stats/${shareCode}`);
-                    } catch { /* retry */ }
+                    } catch {
+                        clearMode = false;
+                        render();
+                    }
                 });
             }
 

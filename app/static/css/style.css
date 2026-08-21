@@ -1000,3 +1000,9 @@ input::placeholder { color: var(--text-muted); }
     color: var(--text-muted, #666);
     padding: 2px 0;
 }
+
+/* Edit mode — subtle purple tint */
+.stats.edit-mode { background: #F3E5F5; border-radius: var(--radius); }
+
+/* Clear stats mode — red tint */
+.stats.clear-mode { background: #FFCDD2; border-radius: var(--radius); }
