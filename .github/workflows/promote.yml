@@ -1,0 +1,21 @@
+name: Promote to Production
+
+on:
+  workflow_dispatch:
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Show pending commits
+        run: git log --oneline origin/prod..origin/main
+
+      - name: Merge main into prod
+        run: |
+          git checkout prod
+          git merge origin/main --ff-only
+          git push origin prod
