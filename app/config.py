@@ -1,4 +1,5 @@
 import secrets
+from typing import Literal
 
 from pydantic_settings import BaseSettings
 
@@ -8,6 +9,7 @@ class Settings(BaseSettings):
     secret_key: str = secrets.token_urlsafe(32)
     csrf_secret: str = secrets.token_urlsafe(32)
     debug: bool = False
+    environment: Literal["development", "staging", "production"] = "development"
     app_port: int = 8050
     rate_limit_enabled: bool = True
     admin_key: str = ""

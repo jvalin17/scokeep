@@ -1,3 +1,5 @@
+import asyncio
+import contextlib
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -41,11 +43,22 @@ async def _recompute_all_insights():
         logger.info("Recomputed insights for %d playgrounds", len(pg_ids))
 
 
+def _log_task_error(task: asyncio.Task):
+    if not task.cancelled() and task.exception():
+        logging.getLogger("scokeep.startup").error(
+            "Insights recompute failed: %s", task.exception(),
+        )
+
+
 @asynccontextmanager
 async def lifespan(application: FastAPI):
     await create_tables()
-    await _recompute_all_insights()
+    task = asyncio.create_task(_recompute_all_insights())
+    task.add_done_callback(_log_task_error)
     yield
+    task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await task
 
 
 app = FastAPI(title="Scokeep", version="0.1.0", lifespan=lifespan)
@@ -146,4 +159,9 @@ async def health():
             await conn.execute(text("SELECT 1"))
         return {"status": "healthy", "database": "connected"}
     except Exception as exc:
-        return {"status": "unhealthy", "database": str(exc)}
+        logging.getLogger("scokeep.health").error("DB health check failed: %s", exc)
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=503,
+            content={"status": "unhealthy", "database": "unavailable"},
+        )

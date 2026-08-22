@@ -5,6 +5,7 @@ services:
     runtime: docker
     plan: free
     branch: prod
+    healthCheckPath: /api/health
     envVars:
       - key: DATABASE_URL
         sync: false
@@ -12,6 +13,8 @@ services:
         generateValue: true
       - key: CSRF_SECRET
         generateValue: true
+      - key: ENVIRONMENT
+        value: production
 
   # Stable (staging) — watches 'main' branch
   - type: web
@@ -19,6 +22,7 @@ services:
     runtime: docker
     plan: free
     branch: main
+    healthCheckPath: /api/health
     envVars:
       - key: DATABASE_URL
         sync: false
@@ -26,3 +30,5 @@ services:
         generateValue: true
       - key: CSRF_SECRET
         generateValue: true
+      - key: ENVIRONMENT
+        value: staging
