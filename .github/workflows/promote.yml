@@ -4,18 +4,81 @@ on:
   workflow_dispatch:
 
 jobs:
-  promote:
+  # ── Gate: verify CI passed on latest main ─────────────────
+  check-ci:
+    name: Verify CI passed
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Get latest main SHA
+        id: sha
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Check CI status on main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          SHA=${{ steps.sha.outputs.sha }}
+          echo "Checking CI status for main @ $SHA"
+
+          # Wait up to 30s for checks to be available (in case CI just started)
+          for i in 1 2 3; do
+            STATUS=$(gh api repos/${{ github.repository }}/commits/$SHA/status --jq '.state')
+            if [ "$STATUS" != "pending" ]; then break; fi
+            echo "Checks pending, waiting 10s..."
+            sleep 10
+          done
+
+          # Check the CI workflow specifically
+          CONCLUSION=$(gh run list \
+            --branch main \
+            --workflow ci.yml \
+            --limit 1 \
+            --json headSha,conclusion \
+            --jq '.[0] | select(.headSha == "'"$SHA"'") | .conclusion')
+
+          if [ "$CONCLUSION" != "success" ]; then
+            echo "::error::CI has not passed on main ($SHA). Conclusion: ${CONCLUSION:-not found}"
+            echo ""
+            echo "Latest CI runs:"
+            gh run list --workflow ci.yml --branch main --limit 3
+            exit 1
+          fi
+
+          echo "CI passed on main @ $SHA"
+
+  # ── Promote: merge main → prod (fast-forward) ────────────
+  promote:
+    name: Merge main → prod
+    needs: [check-ci]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Show pending commits
-        run: git log --oneline origin/prod..origin/main
+        run: |
+          echo "=== Commits to promote ==="
+          COUNT=$(git log --oneline origin/prod..origin/main | wc -l | tr -d ' ')
+          echo "$COUNT commit(s) pending:"
+          echo ""
+          git log --oneline origin/prod..origin/main
+          echo ""
+          if [ "$COUNT" = "0" ]; then
+            echo "::warning::Nothing to promote — main and prod are identical."
+            exit 1
+          fi
 
-      - name: Merge main into prod
+      - name: Fast-forward prod to main
         run: |
           git checkout prod
           git merge origin/main --ff-only
           git push origin prod
+          echo ""
+          echo "Promoted to prod. Render will auto-deploy."

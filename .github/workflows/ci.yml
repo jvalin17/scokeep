@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint (ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install ruff
+        run: pip install ruff>=0.8.0
+
+      - name: Ruff check
+        run: ruff check .
+
+      - name: Ruff format check
+        run: ruff format --check .
+
+  test:
+    name: Tests (pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Run pytest
+        run: pytest --tb=short -q
+
+  docker:
+    name: Docker build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t scokeep:ci-${{ github.sha }} .
+
+  # ── Future: UI tests ──────────────────────────────────────
+  # Uncomment when Playwright tests exist in tests/ui/
+  #
+  # ui:
+  #   name: UI tests (Playwright)
+  #   needs: [docker]
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #
+  #     - uses: actions/setup-python@v5
+  #       with:
+  #         python-version: "3.12"
+  #         cache: pip
+  #
+  #     - name: Install dependencies
+  #       run: |
+  #         pip install -e ".[dev]"
+  #         pip install playwright pytest-playwright
+  #         playwright install --with-deps chromium
+  #
+  #     - name: Start app
+  #       run: |
+  #         uvicorn app.main:app --host 0.0.0.0 --port 8050 &
+  #         sleep 3
+  #       env:
+  #         DATABASE_URL: "sqlite+aiosqlite:///./ui_test.db"
+  #
+  #     - name: Run Playwright tests
+  #       run: pytest tests/ui/ --tb=short -q
