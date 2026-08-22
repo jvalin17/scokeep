@@ -46,7 +46,8 @@ async def _recompute_all_insights():
 def _log_task_error(task: asyncio.Task):
     if not task.cancelled() and task.exception():
         logging.getLogger("scokeep.startup").error(
-            "Insights recompute failed: %s", task.exception(),
+            "Insights recompute failed: %s",
+            task.exception(),
         )
 
 
@@ -87,9 +88,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "connect-src 'self'"
         )
         if not settings.debug:
-            response.headers["Strict-Transport-Security"] = (
-                "max-age=31536000; includeSubDomains"
-            )
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         if settings.debug and request.url.path.startswith("/static/"):
             response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
         return response
@@ -135,6 +134,7 @@ async def sitemap():
   </url>
 </urlset>"""
     from starlette.responses import Response as StarletteResponse
+
     return StarletteResponse(content=xml, media_type="application/xml")
 
 
@@ -144,6 +144,7 @@ async def robots():
 Allow: /
 Sitemap: https://scokeep.onrender.com/sitemap.xml"""
     from starlette.responses import Response as StarletteResponse
+
     return StarletteResponse(content=content, media_type="text/plain")
 
 
@@ -161,6 +162,7 @@ async def health():
     except Exception as exc:
         logging.getLogger("scokeep.health").error("DB health check failed: %s", exc)
         from fastapi.responses import JSONResponse
+
         return JSONResponse(
             status_code=503,
             content={"status": "unhealthy", "database": "unavailable"},

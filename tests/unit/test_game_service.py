@@ -17,7 +17,6 @@ async def _create_playground(db: AsyncSession):
 
 
 class TestCreateGame:
-
     async def test_creates_game_with_default_settings(self, db_session: AsyncSession):
         playground = await _create_playground(db_session)
         game = await GameService.create(
@@ -71,7 +70,6 @@ class TestCreateGame:
 
 
 class TestGetGame:
-
     async def test_get_by_id(self, db_session: AsyncSession):
         playground = await _create_playground(db_session)
         created = await GameService.create(
@@ -91,7 +89,6 @@ class TestGetGame:
 
 
 class TestAdvanceRound:
-
     async def test_advances_round_and_dealer(self, db_session: AsyncSession):
         playground = await _create_playground(db_session)
         game = await GameService.create(
@@ -141,7 +138,6 @@ class TestAdvanceRound:
 
 
 class TestEndGameEarly:
-
     async def test_ends_active_game(self, db_session: AsyncSession):
         playground = await _create_playground(db_session)
         game = await GameService.create(
@@ -159,7 +155,6 @@ class TestEndGameEarly:
 
 
 class TestUpdatePhase:
-
     async def test_updates_phase(self, db_session: AsyncSession):
         playground = await _create_playground(db_session)
         game = await GameService.create(

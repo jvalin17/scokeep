@@ -23,7 +23,6 @@ def _hash_pin(pin: str) -> str:
 
 
 class PlaygroundService:
-
     @staticmethod
     async def create(
         db: AsyncSession,
@@ -51,16 +50,12 @@ class PlaygroundService:
 
     @staticmethod
     async def get_by_share_code(db: AsyncSession, share_code: str) -> Playground | None:
-        result = await db.execute(
-            select(Playground).where(Playground.share_code == share_code)
-        )
+        result = await db.execute(select(Playground).where(Playground.share_code == share_code))
         return result.scalar_one_or_none()
 
     @staticmethod
     async def get_by_name(db: AsyncSession, name: str) -> Playground | None:
-        result = await db.execute(
-            select(Playground).where(Playground.name == name)
-        )
+        result = await db.execute(select(Playground).where(Playground.name == name))
         return result.scalar_one_or_none()
 
     @staticmethod
@@ -68,12 +63,14 @@ class PlaygroundService:
         """Delete a playground and all its games and rounds."""
         from app.models.game import Game
         from app.models.round import Round
+
         game_ids_result = await db.execute(
             select(Game.id).where(Game.playground_id == playground.id)
         )
         game_ids = [row[0] for row in game_ids_result.all()]
         if game_ids:
             from sqlalchemy import delete
+
             await db.execute(delete(Round).where(Round.game_id.in_(game_ids)))
             await db.execute(delete(Game).where(Game.id.in_(game_ids)))
         await db.delete(playground)
@@ -82,8 +79,6 @@ class PlaygroundService:
     @staticmethod
     async def list_recent_names(db: AsyncSession, limit: int = 5) -> list[str]:
         result = await db.execute(
-            select(Playground.name)
-            .order_by(Playground.updated_at.desc())
-            .limit(limit)
+            select(Playground.name).order_by(Playground.updated_at.desc()).limit(limit)
         )
         return [row[0] for row in result.all()]

@@ -16,7 +16,9 @@ from app.services.round import RoundService
 async def _setup_game(db: AsyncSession, num_sets: int = 1, must_lose: bool = False):
     """Helper: create playground + game, return game."""
     playground = await PlaygroundService.create(
-        db=db, name="Round Test", pin="1234",
+        db=db,
+        name="Round Test",
+        pin="1234",
         players=["Alice", "Bob", "Charlie", "Dave"],
     )
     game = await GameService.create(
@@ -29,7 +31,6 @@ async def _setup_game(db: AsyncSession, num_sets: int = 1, must_lose: bool = Fal
 
 
 class TestCreateRound:
-
     async def test_creates_round_for_game(self, db_session: AsyncSession):
         game = await _setup_game(db_session)
         round_obj = await RoundService.create_round(db_session, game)
@@ -44,7 +45,6 @@ class TestCreateRound:
 
 
 class TestSubmitBid:
-
     async def test_submit_bid_stores_value(self, db_session: AsyncSession):
         game = await _setup_game(db_session)
         round_obj = await RoundService.create_round(db_session, game)
@@ -72,7 +72,6 @@ class TestSubmitBid:
 
 
 class TestMustLoseMode:
-
     async def test_rejects_bid_that_equals_cards_dealt(self, db_session: AsyncSession):
         game = await _setup_game(db_session, must_lose=True)
         round_obj = await RoundService.create_round(db_session, game)
@@ -84,8 +83,13 @@ class TestMustLoseMode:
 
         with pytest.raises(ValueError, match="must-lose"):
             await RoundService.submit_bid(
-                db_session, round_obj, player_index=3, value=2,
-                must_lose=True, cards_dealt=8, player_count=4,
+                db_session,
+                round_obj,
+                player_index=3,
+                value=2,
+                must_lose=True,
+                cards_dealt=8,
+                player_count=4,
             )
 
     async def test_allows_bid_that_doesnt_equal_cards(self, db_session: AsyncSession):
@@ -98,8 +102,13 @@ class TestMustLoseMode:
 
         # Bid 0 → total=6 ≠ 8, allowed
         await RoundService.submit_bid(
-            db_session, round_obj, player_index=3, value=0,
-            must_lose=True, cards_dealt=8, player_count=4,
+            db_session,
+            round_obj,
+            player_index=3,
+            value=0,
+            must_lose=True,
+            cards_dealt=8,
+            player_count=4,
         )
         assert round_obj.bids["3"] == 0
 
@@ -110,8 +119,13 @@ class TestMustLoseMode:
 
         # With 8 cards, first player bids 8 — allowed (not last player)
         await RoundService.submit_bid(
-            db_session, round_obj, player_index=0, value=8,
-            must_lose=True, cards_dealt=8, player_count=4,
+            db_session,
+            round_obj,
+            player_index=0,
+            value=8,
+            must_lose=True,
+            cards_dealt=8,
+            player_count=4,
         )
         assert round_obj.bids["0"] == 8
 
@@ -127,13 +141,17 @@ class TestMustLoseMode:
         # Last player: bid 2 → total=8=cards, blocked
         with pytest.raises(ValueError, match="must-lose"):
             await RoundService.submit_bid(
-                db_session, round_obj, player_index=3, value=2,
-                must_lose=True, cards_dealt=8, player_count=4,
+                db_session,
+                round_obj,
+                player_index=3,
+                value=2,
+                must_lose=True,
+                cards_dealt=8,
+                player_count=4,
             )
 
 
 class TestConfirmBids:
-
     async def test_confirm_bids_changes_phase(self, db_session: AsyncSession):
         game = await _setup_game(db_session)
         round_obj = await RoundService.create_round(db_session, game)
@@ -155,7 +173,6 @@ class TestConfirmBids:
 
 
 class TestSubmitHands:
-
     async def test_submit_hands_stores_value(self, db_session: AsyncSession):
         game = await _setup_game(db_session)
         round_obj = await RoundService.create_round(db_session, game)
@@ -174,7 +191,6 @@ class TestSubmitHands:
 
 
 class TestEndRound:
-
     async def test_calculates_scores_and_stores(self, db_session: AsyncSession):
         game = await _setup_game(db_session)
         round_obj = await RoundService.create_round(db_session, game)
@@ -224,7 +240,6 @@ class TestEndRound:
 
 
 class TestEditBid:
-
     async def test_edit_existing_bid(self, db_session: AsyncSession):
         game = await _setup_game(db_session)
         round_obj = await RoundService.create_round(db_session, game)

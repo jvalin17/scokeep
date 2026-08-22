@@ -26,6 +26,7 @@ from app.services.insights import (
 
 def _make_round(cards_dealt, bids, hands_won, scores, trump_suit="spades"):
     """Create a mock round object for testing."""
+
     class MockRound:
         def __init__(self, cards_dealt, bids, hands_won, scores, trump_suit):
             self.cards_dealt = cards_dealt
@@ -33,6 +34,7 @@ def _make_round(cards_dealt, bids, hands_won, scores, trump_suit="spades"):
             self.hands_won = hands_won
             self.scores = scores
             self.trump_suit = trump_suit
+
     return MockRound(cards_dealt, bids, hands_won, scores, trump_suit)
 
 
@@ -43,11 +45,13 @@ def _make_game(players, rounds_data, winner=None):
       (cards_dealt, bids, hands_won, scores) — trump defaults to "spades"
       (cards_dealt, bids, hands_won, scores, trump_suit)
     """
+
     class MockGame:
         def __init__(self, players, rounds, winner):
             self.players = players
             self.rounds = rounds
             self.winner = winner
+
     rounds = []
     for r in rounds_data:
         if len(r) == 5:
@@ -163,9 +167,15 @@ class TestFeatureDimensions:
 
     def test_dimension_names(self):
         expected = [
-            "bid_accuracy", "overbid_ratio", "underbid_ratio",
-            "score_variance", "zero_bid_success", "high_card_accuracy",
-            "low_card_accuracy", "tempo_first_half", "tempo_second_half",
+            "bid_accuracy",
+            "overbid_ratio",
+            "underbid_ratio",
+            "score_variance",
+            "zero_bid_success",
+            "high_card_accuracy",
+            "low_card_accuracy",
+            "tempo_first_half",
+            "tempo_second_half",
             "comeback_rate",
         ]
         assert expected == FEATURE_DIMENSIONS
@@ -179,13 +189,15 @@ class TestFeatureVectorBasic:
         # 3 games, player 0 always bids 2 on 5 cards and makes it
         games = []
         for _ in range(3):
-            games.append(_make_game(
-                players=["Alice", "Bob"],
-                rounds_data=[
-                    (5, {"0": 2, "1": 3}, {"0": 2, "1": 3}, {"0": 20, "1": 30}),
-                ],
-                winner="Bob",
-            ))
+            games.append(
+                _make_game(
+                    players=["Alice", "Bob"],
+                    rounds_data=[
+                        (5, {"0": 2, "1": 3}, {"0": 2, "1": 3}, {"0": 20, "1": 30}),
+                    ],
+                    winner="Bob",
+                )
+            )
         vector = compute_feature_vector("Alice", games)
         # dim 0 = bid_accuracy
         assert vector[0] == pytest.approx(1.0)
@@ -194,13 +206,15 @@ class TestFeatureVectorBasic:
         """Player never makes a bid → accuracy = 0.0."""
         games = []
         for _ in range(3):
-            games.append(_make_game(
-                players=["Alice", "Bob"],
-                rounds_data=[
-                    (5, {"0": 2, "1": 3}, {"0": 0, "1": 3}, {"0": -20, "1": 30}),
-                ],
-                winner="Bob",
-            ))
+            games.append(
+                _make_game(
+                    players=["Alice", "Bob"],
+                    rounds_data=[
+                        (5, {"0": 2, "1": 3}, {"0": 0, "1": 3}, {"0": -20, "1": 30}),
+                    ],
+                    winner="Bob",
+                )
+            )
         vector = compute_feature_vector("Alice", games)
         assert vector[0] == pytest.approx(0.0)
 
@@ -208,13 +222,15 @@ class TestFeatureVectorBasic:
         """Player always overbids → overbid_ratio = 1.0."""
         games = []
         for _ in range(3):
-            games.append(_make_game(
-                players=["Alice", "Bob"],
-                rounds_data=[
-                    (5, {"0": 3, "1": 2}, {"0": 1, "1": 2}, {"0": -30, "1": 20}),
-                ],
-                winner="Bob",
-            ))
+            games.append(
+                _make_game(
+                    players=["Alice", "Bob"],
+                    rounds_data=[
+                        (5, {"0": 3, "1": 2}, {"0": 1, "1": 2}, {"0": -30, "1": 20}),
+                    ],
+                    winner="Bob",
+                )
+            )
         vector = compute_feature_vector("Alice", games)
         # dim 1 = overbid_ratio
         assert vector[1] == pytest.approx(1.0)
@@ -225,13 +241,15 @@ class TestFeatureVectorBasic:
         """Player always underbids → underbid_ratio = 1.0."""
         games = []
         for _ in range(3):
-            games.append(_make_game(
-                players=["Alice", "Bob"],
-                rounds_data=[
-                    (5, {"0": 1, "1": 2}, {"0": 3, "1": 2}, {"0": -10, "1": 20}),
-                ],
-                winner="Bob",
-            ))
+            games.append(
+                _make_game(
+                    players=["Alice", "Bob"],
+                    rounds_data=[
+                        (5, {"0": 1, "1": 2}, {"0": 3, "1": 2}, {"0": -10, "1": 20}),
+                    ],
+                    winner="Bob",
+                )
+            )
         vector = compute_feature_vector("Alice", games)
         assert vector[2] == pytest.approx(1.0)
         assert vector[1] == pytest.approx(0.0)
@@ -299,13 +317,15 @@ class TestFeatureVectorZeroBid:
         """Player always bids 0 and wins 0 → zero_bid_success = 1.0."""
         games = []
         for _ in range(3):
-            games.append(_make_game(
-                players=["Alice", "Bob"],
-                rounds_data=[
-                    (5, {"0": 0, "1": 5}, {"0": 0, "1": 5}, {"0": 10, "1": 50}),
-                ],
-                winner="Bob",
-            ))
+            games.append(
+                _make_game(
+                    players=["Alice", "Bob"],
+                    rounds_data=[
+                        (5, {"0": 0, "1": 5}, {"0": 0, "1": 5}, {"0": 10, "1": 50}),
+                    ],
+                    winner="Bob",
+                )
+            )
         vector = compute_feature_vector("Alice", games)
         assert vector[4] == pytest.approx(1.0)
 
@@ -313,13 +333,15 @@ class TestFeatureVectorZeroBid:
         """Player bids 0 but wins hands → zero_bid_success = 0.0."""
         games = []
         for _ in range(3):
-            games.append(_make_game(
-                players=["Alice", "Bob"],
-                rounds_data=[
-                    (5, {"0": 0, "1": 5}, {"0": 2, "1": 3}, {"0": -10, "1": -50}),
-                ],
-                winner="Alice",
-            ))
+            games.append(
+                _make_game(
+                    players=["Alice", "Bob"],
+                    rounds_data=[
+                        (5, {"0": 0, "1": 5}, {"0": 2, "1": 3}, {"0": -10, "1": -50}),
+                    ],
+                    winner="Alice",
+                )
+            )
         vector = compute_feature_vector("Alice", games)
         assert vector[4] == pytest.approx(0.0)
 
@@ -327,13 +349,15 @@ class TestFeatureVectorZeroBid:
         """Player never bids 0 → zero_bid_success = 0.0 (no data)."""
         games = []
         for _ in range(3):
-            games.append(_make_game(
-                players=["Alice", "Bob"],
-                rounds_data=[
-                    (5, {"0": 3, "1": 2}, {"0": 3, "1": 2}, {"0": 30, "1": 20}),
-                ],
-                winner="Alice",
-            ))
+            games.append(
+                _make_game(
+                    players=["Alice", "Bob"],
+                    rounds_data=[
+                        (5, {"0": 3, "1": 2}, {"0": 3, "1": 2}, {"0": 30, "1": 20}),
+                    ],
+                    winner="Alice",
+                )
+            )
         vector = compute_feature_vector("Alice", games)
         assert vector[4] == pytest.approx(0.0)
 
@@ -343,18 +367,20 @@ class TestFeatureVectorTempo:
 
     def test_strong_first_half(self):
         """Player scores well in 1st half, poorly in 2nd → tempo_first > tempo_second."""
-        games = [_make_game(
-            players=["Alice", "Bob"],
-            rounds_data=[
-                # 1st half (rounds 1-2): Alice scores high
-                (5, {"0": 3, "1": 2}, {"0": 3, "1": 2}, {"0": 30, "1": 20}),
-                (4, {"0": 2, "1": 2}, {"0": 2, "1": 2}, {"0": 20, "1": 20}),
-                # 2nd half (rounds 3-4): Alice scores low
-                (3, {"0": 2, "1": 1}, {"0": 0, "1": 1}, {"0": -20, "1": 11}),
-                (2, {"0": 1, "1": 1}, {"0": 0, "1": 1}, {"0": -10, "1": 11}),
-            ],
-            winner="Bob",
-        )] * 3
+        games = [
+            _make_game(
+                players=["Alice", "Bob"],
+                rounds_data=[
+                    # 1st half (rounds 1-2): Alice scores high
+                    (5, {"0": 3, "1": 2}, {"0": 3, "1": 2}, {"0": 30, "1": 20}),
+                    (4, {"0": 2, "1": 2}, {"0": 2, "1": 2}, {"0": 20, "1": 20}),
+                    # 2nd half (rounds 3-4): Alice scores low
+                    (3, {"0": 2, "1": 1}, {"0": 0, "1": 1}, {"0": -20, "1": 11}),
+                    (2, {"0": 1, "1": 1}, {"0": 0, "1": 1}, {"0": -10, "1": 11}),
+                ],
+                winner="Bob",
+            )
+        ] * 3
         vector = compute_feature_vector("Alice", games)
         # dim 7 = tempo_first_half, dim 8 = tempo_second_half
         assert vector[7] > vector[8]
@@ -365,14 +391,16 @@ class TestFeatureVectorHighLowCards:
 
     def test_high_card_specialist(self):
         """Perfect accuracy on 6-8 cards, zero on 1-3 → high > low."""
-        games = [_make_game(
-            players=["Alice", "Bob"],
-            rounds_data=[
-                (8, {"0": 3, "1": 5}, {"0": 3, "1": 5}, {"0": 30, "1": 50}),
-                (2, {"0": 1, "1": 1}, {"0": 0, "1": 1}, {"0": -10, "1": 11}),
-            ],
-            winner="Bob",
-        )] * 3
+        games = [
+            _make_game(
+                players=["Alice", "Bob"],
+                rounds_data=[
+                    (8, {"0": 3, "1": 5}, {"0": 3, "1": 5}, {"0": 30, "1": 50}),
+                    (2, {"0": 1, "1": 1}, {"0": 0, "1": 1}, {"0": -10, "1": 11}),
+                ],
+                winner="Bob",
+            )
+        ] * 3
         vector = compute_feature_vector("Alice", games)
         # dim 5 = high_card_accuracy, dim 6 = low_card_accuracy
         assert vector[5] == pytest.approx(1.0)
@@ -384,34 +412,38 @@ class TestFeatureVectorComeback:
 
     def test_comeback_win(self):
         """Player behind at halfway but wins → comeback_rate = 1.0."""
-        games = [_make_game(
-            players=["Alice", "Bob"],
-            rounds_data=[
-                # 1st half: Alice behind
-                (5, {"0": 2, "1": 3}, {"0": 0, "1": 3}, {"0": -20, "1": 30}),
-                (4, {"0": 2, "1": 2}, {"0": 0, "1": 2}, {"0": -20, "1": 20}),
-                # 2nd half: Alice catches up
-                (3, {"0": 3, "1": 0}, {"0": 3, "1": 0}, {"0": 30, "1": -10}),
-                (2, {"0": 2, "1": 0}, {"0": 2, "1": 0}, {"0": 20, "1": -10}),
-            ],
-            winner="Alice",
-        )] * 3
+        games = [
+            _make_game(
+                players=["Alice", "Bob"],
+                rounds_data=[
+                    # 1st half: Alice behind
+                    (5, {"0": 2, "1": 3}, {"0": 0, "1": 3}, {"0": -20, "1": 30}),
+                    (4, {"0": 2, "1": 2}, {"0": 0, "1": 2}, {"0": -20, "1": 20}),
+                    # 2nd half: Alice catches up
+                    (3, {"0": 3, "1": 0}, {"0": 3, "1": 0}, {"0": 30, "1": -10}),
+                    (2, {"0": 2, "1": 0}, {"0": 2, "1": 0}, {"0": 20, "1": -10}),
+                ],
+                winner="Alice",
+            )
+        ] * 3
         vector = compute_feature_vector("Alice", games)
         # dim 9 = comeback_rate
         assert vector[9] == pytest.approx(1.0)
 
     def test_no_comeback_opportunities(self):
         """Player always leads → comeback_rate = 0.0."""
-        games = [_make_game(
-            players=["Alice", "Bob"],
-            rounds_data=[
-                (5, {"0": 3, "1": 2}, {"0": 3, "1": 2}, {"0": 30, "1": 20}),
-                (4, {"0": 2, "1": 2}, {"0": 2, "1": 2}, {"0": 20, "1": 20}),
-                (3, {"0": 2, "1": 1}, {"0": 2, "1": 1}, {"0": 20, "1": 11}),
-                (2, {"0": 1, "1": 1}, {"0": 1, "1": 1}, {"0": 11, "1": 11}),
-            ],
-            winner="Alice",
-        )] * 3
+        games = [
+            _make_game(
+                players=["Alice", "Bob"],
+                rounds_data=[
+                    (5, {"0": 3, "1": 2}, {"0": 3, "1": 2}, {"0": 30, "1": 20}),
+                    (4, {"0": 2, "1": 2}, {"0": 2, "1": 2}, {"0": 20, "1": 20}),
+                    (3, {"0": 2, "1": 1}, {"0": 2, "1": 1}, {"0": 20, "1": 11}),
+                    (2, {"0": 1, "1": 1}, {"0": 1, "1": 1}, {"0": 11, "1": 11}),
+                ],
+                winner="Alice",
+            )
+        ] * 3
         vector = compute_feature_vector("Alice", games)
         assert vector[9] == pytest.approx(0.0)
 
@@ -421,13 +453,15 @@ class TestFeatureVectorScoreVariance:
 
     def test_consistent_scores(self):
         """Same total score every game → variance = 0.0."""
-        games = [_make_game(
-            players=["Alice", "Bob"],
-            rounds_data=[
-                (5, {"0": 2, "1": 3}, {"0": 2, "1": 3}, {"0": 20, "1": 30}),
-            ],
-            winner="Bob",
-        )] * 3
+        games = [
+            _make_game(
+                players=["Alice", "Bob"],
+                rounds_data=[
+                    (5, {"0": 2, "1": 3}, {"0": 2, "1": 3}, {"0": 20, "1": 30}),
+                ],
+                winner="Bob",
+            )
+        ] * 3
         vector = compute_feature_vector("Alice", games)
         # dim 3 = score_variance (stddev), same score each game → 0
         assert vector[3] == pytest.approx(0.0)
@@ -484,11 +518,13 @@ class TestFeatureVectorEdgeCases:
 
     def test_returns_ten_dimensions(self):
         """Vector always has exactly 10 dimensions."""
-        games = [_make_game(
-            players=["Alice", "Bob"],
-            rounds_data=[(5, {"0": 2, "1": 3}, {"0": 2, "1": 3}, {"0": 20, "1": 30})],
-            winner="Bob",
-        )] * 3
+        games = [
+            _make_game(
+                players=["Alice", "Bob"],
+                rounds_data=[(5, {"0": 2, "1": 3}, {"0": 2, "1": 3}, {"0": 20, "1": 30})],
+                winner="Bob",
+            )
+        ] * 3
         vector = compute_feature_vector("Alice", games)
         assert len(vector) == 10
         # All values should be finite numbers
@@ -503,7 +539,7 @@ class TestMinMaxNormalize:
         """One player max, one min → normalized to 1.0 and 0.0."""
         vectors = {
             "Alice": [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            "Bob":   [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            "Bob": [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
         }
         result = min_max_normalize(vectors)
         assert result["Alice"][0] == pytest.approx(1.0)
@@ -522,7 +558,7 @@ class TestMinMaxNormalize:
         """Middle player gets proportional value."""
         vectors = {
             "Alice": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            "Bob":   [0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            "Bob": [0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
             "Charlie": [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
         }
         result = min_max_normalize(vectors)
@@ -534,7 +570,7 @@ class TestMinMaxNormalize:
         """All players have same value for a dimension → 0.5."""
         vectors = {
             "Alice": [0.7, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            "Bob":   [0.7, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            "Bob": [0.7, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
         }
         result = min_max_normalize(vectors)
         assert result["Alice"][0] == pytest.approx(0.5)
@@ -544,7 +580,7 @@ class TestMinMaxNormalize:
         """Output has same players and 10 dimensions each."""
         vectors = {
             "Alice": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
-            "Bob":   [1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1],
+            "Bob": [1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1],
         }
         result = min_max_normalize(vectors)
         assert set(result.keys()) == {"Alice", "Bob"}
@@ -657,7 +693,7 @@ class TestPersonalityCentroids:
     def test_centroids_are_unit_length(self):
         """Each centroid is normalized to unit length."""
         for name, centroid in PERSONALITY_CENTROIDS.items():
-            magnitude = math.sqrt(sum(c ** 2 for c in centroid))
+            magnitude = math.sqrt(sum(c**2 for c in centroid))
             assert magnitude == pytest.approx(1.0, abs=0.01), (
                 f"{name} centroid magnitude = {magnitude}"
             )
@@ -716,7 +752,7 @@ class TestUniqueAssignment:
         """No two players share a personality when <= 10 players."""
         vectors = {
             "Alice": [0.9, 0.1, 0.1, 0.2, 0.5, 0.8, 0.3, 0.5, 0.5, 0.3],
-            "Bob":   [0.3, 0.9, 0.1, 0.7, 0.1, 0.4, 0.2, 0.5, 0.5, 0.3],
+            "Bob": [0.3, 0.9, 0.1, 0.7, 0.1, 0.4, 0.2, 0.5, 0.5, 0.3],
             "Charlie": [0.5, 0.1, 0.1, 0.1, 0.9, 0.4, 0.5, 0.5, 0.5, 0.3],
         }
         results = assign_personalities_unique(vectors)
@@ -786,15 +822,17 @@ class TestAccuracyByCards:
 
     def test_basic_accuracy(self):
         """Correct breakdown for different card counts."""
-        games = [_make_game(
-            players=["Alice", "Bob"],
-            rounds_data=[
-                (8, {"0": 3, "1": 5}, {"0": 3, "1": 5}, {"0": 30, "1": 50}),
-                (5, {"0": 2, "1": 3}, {"0": 0, "1": 3}, {"0": -20, "1": 30}),
-                (3, {"0": 1, "1": 2}, {"0": 1, "1": 2}, {"0": 11, "1": 20}),
-            ],
-            winner="Bob",
-        )]
+        games = [
+            _make_game(
+                players=["Alice", "Bob"],
+                rounds_data=[
+                    (8, {"0": 3, "1": 5}, {"0": 3, "1": 5}, {"0": 30, "1": 50}),
+                    (5, {"0": 2, "1": 3}, {"0": 0, "1": 3}, {"0": -20, "1": 30}),
+                    (3, {"0": 1, "1": 2}, {"0": 1, "1": 2}, {"0": 11, "1": 20}),
+                ],
+                winner="Bob",
+            )
+        ]
         result = compute_accuracy_by_cards("Alice", games)
         assert result["8"]["pct"] == 100
         assert result["8"]["rounds"] == 1
@@ -827,13 +865,15 @@ class TestAccuracyByCards:
 
     def test_no_rounds_for_card_count(self):
         """Card counts with no data are not in result."""
-        games = [_make_game(
-            players=["Alice", "Bob"],
-            rounds_data=[
-                (5, {"0": 2, "1": 3}, {"0": 2, "1": 3}, {"0": 20, "1": 30}),
-            ],
-            winner="Bob",
-        )]
+        games = [
+            _make_game(
+                players=["Alice", "Bob"],
+                rounds_data=[
+                    (5, {"0": 2, "1": 3}, {"0": 2, "1": 3}, {"0": 20, "1": 30}),
+                ],
+                winner="Bob",
+            )
+        ]
         result = compute_accuracy_by_cards("Alice", games)
         assert "5" in result
         assert "8" not in result
@@ -861,107 +901,132 @@ class TestPlayerExtras:
 
     def test_bidding_style_aggressive(self):
         """Player who overbids more than underbids → aggressive."""
-        games = [_make_game(
-            players=["Alice", "Bob"],
-            rounds_data=[
-                (5, {"0": 4, "1": 1}, {"0": 2, "1": 3}, {"0": -40, "1": -10}),
-                (5, {"0": 3, "1": 2}, {"0": 1, "1": 4}, {"0": -30, "1": -20}),
-            ],
-            winner="Bob",
-        )] * 3
+        games = [
+            _make_game(
+                players=["Alice", "Bob"],
+                rounds_data=[
+                    (5, {"0": 4, "1": 1}, {"0": 2, "1": 3}, {"0": -40, "1": -10}),
+                    (5, {"0": 3, "1": 2}, {"0": 1, "1": 4}, {"0": -30, "1": -20}),
+                ],
+                winner="Bob",
+            )
+        ] * 3
         extras = compute_player_extras("Alice", games)
         assert extras["bidding_style"] == "aggressive"
         assert extras["overbid_pct"] > 0
 
     def test_bidding_style_conservative(self):
         """Player who underbids more → conservative."""
-        games = [_make_game(
-            players=["Alice", "Bob"],
-            rounds_data=[
-                (5, {"0": 1, "1": 4}, {"0": 3, "1": 2}, {"0": -10, "1": -40}),
-                (5, {"0": 0, "1": 5}, {"0": 2, "1": 3}, {"0": -10, "1": -50}),
-            ],
-            winner="Alice",
-        )] * 3
+        games = [
+            _make_game(
+                players=["Alice", "Bob"],
+                rounds_data=[
+                    (5, {"0": 1, "1": 4}, {"0": 3, "1": 2}, {"0": -10, "1": -40}),
+                    (5, {"0": 0, "1": 5}, {"0": 2, "1": 3}, {"0": -10, "1": -50}),
+                ],
+                winner="Alice",
+            )
+        ] * 3
         extras = compute_player_extras("Alice", games)
         assert extras["bidding_style"] == "conservative"
 
     def test_zero_bid_rate(self):
         """Zero bid success rate computed correctly."""
-        games = [_make_game(
-            players=["Alice", "Bob"],
-            rounds_data=[
-                (5, {"0": 0, "1": 5}, {"0": 0, "1": 5}, {"0": 10, "1": 50}),
-                (5, {"0": 0, "1": 5}, {"0": 2, "1": 3}, {"0": -10, "1": -50}),
-            ],
-            winner="Bob",
-        )] * 3
+        games = [
+            _make_game(
+                players=["Alice", "Bob"],
+                rounds_data=[
+                    (5, {"0": 0, "1": 5}, {"0": 0, "1": 5}, {"0": 10, "1": 50}),
+                    (5, {"0": 0, "1": 5}, {"0": 2, "1": 3}, {"0": -10, "1": -50}),
+                ],
+                winner="Bob",
+            )
+        ] * 3
         extras = compute_player_extras("Alice", games)
         assert extras["zero_bid_rate"] == 50  # 1 success out of 2 per game
 
     def test_clutch_factor(self):
         """Comeback wins tracked correctly."""
-        games = [_make_game(
-            players=["Alice", "Bob"],
-            rounds_data=[
-                # 1st half: Alice behind
-                (5, {"0": 2, "1": 3}, {"0": 0, "1": 3}, {"0": -20, "1": 30}),
-                (4, {"0": 2, "1": 2}, {"0": 0, "1": 2}, {"0": -20, "1": 20}),
-                # 2nd half: Alice catches up
-                (3, {"0": 3, "1": 0}, {"0": 3, "1": 0}, {"0": 30, "1": -10}),
-                (2, {"0": 2, "1": 0}, {"0": 2, "1": 0}, {"0": 20, "1": -10}),
-            ],
-            winner="Alice",
-        )] * 3
+        games = [
+            _make_game(
+                players=["Alice", "Bob"],
+                rounds_data=[
+                    # 1st half: Alice behind
+                    (5, {"0": 2, "1": 3}, {"0": 0, "1": 3}, {"0": -20, "1": 30}),
+                    (4, {"0": 2, "1": 2}, {"0": 0, "1": 2}, {"0": -20, "1": 20}),
+                    # 2nd half: Alice catches up
+                    (3, {"0": 3, "1": 0}, {"0": 3, "1": 0}, {"0": 30, "1": -10}),
+                    (2, {"0": 2, "1": 0}, {"0": 2, "1": 0}, {"0": 20, "1": -10}),
+                ],
+                winner="Alice",
+            )
+        ] * 3
         extras = compute_player_extras("Alice", games)
         assert extras["clutch_wins"] == 3
         assert extras["clutch_opportunities"] == 3
 
     def test_tempo(self):
         """Tempo identifies 1st half vs 2nd half player."""
-        games = [_make_game(
-            players=["Alice", "Bob"],
-            rounds_data=[
-                # 1st half: Alice scores high
-                (5, {"0": 3, "1": 2}, {"0": 3, "1": 2}, {"0": 30, "1": 20}),
-                (4, {"0": 2, "1": 2}, {"0": 2, "1": 2}, {"0": 20, "1": 20}),
-                # 2nd half: Alice scores low
-                (3, {"0": 2, "1": 1}, {"0": 0, "1": 1}, {"0": -20, "1": 11}),
-                (2, {"0": 1, "1": 1}, {"0": 0, "1": 1}, {"0": -10, "1": 11}),
-            ],
-            winner="Bob",
-        )] * 3
+        games = [
+            _make_game(
+                players=["Alice", "Bob"],
+                rounds_data=[
+                    # 1st half: Alice scores high
+                    (5, {"0": 3, "1": 2}, {"0": 3, "1": 2}, {"0": 30, "1": 20}),
+                    (4, {"0": 2, "1": 2}, {"0": 2, "1": 2}, {"0": 20, "1": 20}),
+                    # 2nd half: Alice scores low
+                    (3, {"0": 2, "1": 1}, {"0": 0, "1": 1}, {"0": -20, "1": 11}),
+                    (2, {"0": 1, "1": 1}, {"0": 0, "1": 1}, {"0": -10, "1": 11}),
+                ],
+                winner="Bob",
+            )
+        ] * 3
         extras = compute_player_extras("Alice", games)
         assert extras["tempo"] == "1st half"
 
     def test_consistency_with_same_scores(self):
         """Same score every game → high consistency."""
-        games = [_make_game(
-            players=["Alice", "Bob"],
-            rounds_data=[
-                (5, {"0": 2, "1": 3}, {"0": 2, "1": 3}, {"0": 20, "1": 30}),
-            ],
-            winner="Bob",
-        )] * 3
+        games = [
+            _make_game(
+                players=["Alice", "Bob"],
+                rounds_data=[
+                    (5, {"0": 2, "1": 3}, {"0": 2, "1": 3}, {"0": 20, "1": 30}),
+                ],
+                winner="Bob",
+            )
+        ] * 3
         extras = compute_player_extras("Alice", games)
         assert extras["consistency"] == "high"
 
     def test_extras_has_all_fields(self):
         """Extras dict has all expected keys."""
-        games = [_make_game(
-            players=["Alice", "Bob"],
-            rounds_data=[
-                (5, {"0": 2, "1": 3}, {"0": 2, "1": 3}, {"0": 20, "1": 30}),
-            ],
-            winner="Bob",
-        )] * 3
+        games = [
+            _make_game(
+                players=["Alice", "Bob"],
+                rounds_data=[
+                    (5, {"0": 2, "1": 3}, {"0": 2, "1": 3}, {"0": 20, "1": 30}),
+                ],
+                winner="Bob",
+            )
+        ] * 3
         extras = compute_player_extras("Alice", games)
         expected_keys = {
-            "wins", "games_played", "total_rounds", "best_trump",
-            "best_trump_pct", "trend", "favorite_bid",
-            "biggest_round_score", "fun_facts", "bidding_style",
-            "overbid_pct", "zero_bid_rate", "clutch_wins",
-            "clutch_opportunities", "tempo", "consistency",
+            "wins",
+            "games_played",
+            "total_rounds",
+            "best_trump",
+            "best_trump_pct",
+            "trend",
+            "favorite_bid",
+            "biggest_round_score",
+            "fun_facts",
+            "bidding_style",
+            "overbid_pct",
+            "zero_bid_rate",
+            "clutch_wins",
+            "clutch_opportunities",
+            "tempo",
+            "consistency",
         }
         assert expected_keys.issubset(set(extras.keys()))
 
@@ -980,18 +1045,20 @@ class TestEdgeCasesReviewerFindings:
 
     def test_feature_vector_with_partial_bids(self):
         """Rounds with missing bid/hand data are skipped gracefully."""
-        games = [_make_game(
-            players=["Alice", "Bob"],
-            rounds_data=[
-                # Normal round
-                (5, {"0": 2, "1": 3}, {"0": 2, "1": 3}, {"0": 20, "1": 30}),
-                # Round where Alice has no bid (missing key)
-                (5, {"1": 3}, {"1": 3}, {"1": 30}),
-                # Normal round
-                (5, {"0": 1, "1": 4}, {"0": 1, "1": 4}, {"0": 11, "1": 40}),
-            ],
-            winner="Bob",
-        )] * 3
+        games = [
+            _make_game(
+                players=["Alice", "Bob"],
+                rounds_data=[
+                    # Normal round
+                    (5, {"0": 2, "1": 3}, {"0": 2, "1": 3}, {"0": 20, "1": 30}),
+                    # Round where Alice has no bid (missing key)
+                    (5, {"1": 3}, {"1": 3}, {"1": 30}),
+                    # Normal round
+                    (5, {"0": 1, "1": 4}, {"0": 1, "1": 4}, {"0": 11, "1": 40}),
+                ],
+                winner="Bob",
+            )
+        ] * 3
         vector = compute_feature_vector("Alice", games)
         assert len(vector) == 10
         # Should compute from 2 valid rounds per game (6 total), not 3
@@ -999,19 +1066,22 @@ class TestEdgeCasesReviewerFindings:
 
     def test_player_with_zero_games(self):
         """Player not in any game returns zero vector."""
-        games = [_make_game(
-            players=["Bob", "Charlie"],
-            rounds_data=[
-                (5, {"0": 2, "1": 3}, {"0": 2, "1": 3}, {"0": 20, "1": 30}),
-            ],
-            winner="Bob",
-        )] * 3
+        games = [
+            _make_game(
+                players=["Bob", "Charlie"],
+                rounds_data=[
+                    (5, {"0": 2, "1": 3}, {"0": 2, "1": 3}, {"0": 20, "1": 30}),
+                ],
+                winner="Bob",
+            )
+        ] * 3
         vector = compute_feature_vector("Alice", games)
         assert all(v == 0.0 for v in vector)
 
     def test_personality_not_assigned_at_2_games(self):
         """Player with exactly 2 games should NOT get personality."""
         from app.services.insights import MIN_GAMES_FOR_PERSONALITY
+
         assert MIN_GAMES_FOR_PERSONALITY == 3
         # 2 < 3, so no personality
 
@@ -1210,11 +1280,9 @@ class TestRealisticMultiRoundGames:
     def test_unique_personalities_from_realistic_data(self):
         """3 different playstyles → 3 unique personalities."""
         games = self._build_three_games()
-        vectors = {
-            name: compute_feature_vector(name, games)
-            for name in ["Ravi", "Meera", "Kabir"]
-        }
+        vectors = {name: compute_feature_vector(name, games) for name in ["Ravi", "Meera", "Kabir"]}
         from app.services.insights import min_max_normalize
+
         normalized = min_max_normalize(vectors)
         results = assign_personalities_unique(normalized)
         personalities = [r["personality"] for r in results.values()]
@@ -1223,18 +1291,17 @@ class TestRealisticMultiRoundGames:
     def test_insights_different_for_each_playstyle(self):
         """Different players get different insight text."""
         games = self._build_three_games()
-        vectors = {
-            name: compute_feature_vector(name, games)
-            for name in ["Ravi", "Meera", "Kabir"]
-        }
+        vectors = {name: compute_feature_vector(name, games) for name in ["Ravi", "Meera", "Kabir"]}
         from app.services.insights import min_max_normalize
+
         normalized = min_max_normalize(vectors)
         results = assign_personalities_unique(normalized)
 
         insight_sets = set()
         for name in ["Ravi", "Meera", "Kabir"]:
             insights = generate_insights(
-                normalized[name], results[name]["personality"],
+                normalized[name],
+                results[name]["personality"],
             )
             assert len(insights) == 2
             insight_sets.add(tuple(insights))
@@ -1256,16 +1323,14 @@ class TestRealisticMultiRoundGames:
 
         # Normalize
         from app.services.insights import james_stein_shrink, min_max_normalize
+
         normalized = min_max_normalize(vectors)
         for vec in normalized.values():
             for v in vec:
                 assert 0.0 <= v <= 1.0
 
         # Shrink
-        pop_mean = [
-            sum(normalized[n][i] for n in players) / len(players)
-            for i in range(10)
-        ]
+        pop_mean = [sum(normalized[n][i] for n in players) / len(players) for i in range(10)]
         for name in players:
             shrunk = james_stein_shrink(normalized[name], pop_mean, 3)
             assert len(shrunk) == 10
@@ -1290,7 +1355,9 @@ class TestRealisticMultiRoundGames:
             assert extras["games_played"] == 3
             assert extras["total_rounds"] > 0
             assert extras["bidding_style"] in (
-                "aggressive", "conservative", "balanced",
+                "aggressive",
+                "conservative",
+                "balanced",
             )
             assert extras["consistency"] in ("high", "medium", "low")
             assert extras["tempo"] in ("1st half", "2nd half", "even")

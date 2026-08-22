@@ -8,7 +8,6 @@ from app.utils.sanitize import sanitize_player_name, sanitize_player_names
 
 
 class TestSanitizePlayerName:
-
     def test_plain_name_unchanged(self):
         assert sanitize_player_name("Alice") == "Alice"
 
@@ -21,7 +20,7 @@ class TestSanitizePlayerName:
         assert "&lt;script&gt;" in result
 
     def test_img_onerror_escaped(self):
-        result = sanitize_player_name('<img onerror=alert(1) src=x>')
+        result = sanitize_player_name("<img onerror=alert(1) src=x>")
         assert "<img" not in result
         assert "&lt;img" in result
 
@@ -51,7 +50,6 @@ class TestSanitizePlayerName:
 
 
 class TestSanitizePlayerNames:
-
     def test_list_of_clean_names(self):
         result = sanitize_player_names(["Alice", "Bob", "Charlie"])
         assert result == ["Alice", "Bob", "Charlie"]

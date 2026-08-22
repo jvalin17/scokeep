@@ -96,6 +96,7 @@ async def join_live_game(
         raise HTTPException(status_code=404, detail="Playground not found")
 
     from app.services.game import GameService
+
     active = await GameService.get_active_for_playground(db, playground.id)
     if not active:
         raise HTTPException(status_code=404, detail="No active game to join")
@@ -136,7 +137,9 @@ async def get_playground_stats(
     if playground.id != playground_id:
         raise HTTPException(status_code=403, detail="Access denied")
     return await AnalyticsService.get_playground_stats(
-        db, playground.id, backfill_meta(playground.insights),
+        db,
+        playground.id,
+        backfill_meta(playground.insights),
     )
 
 

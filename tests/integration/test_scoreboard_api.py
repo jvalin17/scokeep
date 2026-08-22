@@ -24,22 +24,33 @@ async def _play_round(client: AsyncClient, game_id: int, cookies: dict, bids: li
 
 async def _setup_game_with_rounds(client: AsyncClient):
     """Helper: create playground, auth, game, play 2 rounds. Return game_id + cookies."""
-    await client.post("/api/playground", json={
-        "name": "Scoreboard Test",
-        "pin": "1234",
-        "players": ["Alice", "Bob", "Charlie"],
-    })
-    auth = await client.post("/api/playground/auth", json={
-        "name": "Scoreboard Test", "pin": "1234",
-    })
+    await client.post(
+        "/api/playground",
+        json={
+            "name": "Scoreboard Test",
+            "pin": "1234",
+            "players": ["Alice", "Bob", "Charlie"],
+        },
+    )
+    auth = await client.post(
+        "/api/playground/auth",
+        json={
+            "name": "Scoreboard Test",
+            "pin": "1234",
+        },
+    )
     cookies = {"scokeep_session": auth.cookies.get("scokeep_session")}
     pg = auth.json()
 
-    game_resp = await client.post("/api/game", json={
-        "playground_id": pg["id"],
-        "players": ["Alice", "Bob", "Charlie"],
-        "settings": {"num_sets": 1},
-    }, cookies=cookies)
+    game_resp = await client.post(
+        "/api/game",
+        json={
+            "playground_id": pg["id"],
+            "players": ["Alice", "Bob", "Charlie"],
+            "settings": {"num_sets": 1},
+        },
+        cookies=cookies,
+    )
     game_id = game_resp.json()["id"]
 
     # Round 1: bids=[2,0,1], hands=[2,0,1] → scores=[20,10,11]
@@ -52,12 +63,12 @@ async def _setup_game_with_rounds(client: AsyncClient):
 
 
 class TestGetScoreboard:
-
     async def test_scoreboard_returns_totals(self, client: AsyncClient):
         game_id, cookies = await _setup_game_with_rounds(client)
 
         response = await client.get(
-            f"/api/game/{game_id}/scoreboard", cookies=cookies,
+            f"/api/game/{game_id}/scoreboard",
+            cookies=cookies,
         )
 
         assert response.status_code == 200
@@ -67,12 +78,12 @@ class TestGetScoreboard:
 
 
 class TestGetHistory:
-
     async def test_history_returns_bid_vs_actual(self, client: AsyncClient):
         game_id, cookies = await _setup_game_with_rounds(client)
 
         response = await client.get(
-            f"/api/game/{game_id}/history", cookies=cookies,
+            f"/api/game/{game_id}/history",
+            cookies=cookies,
         )
 
         assert response.status_code == 200
@@ -83,12 +94,12 @@ class TestGetHistory:
 
 
 class TestUndo:
-
     async def test_undo_decrements_round(self, client: AsyncClient):
         game_id, cookies = await _setup_game_with_rounds(client)
 
         response = await client.post(
-            f"/api/game/{game_id}/undo", cookies=cookies,
+            f"/api/game/{game_id}/undo",
+            cookies=cookies,
         )
 
         assert response.status_code == 200
@@ -104,7 +115,8 @@ class TestUndo:
         await client.post(f"/api/game/{game_id}/undo", cookies=cookies)
 
         scoreboard = await client.get(
-            f"/api/game/{game_id}/scoreboard", cookies=cookies,
+            f"/api/game/{game_id}/scoreboard",
+            cookies=cookies,
         )
         body = scoreboard.json()
         # Only round 1 scores remain: 20, 10, 11

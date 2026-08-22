@@ -11,36 +11,40 @@ from app.models.round import Round
 CAREER_RULES = {
     "sniper": lambda bid, hand, cards: bid == 1 and bid == hand,
     "zero_master": lambda bid, hand, cards: bid == 0 and bid == hand,
-    "high_roller": lambda bid, hand, cards: (
-        bid >= HIGH_ROLLER_MIN_BID and bid == hand
-    ),
+    "high_roller": lambda bid, hand, cards: bid >= HIGH_ROLLER_MIN_BID and bid == hand,
     "all_in": lambda bid, hand, cards: bid == cards and bid == hand,
 }
 
 
 class AnalyticsService:
-
     @staticmethod
     async def get_playground_stats(
-        db: AsyncSession, playground_id: int,
+        db: AsyncSession,
+        playground_id: int,
         insights_blob: dict | None = None,
     ) -> dict:
         empty_highlights = {
             "career": {
-                "sniper": [], "zero_master": [], "high_roller": [],
-                "all_in": [], "jinxed": [], "perfect_set": [],
+                "sniper": [],
+                "zero_master": [],
+                "high_roller": [],
+                "all_in": [],
+                "jinxed": [],
+                "perfect_set": [],
             },
             "last_game": None,
         }
 
         games, all_rounds = await AnalyticsService._load_data(
-            db, playground_id,
+            db,
+            playground_id,
         )
         if not games:
             return {
                 "game_history": [],
                 "highlights": (insights_blob or {}).get(
-                    "highlights", empty_highlights,
+                    "highlights",
+                    empty_highlights,
                 ),
                 "insights": insights_blob,
                 "total_games": 0,
@@ -48,10 +52,13 @@ class AnalyticsService:
 
         rounds_by_game = AnalyticsService._group_rounds(all_rounds)
         game_history = AnalyticsService._calc_game_history(
-            games, rounds_by_game,
+            games,
+            rounds_by_game,
         )
         highlights = _resolve_highlights(
-            insights_blob, games, rounds_by_game,
+            insights_blob,
+            games,
+            rounds_by_game,
         )
 
         return {
@@ -115,7 +122,8 @@ class AnalyticsService:
     def _calc_last_game_awards(games, rounds_by_game) -> dict | None:
         """Awards for the most recent finished game."""
         sorted_games = sorted(
-            games, key=lambda g: g.started_at or g.id,
+            games,
+            key=lambda g: g.started_at or g.id,
         )
         if not sorted_games:
             return None
@@ -141,12 +149,8 @@ class AnalyticsService:
         if not game_ids:
             return 0
 
-        await db.execute(
-            delete(Round).where(Round.game_id.in_(game_ids))
-        )
-        await db.execute(
-            delete(Game).where(Game.id.in_(game_ids))
-        )
+        await db.execute(delete(Round).where(Round.game_id.in_(game_ids)))
+        await db.execute(delete(Game).where(Game.id.in_(game_ids)))
         await db.commit()
         return len(game_ids)
 
@@ -177,10 +181,12 @@ def _resolve_highlights(insights_blob, games, rounds_by_game):
         return cached
 
     highlights = AnalyticsService._calc_highlights(
-        games, rounds_by_game,
+        games,
+        rounds_by_game,
     )
     last_game = AnalyticsService._calc_last_game_awards(
-        games, rounds_by_game,
+        games,
+        rounds_by_game,
     )
     highlights["last_game"] = last_game
     return highlights
@@ -203,7 +209,11 @@ def _process_game_for_career(game, rounds_by_game, career):
             set_results[name].append(made)
 
         _check_perfect_sets(
-            round_idx, rounds_per_set, players, set_results, career,
+            round_idx,
+            rounds_per_set,
+            players,
+            set_results,
+            career,
         )
         if rounds_per_set > 0 and (round_idx + 1) % rounds_per_set == 0:
             set_results = {n: [] for n in players}
@@ -278,10 +288,7 @@ def _check_perfect_sets(round_idx, rounds_per_set, players, set_results, career)
 def _career_table(career, key, count_key="count"):
     """Build sorted table from career counters."""
     sort_key = "longest" if count_key == "longest" else "count"
-    table = [
-        {"name": name, sort_key: data[key]}
-        for name, data in career.items()
-    ]
+    table = [{"name": name, sort_key: data[key]} for name, data in career.items()]
     table.sort(key=lambda x: -x[sort_key])
     return table
 
@@ -355,7 +362,8 @@ def _best_accuracy(stats):
     """Find player with best bid accuracy."""
     accuracies = {
         name: round(stats["bids_made"][name] / stats["bids_total"][name] * 100)
-        for name in stats["totals"] if stats["bids_total"][name] > 0
+        for name in stats["totals"]
+        if stats["bids_total"][name] > 0
     }
     if not accuracies:
         return None

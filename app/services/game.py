@@ -34,7 +34,6 @@ DEFAULT_SETTINGS = {
 
 
 class GameService:
-
     @staticmethod
     async def create(
         db: AsyncSession,
@@ -96,6 +95,7 @@ class GameService:
 
         if game.status == "finished":
             from app.services.insights import compute_insights
+
             await compute_insights(db, game.playground_id)
 
     @staticmethod
@@ -117,6 +117,7 @@ class GameService:
         await db.refresh(game)
 
         from app.services.insights import compute_insights
+
         await compute_insights(db, game.playground_id)
 
     @staticmethod

@@ -9,7 +9,6 @@ from app.utils.trump import get_cards_for_round, get_trump_for_round
 
 
 class RoundService:
-
     @staticmethod
     async def create_round(db: AsyncSession, game) -> Round:
         rounds_per_set = game.settings.get("rounds_per_set", 8)
@@ -115,14 +114,10 @@ class RoundService:
         # Validate: hands can't exceed remaining cards
         cards_dealt = round_obj.cards_dealt
         player_key = str(player_index)
-        total_others = sum(
-            v for k, v in round_obj.hands_won.items() if k != player_key
-        )
+        total_others = sum(v for k, v in round_obj.hands_won.items() if k != player_key)
         remaining = cards_dealt - total_others
         if value > remaining:
-            raise ValueError(
-                f"Hands ({value}) exceeds remaining cards ({remaining})"
-            )
+            raise ValueError(f"Hands ({value}) exceeds remaining cards ({remaining})")
 
         updated_hands = {**round_obj.hands_won, player_key: value}
         round_obj.hands_won = updated_hands

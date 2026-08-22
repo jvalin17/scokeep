@@ -13,24 +13,36 @@ from httpx import AsyncClient
 
 async def _setup(client: AsyncClient, name: str = "Session7 Test"):
     """Create playground, auth, return (playground, cookies)."""
-    await client.post("/api/playground", json={
-        "name": name, "pin": "1234",
-        "players": ["Alice", "Bob", "Charlie"],
-    })
-    auth = await client.post("/api/playground/auth", json={
-        "name": name, "pin": "1234",
-    })
+    await client.post(
+        "/api/playground",
+        json={
+            "name": name,
+            "pin": "1234",
+            "players": ["Alice", "Bob", "Charlie"],
+        },
+    )
+    auth = await client.post(
+        "/api/playground/auth",
+        json={
+            "name": name,
+            "pin": "1234",
+        },
+    )
     cookies = {"scokeep_session": auth.cookies.get("scokeep_session")}
     return auth.json(), cookies
 
 
 async def _create_game(client, pg_id, cookies, players=None, num_sets=1):
     """Create a game and return the game dict."""
-    resp = await client.post("/api/game", json={
-        "playground_id": pg_id,
-        "players": players or ["Alice", "Bob", "Charlie"],
-        "settings": {"num_sets": num_sets},
-    }, cookies=cookies)
+    resp = await client.post(
+        "/api/game",
+        json={
+            "playground_id": pg_id,
+            "players": players or ["Alice", "Bob", "Charlie"],
+            "settings": {"num_sets": num_sets},
+        },
+        cookies=cookies,
+    )
     assert resp.status_code == 201
     return resp.json()
 
@@ -41,18 +53,21 @@ class TestAlternatingSets:
     async def test_set_1_starts_at_8_descends_to_1(self, client: AsyncClient):
         """First set: rounds 1-8 have 8,7,6,5,4,3,2,1 cards."""
         from app.utils.trump import get_cards_for_round
+
         cards = [get_cards_for_round(r) for r in range(1, 9)]
         assert cards == [8, 7, 6, 5, 4, 3, 2, 1]
 
     async def test_set_2_starts_at_1_ascends_to_8(self, client: AsyncClient):
         """Second set: rounds 9-16 have 1,2,3,4,5,6,7,8 cards."""
         from app.utils.trump import get_cards_for_round
+
         cards = [get_cards_for_round(r) for r in range(9, 17)]
         assert cards == [1, 2, 3, 4, 5, 6, 7, 8]
 
     async def test_set_3_descends_again(self, client: AsyncClient):
         """Third set: rounds 17-24 have 8,7,6,5,4,3,2,1 cards."""
         from app.utils.trump import get_cards_for_round
+
         cards = [get_cards_for_round(r) for r in range(17, 25)]
         assert cards == [8, 7, 6, 5, 4, 3, 2, 1]
 
@@ -60,6 +75,7 @@ class TestAlternatingSets:
         """Boundary: set 1 ends at 1 card (round 8), set 2 starts at 1 card (round 9).
         Pattern across boundary: ...2, 1, 1, 2... (descend then ascend)."""
         from app.utils.trump import get_cards_for_round
+
         # Rounds 7-10 cross the set boundary
         cards = [get_cards_for_round(r) for r in range(7, 11)]
         assert cards == [2, 1, 1, 2]
@@ -67,16 +83,16 @@ class TestAlternatingSets:
     async def test_full_3_sets_pattern(self, client: AsyncClient):
         """Full 3-set game: 8→1, 1→8, 8→1 (24 rounds)."""
         from app.utils.trump import get_cards_for_round
+
         cards = [get_cards_for_round(r) for r in range(1, 25)]
         set1 = [8, 7, 6, 5, 4, 3, 2, 1]
         set2 = [1, 2, 3, 4, 5, 6, 7, 8]
         assert cards == set1 + set2 + set1
 
-    async def test_bid_max_matches_cards_for_round_in_set_2(
-        self, client: AsyncClient
-    ):
+    async def test_bid_max_matches_cards_for_round_in_set_2(self, client: AsyncClient):
         """In set 2 round 9 (1 card), max bid should be 1."""
         from app.utils.trump import get_cards_for_round
+
         # Round 9 = first round of set 2 = 1 card
         assert get_cards_for_round(9) == 1
 
@@ -89,37 +105,42 @@ class TestAlternatingSets:
         for _round_num in range(1, 9):
             # Bid 0 for everyone
             for i in range(3):
-                await client.post(f"/api/game/{game_id}/bid", json={
-                    "player_index": i, "value": 0,
-                }, cookies=cookies)
-            await client.post(
-                f"/api/game/{game_id}/start-round", cookies=cookies
-            )
-            await client.post(
-                f"/api/game/{game_id}/enter-round-end", cookies=cookies
-            )
+                await client.post(
+                    f"/api/game/{game_id}/bid",
+                    json={
+                        "player_index": i,
+                        "value": 0,
+                    },
+                    cookies=cookies,
+                )
+            await client.post(f"/api/game/{game_id}/start-round", cookies=cookies)
+            await client.post(f"/api/game/{game_id}/enter-round-end", cookies=cookies)
             # Submit hands (0 for all)
             for i in range(3):
-                await client.post(f"/api/game/{game_id}/hands", json={
-                    "player_index": i, "value": 0,
-                }, cookies=cookies)
-            await client.post(
-                f"/api/game/{game_id}/end-round", cookies=cookies
-            )
-            await client.post(
-                f"/api/game/{game_id}/next-round", cookies=cookies
-            )
+                await client.post(
+                    f"/api/game/{game_id}/hands",
+                    json={
+                        "player_index": i,
+                        "value": 0,
+                    },
+                    cookies=cookies,
+                )
+            await client.post(f"/api/game/{game_id}/end-round", cookies=cookies)
+            await client.post(f"/api/game/{game_id}/next-round", cookies=cookies)
 
         # Now at round 9, set 2 — should have 1 card
-        game_resp = await client.get(
-            f"/api/game/{game_id}", cookies=cookies
-        )
+        game_resp = await client.get(f"/api/game/{game_id}", cookies=cookies)
         assert game_resp.json()["current_round"] == 9
 
         # Bid 1 should succeed (max = 1 card)
-        resp = await client.post(f"/api/game/{game_id}/bid", json={
-            "player_index": 0, "value": 1,
-        }, cookies=cookies)
+        resp = await client.post(
+            f"/api/game/{game_id}/bid",
+            json={
+                "player_index": 0,
+                "value": 1,
+            },
+            cookies=cookies,
+        )
         assert resp.status_code == 200
 
 
@@ -129,11 +150,15 @@ class TestSetType:
     async def test_create_game_with_test_set(self, client: AsyncClient):
         """Game with rounds_per_set=4 has 4 rounds per set."""
         pg, cookies = await _setup(client, "Test Set Game")
-        resp = await client.post("/api/game", json={
-            "playground_id": pg["id"],
-            "players": ["Alice", "Bob"],
-            "settings": {"num_sets": 2, "rounds_per_set": 4},
-        }, cookies=cookies)
+        resp = await client.post(
+            "/api/game",
+            json={
+                "playground_id": pg["id"],
+                "players": ["Alice", "Bob"],
+                "settings": {"num_sets": 2, "rounds_per_set": 4},
+            },
+            cookies=cookies,
+        )
         assert resp.status_code == 201
         game = resp.json()
         assert game["total_rounds"] == 8  # 2 sets × 4 rounds
@@ -141,23 +166,33 @@ class TestSetType:
     async def test_test_set_cards_pattern(self, client: AsyncClient):
         """Test set: 4,3,2,1,1,2,3,4 for 2 sets."""
         from app.utils.trump import get_cards_for_round
+
         cards = [get_cards_for_round(r, rounds_per_set=4) for r in range(1, 9)]
         assert cards == [4, 3, 2, 1, 1, 2, 3, 4]
 
     async def test_test_set_bid_respects_cards_dealt(self, client: AsyncClient):
         """In test set round 1, max cards is 4 (not 8)."""
         pg, cookies = await _setup(client, "Test Set Bid")
-        resp = await client.post("/api/game", json={
-            "playground_id": pg["id"],
-            "players": ["Alice", "Bob"],
-            "settings": {"num_sets": 1, "rounds_per_set": 4},
-        }, cookies=cookies)
+        resp = await client.post(
+            "/api/game",
+            json={
+                "playground_id": pg["id"],
+                "players": ["Alice", "Bob"],
+                "settings": {"num_sets": 1, "rounds_per_set": 4},
+            },
+            cookies=cookies,
+        )
         game_id = resp.json()["id"]
 
         # Bid 4 should succeed (max cards = 4)
-        resp = await client.post(f"/api/game/{game_id}/bid", json={
-            "player_index": 0, "value": 4,
-        }, cookies=cookies)
+        resp = await client.post(
+            f"/api/game/{game_id}/bid",
+            json={
+                "player_index": 0,
+                "value": 4,
+            },
+            cookies=cookies,
+        )
         assert resp.status_code == 200
 
 
@@ -174,9 +209,7 @@ class TestEndGameFromAnyPhase:
         assert game["phase"] == "bidding"
 
         # End game
-        resp = await client.post(
-            f"/api/game/{game_id}/end", cookies=cookies
-        )
+        resp = await client.post(f"/api/game/{game_id}/end", cookies=cookies)
         assert resp.status_code == 200
         assert resp.json()["status"] == "finished"
 
@@ -188,23 +221,22 @@ class TestEndGameFromAnyPhase:
 
         # Submit bids and start round
         for i in range(3):
-            await client.post(f"/api/game/{game_id}/bid", json={
-                "player_index": i, "value": 2,
-            }, cookies=cookies)
-        await client.post(
-            f"/api/game/{game_id}/start-round", cookies=cookies
-        )
+            await client.post(
+                f"/api/game/{game_id}/bid",
+                json={
+                    "player_index": i,
+                    "value": 2,
+                },
+                cookies=cookies,
+            )
+        await client.post(f"/api/game/{game_id}/start-round", cookies=cookies)
 
         # Verify playing phase
-        game_resp = await client.get(
-            f"/api/game/{game_id}", cookies=cookies
-        )
+        game_resp = await client.get(f"/api/game/{game_id}", cookies=cookies)
         assert game_resp.json()["phase"] == "playing"
 
         # End game from playing
-        resp = await client.post(
-            f"/api/game/{game_id}/end", cookies=cookies
-        )
+        resp = await client.post(f"/api/game/{game_id}/end", cookies=cookies)
         assert resp.status_code == 200
         assert resp.json()["status"] == "finished"
 
@@ -216,26 +248,23 @@ class TestEndGameFromAnyPhase:
 
         # Get to round_end phase
         for i in range(3):
-            await client.post(f"/api/game/{game_id}/bid", json={
-                "player_index": i, "value": 1,
-            }, cookies=cookies)
-        await client.post(
-            f"/api/game/{game_id}/start-round", cookies=cookies
-        )
-        await client.post(
-            f"/api/game/{game_id}/enter-round-end", cookies=cookies
-        )
+            await client.post(
+                f"/api/game/{game_id}/bid",
+                json={
+                    "player_index": i,
+                    "value": 1,
+                },
+                cookies=cookies,
+            )
+        await client.post(f"/api/game/{game_id}/start-round", cookies=cookies)
+        await client.post(f"/api/game/{game_id}/enter-round-end", cookies=cookies)
 
         # Verify round_end phase
-        game_resp = await client.get(
-            f"/api/game/{game_id}", cookies=cookies
-        )
+        game_resp = await client.get(f"/api/game/{game_id}", cookies=cookies)
         assert game_resp.json()["phase"] == "round_end"
 
         # End game
-        resp = await client.post(
-            f"/api/game/{game_id}/end", cookies=cookies
-        )
+        resp = await client.post(f"/api/game/{game_id}/end", cookies=cookies)
         assert resp.status_code == 200
         assert resp.json()["status"] == "finished"
 
@@ -243,9 +272,7 @@ class TestEndGameFromAnyPhase:
 class TestEndGameScoreboard:
     """After ending game, scoreboard reflects correct state."""
 
-    async def test_end_game_no_rounds_played_empty_scoreboard(
-        self, client: AsyncClient
-    ):
+    async def test_end_game_no_rounds_played_empty_scoreboard(self, client: AsyncClient):
         """End game during round 1 bidding — scoreboard has no rounds."""
         pg, cookies = await _setup(client, "No Rounds")
         game = await _create_game(client, pg["id"], cookies)
@@ -255,17 +282,13 @@ class TestEndGameScoreboard:
         await client.post(f"/api/game/{game_id}/end", cookies=cookies)
 
         # Get scoreboard
-        resp = await client.get(
-            f"/api/game/{game_id}/scoreboard", cookies=cookies
-        )
+        resp = await client.get(f"/api/game/{game_id}/scoreboard", cookies=cookies)
         assert resp.status_code == 200
         body = resp.json()
         assert body["rounds"] == []
         assert all(v == 0 for v in body["totals"].values())
 
-    async def test_end_game_after_rounds_shows_scores(
-        self, client: AsyncClient
-    ):
+    async def test_end_game_after_rounds_shows_scores(self, client: AsyncClient):
         """End game after 1 round — scoreboard has correct scores."""
         pg, cookies = await _setup(client, "With Rounds")
         game = await _create_game(client, pg["id"], cookies)
@@ -276,30 +299,32 @@ class TestEndGameScoreboard:
         bids = [2, 3, 1]
         hands = [2, 3, 3]
         for i, bid in enumerate(bids):
-            await client.post(f"/api/game/{game_id}/bid", json={
-                "player_index": i, "value": bid,
-            }, cookies=cookies)
-        await client.post(
-            f"/api/game/{game_id}/start-round", cookies=cookies
-        )
-        await client.post(
-            f"/api/game/{game_id}/enter-round-end", cookies=cookies
-        )
+            await client.post(
+                f"/api/game/{game_id}/bid",
+                json={
+                    "player_index": i,
+                    "value": bid,
+                },
+                cookies=cookies,
+            )
+        await client.post(f"/api/game/{game_id}/start-round", cookies=cookies)
+        await client.post(f"/api/game/{game_id}/enter-round-end", cookies=cookies)
         for i, hand in enumerate(hands):
-            await client.post(f"/api/game/{game_id}/hands", json={
-                "player_index": i, "value": hand,
-            }, cookies=cookies)
-        await client.post(
-            f"/api/game/{game_id}/end-round", cookies=cookies
-        )
+            await client.post(
+                f"/api/game/{game_id}/hands",
+                json={
+                    "player_index": i,
+                    "value": hand,
+                },
+                cookies=cookies,
+            )
+        await client.post(f"/api/game/{game_id}/end-round", cookies=cookies)
 
         # End game from scoreboard phase
         await client.post(f"/api/game/{game_id}/end", cookies=cookies)
 
         # Verify scoreboard has round data
-        resp = await client.get(
-            f"/api/game/{game_id}/scoreboard", cookies=cookies
-        )
+        resp = await client.get(f"/api/game/{game_id}/scoreboard", cookies=cookies)
         body = resp.json()
         assert len(body["rounds"]) == 1
         # Alice: bid 2, got 2 → +20
@@ -320,9 +345,7 @@ class TestActiveGameAfterEnd:
         game_id = game["id"]
 
         # Active game exists
-        resp = await client.get(
-            f"/api/game/active/{pg['id']}", cookies=cookies
-        )
+        resp = await client.get(f"/api/game/active/{pg['id']}", cookies=cookies)
         assert resp.status_code == 200
         assert resp.json()["id"] == game_id
 
@@ -330,9 +353,7 @@ class TestActiveGameAfterEnd:
         await client.post(f"/api/game/{game_id}/end", cookies=cookies)
 
         # No active game anymore
-        resp = await client.get(
-            f"/api/game/active/{pg['id']}", cookies=cookies
-        )
+        resp = await client.get(f"/api/game/active/{pg['id']}", cookies=cookies)
         assert resp.status_code == 404
 
     async def test_end_from_bidding_clears_active(self, client: AsyncClient):
@@ -341,12 +362,8 @@ class TestActiveGameAfterEnd:
         game = await _create_game(client, pg["id"], cookies)
 
         # End during bidding
-        await client.post(
-            f"/api/game/{game['id']}/end", cookies=cookies
-        )
+        await client.post(f"/api/game/{game['id']}/end", cookies=cookies)
 
         # No active game
-        resp = await client.get(
-            f"/api/game/active/{pg['id']}", cookies=cookies
-        )
+        resp = await client.get(f"/api/game/active/{pg['id']}", cookies=cookies)
         assert resp.status_code == 404

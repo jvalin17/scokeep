@@ -7,10 +7,11 @@ from app.models.round import Round
 
 
 class ScoreboardService:
-
     @staticmethod
     async def get_scoreboard(
-        db: AsyncSession, game_id: int, player_count: int = 0,
+        db: AsyncSession,
+        game_id: int,
+        player_count: int = 0,
     ) -> dict:
         """Get cumulative scores and per-round breakdown."""
         result = await db.execute(
@@ -25,14 +26,16 @@ class ScoreboardService:
         rounds_data = []
 
         for round_obj in scored_rounds:
-            rounds_data.append({
-                "round_num": round_obj.round_num,
-                "cards_dealt": round_obj.cards_dealt,
-                "trump_suit": round_obj.trump_suit,
-                "bids": round_obj.bids,
-                "hands_won": round_obj.hands_won,
-                "scores": round_obj.scores,
-            })
+            rounds_data.append(
+                {
+                    "round_num": round_obj.round_num,
+                    "cards_dealt": round_obj.cards_dealt,
+                    "trump_suit": round_obj.trump_suit,
+                    "bids": round_obj.bids,
+                    "hands_won": round_obj.hands_won,
+                    "scores": round_obj.scores,
+                }
+            )
             for player_key, score in round_obj.scores.items():
                 totals[player_key] = totals.get(player_key, 0) + score
 

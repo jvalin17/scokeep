@@ -103,10 +103,7 @@ async def compute_insights(db: AsyncSession, playground_id: int) -> dict | None:
     if not games:
         return None
 
-    wrapped_games = [
-        _GameWithRounds(g, rounds_by_game.get(g.id, []))
-        for g in games
-    ]
+    wrapped_games = [_GameWithRounds(g, rounds_by_game.get(g.id, [])) for g in games]
 
     player_game_counts = _count_player_games(wrapped_games)
     all_players = set(player_game_counts.keys())
@@ -117,8 +114,13 @@ async def compute_insights(db: AsyncSession, playground_id: int) -> dict | None:
         return await _store_unlock_only(db, playground, all_players, player_game_counts)
 
     insights_blob = _assemble_blob(
-        raw_vectors, player_game_counts, existing_players,
-        all_players, wrapped_games, games, rounds_by_game,
+        raw_vectors,
+        player_game_counts,
+        existing_players,
+        all_players,
+        wrapped_games,
+        games,
+        rounds_by_game,
     )
     playground.insights = insights_blob
     await db.commit()
@@ -135,17 +137,28 @@ def _compute_raw_vectors(all_players, player_game_counts, wrapped_games):
 
 
 def _assemble_blob(
-    raw_vectors, player_game_counts, existing_players,
-    all_players, wrapped_games, games, rounds_by_game,
+    raw_vectors,
+    player_game_counts,
+    existing_players,
+    all_players,
+    wrapped_games,
+    games,
+    rounds_by_game,
 ):
     """Build the full insights blob from vectors and assignments."""
     smoothed_vectors = _normalize_shrink_smooth(
-        raw_vectors, player_game_counts, existing_players,
+        raw_vectors,
+        player_game_counts,
+        existing_players,
     )
     assignments = assign_personalities_unique(smoothed_vectors)
     players_data = _build_player_data(
-        all_players, player_game_counts, assignments,
-        smoothed_vectors, existing_players, wrapped_games,
+        all_players,
+        player_game_counts,
+        assignments,
+        smoothed_vectors,
+        existing_players,
+        wrapped_games,
     )
     return {
         "version": 1,
@@ -208,7 +221,9 @@ def _normalize_shrink_smooth(
     smoothed = {}
     for name, norm_vec in normalized.items():
         shrunk = james_stein_shrink(
-            norm_vec, population_mean, player_game_counts[name],
+            norm_vec,
+            population_mean,
+            player_game_counts[name],
         )
         stored = None
         if name in existing_players and existing_players[name].get("feature_vector"):
@@ -239,21 +254,34 @@ async def _store_unlock_only(db, playground, all_players, player_game_counts):
 
 
 def _build_player_data(
-    all_players, player_game_counts, assignments,
-    smoothed_vectors, existing_players, games,
+    all_players,
+    player_game_counts,
+    assignments,
+    smoothed_vectors,
+    existing_players,
+    games,
 ):
     """Build the full player data dict for the insights blob."""
     return {
         name: _build_single_player(
-            name, player_game_counts.get(name, 0),
-            assignments, smoothed_vectors, existing_players, games,
+            name,
+            player_game_counts.get(name, 0),
+            assignments,
+            smoothed_vectors,
+            existing_players,
+            games,
         )
         for name in all_players
     }
 
 
 def _build_single_player(
-    name, games_played, assignments, smoothed_vectors, existing_players, games,
+    name,
+    games_played,
+    assignments,
+    smoothed_vectors,
+    existing_players,
+    games,
 ):
     """Build data for one player — either unlock progress or full insights."""
     if games_played < MIN_GAMES_FOR_PERSONALITY:
@@ -311,7 +339,8 @@ def _compute_cached_highlights(games, rounds_by_game):
 
     highlights = AnalyticsService._calc_highlights(games, rounds_by_game)
     last_game = AnalyticsService._calc_last_game_awards(
-        games, rounds_by_game,
+        games,
+        rounds_by_game,
     )
     highlights["last_game"] = last_game
     return highlights

@@ -24,7 +24,7 @@ TREND_IMPROVEMENT_THRESHOLD = 0.1
 TEMPO_DIFFERENCE_THRESHOLD = 3
 
 # Consistency buckets: stddev of per-game scores
-CONSISTENCY_HIGH_THRESHOLD = 30   # below = reliable
+CONSISTENCY_HIGH_THRESHOLD = 30  # below = reliable
 CONSISTENCY_MEDIUM_THRESHOLD = 60  # below = mixed, above = unpredictable
 
 # Minimum rounds on a trump suit before it counts as "best suit"
@@ -37,16 +37,16 @@ HIGH_FAVORITE_BID = 4
 REMARKABLE_BID = 6
 
 FEATURE_DIMENSIONS = [
-    "bid_accuracy",       # 0: weighted correct bids / total bids
-    "overbid_ratio",      # 1: weighted overbids / total bids
-    "underbid_ratio",     # 2: weighted underbids / total bids
-    "score_variance",     # 3: stddev of per-game total scores
-    "zero_bid_success",   # 4: (bid=0 & won=0) / total zero bids
-    "high_card_accuracy", # 5: accuracy on 6-8 card rounds
+    "bid_accuracy",  # 0: weighted correct bids / total bids
+    "overbid_ratio",  # 1: weighted overbids / total bids
+    "underbid_ratio",  # 2: weighted underbids / total bids
+    "score_variance",  # 3: stddev of per-game total scores
+    "zero_bid_success",  # 4: (bid=0 & won=0) / total zero bids
+    "high_card_accuracy",  # 5: accuracy on 6-8 card rounds
     "low_card_accuracy",  # 6: accuracy on 1-3 card rounds (weighted)
-    "tempo_first_half",   # 7: avg score per round in 1st half
+    "tempo_first_half",  # 7: avg score per round in 1st half
     "tempo_second_half",  # 8: avg score per round in 2nd half
-    "comeback_rate",      # 9: comeback wins / comeback opportunities
+    "comeback_rate",  # 9: comeback wins / comeback opportunities
 ]
 
 TRUMP_SUITS = ["spades", "diamonds", "clubs", "hearts"]
@@ -409,11 +409,13 @@ class _ExtrasAccumulator:
     def _tempo(self) -> str:
         first_avg = (
             sum(self.first_half_scores) / len(self.first_half_scores)
-            if self.first_half_scores else 0
+            if self.first_half_scores
+            else 0
         )
         second_avg = (
             sum(self.second_half_scores) / len(self.second_half_scores)
-            if self.second_half_scores else 0
+            if self.second_half_scores
+            else 0
         )
         if first_avg - second_avg > TEMPO_DIFFERENCE_THRESHOLD:
             return "1st half"
@@ -448,8 +450,7 @@ class _ExtrasAccumulator:
         best_suit, best_suit_pct = self._best_trump()
         style, overbid_pct = self._bidding_style()
         favorite_bid = (
-            max(self.bid_counts, key=lambda b: self.bid_counts[b])
-            if self.bid_counts else None
+            max(self.bid_counts, key=lambda b: self.bid_counts[b]) if self.bid_counts else None
         )
 
         return {
@@ -466,7 +467,8 @@ class _ExtrasAccumulator:
             "overbid_pct": overbid_pct,
             "zero_bid_rate": (
                 round(self.zero_bid_successes / self.zero_bid_attempts * 100)
-                if self.zero_bid_attempts > 0 else 0
+                if self.zero_bid_attempts > 0
+                else 0
             ),
             "clutch_wins": self.comeback_wins,
             "clutch_opportunities": self.comeback_opportunities,

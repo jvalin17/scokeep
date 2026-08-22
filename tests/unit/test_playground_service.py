@@ -11,7 +11,6 @@ from app.services.playground import PlaygroundService
 
 
 class TestCreatePlayground:
-
     async def test_creates_playground_with_hashed_pin(self, db_session: AsyncSession):
         playground = await PlaygroundService.create(
             db=db_session,
@@ -52,7 +51,6 @@ class TestCreatePlayground:
 
 
 class TestVerifyPin:
-
     async def test_correct_pin_returns_true(self, db_session: AsyncSession):
         playground = await PlaygroundService.create(
             db=db_session, name="Test", pin="9876", players=["A"]
@@ -69,7 +67,6 @@ class TestVerifyPin:
 
 
 class TestGetByShareCode:
-
     async def test_returns_playground_when_found(self, db_session: AsyncSession):
         created = await PlaygroundService.create(
             db=db_session, name="Finders", pin="1234", players=["X", "Y"]
@@ -128,9 +125,7 @@ class TestTimestampDefaults:
             name="test", pin_hash="hash", share_code="ABCD1234", players=[]
         )
         compiled = str(stmt.compile(dialect=postgresql.dialect()))
-        assert "now()" in compiled, (
-            f"INSERT must use now() for timestamps, got: {compiled}"
-        )
+        assert "now()" in compiled, f"INSERT must use now() for timestamps, got: {compiled}"
 
     async def test_created_at_is_populated_after_insert(self, db_session: AsyncSession):
         playground = await PlaygroundService.create(
@@ -142,11 +137,8 @@ class TestTimestampDefaults:
 
 
 class TestGetByName:
-
     async def test_returns_playground_when_found(self, db_session: AsyncSession):
-        await PlaygroundService.create(
-            db=db_session, name="The Aces", pin="1234", players=["A"]
-        )
+        await PlaygroundService.create(db=db_session, name="The Aces", pin="1234", players=["A"])
 
         found = await PlaygroundService.get_by_name(db_session, "The Aces")
         assert found is not None

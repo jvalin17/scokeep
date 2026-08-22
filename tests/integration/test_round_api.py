@@ -9,29 +9,38 @@ from httpx import AsyncClient
 
 async def _setup_game(client: AsyncClient) -> dict:
     """Helper: create playground, auth, create game. Return game + cookies."""
-    await client.post("/api/playground", json={
-        "name": "Round API Test",
-        "pin": "1234",
-        "players": ["Alice", "Bob", "Charlie", "Dave"],
-    })
-    auth = await client.post("/api/playground/auth", json={
-        "name": "Round API Test",
-        "pin": "1234",
-    })
+    await client.post(
+        "/api/playground",
+        json={
+            "name": "Round API Test",
+            "pin": "1234",
+            "players": ["Alice", "Bob", "Charlie", "Dave"],
+        },
+    )
+    auth = await client.post(
+        "/api/playground/auth",
+        json={
+            "name": "Round API Test",
+            "pin": "1234",
+        },
+    )
     cookies = {"scokeep_session": auth.cookies.get("scokeep_session")}
     pg = auth.json()
 
-    game_resp = await client.post("/api/game", json={
-        "playground_id": pg["id"],
-        "players": ["Alice", "Bob", "Charlie", "Dave"],
-        "settings": {"num_sets": 1},
-    }, cookies=cookies)
+    game_resp = await client.post(
+        "/api/game",
+        json={
+            "playground_id": pg["id"],
+            "players": ["Alice", "Bob", "Charlie", "Dave"],
+            "settings": {"num_sets": 1},
+        },
+        cookies=cookies,
+    )
     game = game_resp.json()
     return {**game, "cookies": cookies}
 
 
 class TestSubmitBid:
-
     async def test_submit_bid_returns_200(self, client: AsyncClient):
         game = await _setup_game(client)
 
@@ -63,7 +72,6 @@ class TestSubmitBid:
 
 
 class TestPhaseEnforcement:
-
     async def test_reject_hands_during_bidding(self, client: AsyncClient):
         game = await _setup_game(client)
 
@@ -101,7 +109,6 @@ class TestPhaseEnforcement:
 
 
 class TestConfirmBids:
-
     async def test_confirm_bids_starts_round(self, client: AsyncClient):
         game = await _setup_game(client)
 
@@ -138,7 +145,6 @@ class TestConfirmBids:
 
 
 class TestFullRoundLifecycle:
-
     async def test_bid_confirm_play_hands_score(self, client: AsyncClient):
         """Full round lifecycle: bid → confirm → play → hands → score."""
         game = await _setup_game(client)
@@ -161,9 +167,7 @@ class TestFullRoundLifecycle:
         assert resp.json()["phase"] == "playing"
 
         # 3. End round button → round_end phase
-        resp = await client.post(
-            f"/api/game/{game_id}/enter-round-end", cookies=cookies
-        )
+        resp = await client.post(f"/api/game/{game_id}/enter-round-end", cookies=cookies)
         assert resp.status_code == 200
 
         # 4. Submit hands won
@@ -197,7 +201,6 @@ class TestFullRoundLifecycle:
 
 
 class TestEditBid:
-
     async def test_edit_bid_via_api(self, client: AsyncClient):
         game = await _setup_game(client)
 
@@ -218,7 +221,6 @@ class TestEditBid:
 
 
 class TestGetBids:
-
     async def test_get_bids_returns_all(self, client: AsyncClient):
         game = await _setup_game(client)
 

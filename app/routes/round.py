@@ -41,7 +41,8 @@ async def submit_bid(
     must_lose = game.settings.get("must_lose", False)
     try:
         await RoundService.submit_bid(
-            db, round_obj,
+            db,
+            round_obj,
             player_index=data.player_index,
             value=data.value,
             must_lose=must_lose,
@@ -140,7 +141,10 @@ async def submit_hands(
 
     try:
         await RoundService.submit_hands(
-            db, round_obj, player_index=data.player_index, value=data.value,
+            db,
+            round_obj,
+            player_index=data.player_index,
+            value=data.value,
         )
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc

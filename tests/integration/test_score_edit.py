@@ -9,41 +9,73 @@ settings.admin_key = "test-admin-secret"
 
 async def _setup(client: AsyncClient):
     """Create playground, auth, play a game with 1 round, return context."""
-    await client.post("/api/playground", json={
-        "name": "Score Edit Test", "pin": "1234",
-        "players": ["Alice", "Bob"],
-    })
-    auth = await client.post("/api/playground/auth", json={
-        "name": "Score Edit Test", "pin": "1234",
-    })
+    await client.post(
+        "/api/playground",
+        json={
+            "name": "Score Edit Test",
+            "pin": "1234",
+            "players": ["Alice", "Bob"],
+        },
+    )
+    auth = await client.post(
+        "/api/playground/auth",
+        json={
+            "name": "Score Edit Test",
+            "pin": "1234",
+        },
+    )
     cookies = {"scokeep_session": auth.cookies.get("scokeep_session")}
     pg = auth.json()
 
     # Create and play 1-round game
-    game_resp = await client.post("/api/game", json={
-        "playground_id": pg["id"],
-        "players": ["Alice", "Bob"],
-        "settings": {"num_sets": 1},
-    }, cookies=cookies)
+    game_resp = await client.post(
+        "/api/game",
+        json={
+            "playground_id": pg["id"],
+            "players": ["Alice", "Bob"],
+            "settings": {"num_sets": 1},
+        },
+        cookies=cookies,
+    )
     game_id = game_resp.json()["id"]
 
     # Bid
-    await client.post(f"/api/game/{game_id}/bid", json={
-        "player_index": 0, "value": 2,
-    }, cookies=cookies)
-    await client.post(f"/api/game/{game_id}/bid", json={
-        "player_index": 1, "value": 3,
-    }, cookies=cookies)
+    await client.post(
+        f"/api/game/{game_id}/bid",
+        json={
+            "player_index": 0,
+            "value": 2,
+        },
+        cookies=cookies,
+    )
+    await client.post(
+        f"/api/game/{game_id}/bid",
+        json={
+            "player_index": 1,
+            "value": 3,
+        },
+        cookies=cookies,
+    )
     await client.post(f"/api/game/{game_id}/start-round", cookies=cookies)
     await client.post(f"/api/game/{game_id}/enter-round-end", cookies=cookies)
 
     # Hands
-    await client.post(f"/api/game/{game_id}/hands", json={
-        "player_index": 0, "value": 2,
-    }, cookies=cookies)
-    await client.post(f"/api/game/{game_id}/hands", json={
-        "player_index": 1, "value": 1,
-    }, cookies=cookies)
+    await client.post(
+        f"/api/game/{game_id}/hands",
+        json={
+            "player_index": 0,
+            "value": 2,
+        },
+        cookies=cookies,
+    )
+    await client.post(
+        f"/api/game/{game_id}/hands",
+        json={
+            "player_index": 1,
+            "value": 1,
+        },
+        cookies=cookies,
+    )
 
     # Score and end
     await client.post(f"/api/game/{game_id}/end-round", cookies=cookies)
@@ -69,7 +101,8 @@ class TestScoreCorrection:
 
         # Verify via scoreboard
         sb = await client.get(
-            f"/api/game/{game_id}/scoreboard", cookies=cookies,
+            f"/api/game/{game_id}/scoreboard",
+            cookies=cookies,
         )
         assert sb.json()["rounds"][0]["scores"]["0"] == 99
 

@@ -26,7 +26,9 @@ def require_auth(scokeep_session: str | None = Cookie(default=None)) -> int:
 
 
 async def get_game_with_auth(
-    db: AsyncSession, game_id: int, playground_id: int,
+    db: AsyncSession,
+    game_id: int,
+    playground_id: int,
 ):
     """Get game by ID and verify it belongs to the authenticated playground.
 

@@ -9,46 +9,73 @@ from httpx import AsyncClient
 
 async def _setup(client: AsyncClient, name: str = "Stats Test"):
     """Create playground, auth, return (playground, cookies)."""
-    await client.post("/api/playground", json={
-        "name": name, "pin": "1234",
-        "players": ["Alice", "Bob", "Charlie"],
-    })
-    auth = await client.post("/api/playground/auth", json={
-        "name": name, "pin": "1234",
-    })
+    await client.post(
+        "/api/playground",
+        json={
+            "name": name,
+            "pin": "1234",
+            "players": ["Alice", "Bob", "Charlie"],
+        },
+    )
+    auth = await client.post(
+        "/api/playground/auth",
+        json={
+            "name": name,
+            "pin": "1234",
+        },
+    )
     cookies = {"scokeep_session": auth.cookies.get("scokeep_session")}
     return auth.json(), cookies
 
 
 async def _play_full_game(
-    client: AsyncClient, pg_id: int, cookies: dict,
-    players: list[str], bids: list[int], hands: list[int],
+    client: AsyncClient,
+    pg_id: int,
+    cookies: dict,
+    players: list[str],
+    bids: list[int],
+    hands: list[int],
 ):
     """Create game, play 1 round, end game. Return game dict."""
-    game_resp = await client.post("/api/game", json={
-        "playground_id": pg_id,
-        "players": players,
-        "settings": {"num_sets": 1},
-    }, cookies=cookies)
+    game_resp = await client.post(
+        "/api/game",
+        json={
+            "playground_id": pg_id,
+            "players": players,
+            "settings": {"num_sets": 1},
+        },
+        cookies=cookies,
+    )
     game_id = game_resp.json()["id"]
 
     # Bid
     for i, bid in enumerate(bids):
-        await client.post(f"/api/game/{game_id}/bid", json={
-            "player_index": i, "value": bid,
-        }, cookies=cookies)
+        await client.post(
+            f"/api/game/{game_id}/bid",
+            json={
+                "player_index": i,
+                "value": bid,
+            },
+            cookies=cookies,
+        )
 
     # Start round
     await client.post(f"/api/game/{game_id}/start-round", cookies=cookies)
     await client.post(
-        f"/api/game/{game_id}/enter-round-end", cookies=cookies,
+        f"/api/game/{game_id}/enter-round-end",
+        cookies=cookies,
     )
 
     # Hands
     for i, hand in enumerate(hands):
-        await client.post(f"/api/game/{game_id}/hands", json={
-            "player_index": i, "value": hand,
-        }, cookies=cookies)
+        await client.post(
+            f"/api/game/{game_id}/hands",
+            json={
+                "player_index": i,
+                "value": hand,
+            },
+            cookies=cookies,
+        )
 
     # Score + end
     await client.post(f"/api/game/{game_id}/end-round", cookies=cookies)
@@ -57,8 +84,11 @@ async def _play_full_game(
 
 
 async def _play_multi_round_game(
-    client: AsyncClient, pg_id: int, cookies: dict,
-    players: list[str], rounds_data: list[tuple[list[int], list[int]]],
+    client: AsyncClient,
+    pg_id: int,
+    cookies: dict,
+    players: list[str],
+    rounds_data: list[tuple[list[int], list[int]]],
     settings: dict | None = None,
 ):
     """Create game, play multiple rounds, end game.
@@ -66,30 +96,46 @@ async def _play_multi_round_game(
     rounds_data: list of (bids, hands) tuples per round.
     Example: [([2, 1], [2, 6]), ([0, 3], [0, 3])] — 2 rounds, 2 players.
     """
-    game_resp = await client.post("/api/game", json={
-        "playground_id": pg_id,
-        "players": players,
-        "settings": settings or {"num_sets": 1},
-    }, cookies=cookies)
+    game_resp = await client.post(
+        "/api/game",
+        json={
+            "playground_id": pg_id,
+            "players": players,
+            "settings": settings or {"num_sets": 1},
+        },
+        cookies=cookies,
+    )
     game_id = game_resp.json()["id"]
 
     for round_idx, (bids, hands) in enumerate(rounds_data):
         for i, bid in enumerate(bids):
-            await client.post(f"/api/game/{game_id}/bid", json={
-                "player_index": i, "value": bid,
-            }, cookies=cookies)
+            await client.post(
+                f"/api/game/{game_id}/bid",
+                json={
+                    "player_index": i,
+                    "value": bid,
+                },
+                cookies=cookies,
+            )
         await client.post(f"/api/game/{game_id}/start-round", cookies=cookies)
         await client.post(
-            f"/api/game/{game_id}/enter-round-end", cookies=cookies,
+            f"/api/game/{game_id}/enter-round-end",
+            cookies=cookies,
         )
         for i, hand in enumerate(hands):
-            await client.post(f"/api/game/{game_id}/hands", json={
-                "player_index": i, "value": hand,
-            }, cookies=cookies)
+            await client.post(
+                f"/api/game/{game_id}/hands",
+                json={
+                    "player_index": i,
+                    "value": hand,
+                },
+                cookies=cookies,
+            )
         await client.post(f"/api/game/{game_id}/end-round", cookies=cookies)
         if round_idx < len(rounds_data) - 1:
             await client.post(
-                f"/api/game/{game_id}/next-round", cookies=cookies,
+                f"/api/game/{game_id}/next-round",
+                cookies=cookies,
             )
 
     await client.post(f"/api/game/{game_id}/end", cookies=cookies)
@@ -100,13 +146,15 @@ class TestPlaygroundStats:
     """GET /api/playground/{share_code}/stats — analytics endpoint."""
 
     async def test_stats_with_no_games_returns_empty(
-        self, client: AsyncClient,
+        self,
+        client: AsyncClient,
     ):
         """Empty playground returns zeroed stats."""
         pg, cookies = await _setup(client, "Empty Stats")
 
         resp = await client.get(
-            f"/api/playground/{pg['share_code']}/stats", cookies=cookies,
+            f"/api/playground/{pg['share_code']}/stats",
+            cookies=cookies,
         )
         assert resp.status_code == 200
         body = resp.json()
@@ -119,13 +167,17 @@ class TestPlaygroundStats:
 
         # Alice bids 2 gets 2 → 20, Bob bids 3 gets 3 → 30, Charlie bids 1 gets 3 → -11
         await _play_full_game(
-            client, pg["id"], cookies,
+            client,
+            pg["id"],
+            cookies,
             players=["Alice", "Bob", "Charlie"],
-            bids=[2, 3, 1], hands=[2, 3, 3],
+            bids=[2, 3, 1],
+            hands=[2, 3, 3],
         )
 
         resp = await client.get(
-            f"/api/playground/{pg['share_code']}/stats", cookies=cookies,
+            f"/api/playground/{pg['share_code']}/stats",
+            cookies=cookies,
         )
         assert resp.status_code == 200
         body = resp.json()
@@ -144,19 +196,23 @@ class TestPlaygroundStats:
 
         # Vary bids each game for differentiation
         game_bids = [
-            ([2, 3, 1], [2, 3, 3]),   # Alice exact, Bob exact, Charlie miss
-            ([3, 0, 2], [3, 0, 5]),   # Alice exact, Bob zero-bid, Charlie miss
-            ([1, 4, 0], [1, 4, 3]),   # Alice exact, Bob exact, Charlie miss
+            ([2, 3, 1], [2, 3, 3]),  # Alice exact, Bob exact, Charlie miss
+            ([3, 0, 2], [3, 0, 5]),  # Alice exact, Bob zero-bid, Charlie miss
+            ([1, 4, 0], [1, 4, 3]),  # Alice exact, Bob exact, Charlie miss
         ]
         for bids, hands in game_bids:
             await _play_full_game(
-                client, pg["id"], cookies,
+                client,
+                pg["id"],
+                cookies,
                 players=["Alice", "Bob", "Charlie"],
-                bids=bids, hands=hands,
+                bids=bids,
+                hands=hands,
             )
 
         resp = await client.get(
-            f"/api/playground/{pg['share_code']}/stats", cookies=cookies,
+            f"/api/playground/{pg['share_code']}/stats",
+            cookies=cookies,
         )
         body = resp.json()
         assert body["total_games"] == 3
@@ -167,8 +223,16 @@ class TestPlaygroundStats:
 
         # Each player should have full personality data
         valid_personalities = {
-            "sniper", "gambler", "phoenix", "rock", "sprinter",
-            "ghost", "architect", "minimalist", "comeback_kid", "wildcard",
+            "sniper",
+            "gambler",
+            "phoenix",
+            "rock",
+            "sprinter",
+            "ghost",
+            "architect",
+            "minimalist",
+            "comeback_kid",
+            "wildcard",
         }
         for name in ["Alice", "Bob", "Charlie"]:
             player_data = insights["players"][name]
@@ -207,13 +271,17 @@ class TestPlaygroundStats:
         pg, cookies = await _setup(client, "Insights Unlock")
 
         await _play_full_game(
-            client, pg["id"], cookies,
+            client,
+            pg["id"],
+            cookies,
             players=["Alice", "Bob"],
-            bids=[2, 3], hands=[2, 6],
+            bids=[2, 3],
+            hands=[2, 6],
         )
 
         resp = await client.get(
-            f"/api/playground/{pg['share_code']}/stats", cookies=cookies,
+            f"/api/playground/{pg['share_code']}/stats",
+            cookies=cookies,
         )
         insights = resp.json()["insights"]
         assert insights["players"]["Alice"]["personality"] is None
@@ -226,58 +294,78 @@ class TestPlaygroundStats:
 
         # 3 games with varied results to differentiate players
         await _play_full_game(
-            client, pg["id"], cookies,
+            client,
+            pg["id"],
+            cookies,
             players=["Alice", "Bob", "Charlie"],
-            bids=[3, 0, 1], hands=[3, 0, 5],
+            bids=[3, 0, 1],
+            hands=[3, 0, 5],
         )
         await _play_full_game(
-            client, pg["id"], cookies,
+            client,
+            pg["id"],
+            cookies,
             players=["Alice", "Bob", "Charlie"],
-            bids=[2, 0, 2], hands=[2, 0, 6],
+            bids=[2, 0, 2],
+            hands=[2, 0, 6],
         )
         await _play_full_game(
-            client, pg["id"], cookies,
+            client,
+            pg["id"],
+            cookies,
             players=["Alice", "Bob", "Charlie"],
-            bids=[1, 0, 3], hands=[1, 0, 7],
+            bids=[1, 0, 3],
+            hands=[1, 0, 7],
         )
 
         resp = await client.get(
-            f"/api/playground/{pg['share_code']}/stats", cookies=cookies,
+            f"/api/playground/{pg['share_code']}/stats",
+            cookies=cookies,
         )
         insights = resp.json()["insights"]
         personalities = [
-            insights["players"][name]["personality"]
-            for name in ["Alice", "Bob", "Charlie"]
+            insights["players"][name]["personality"] for name in ["Alice", "Bob", "Charlie"]
         ]
         assert len(set(personalities)) == 3  # all unique
 
     async def test_insights_full_pipeline_with_extras(
-        self, client: AsyncClient,
+        self,
+        client: AsyncClient,
     ):
         """Full pipeline: play varied games, verify extras in response."""
         pg, cookies = await _setup(client, "Pipeline Test")
 
         # Game 1: Alice overbids, Bob plays safe
         await _play_full_game(
-            client, pg["id"], cookies,
+            client,
+            pg["id"],
+            cookies,
             players=["Alice", "Bob"],
-            bids=[5, 0], hands=[2, 6],
+            bids=[5, 0],
+            hands=[2, 6],
         )
         # Game 2: Alice exact, Bob exact
         await _play_full_game(
-            client, pg["id"], cookies,
+            client,
+            pg["id"],
+            cookies,
             players=["Alice", "Bob"],
-            bids=[3, 5], hands=[3, 5],
+            bids=[3, 5],
+            hands=[3, 5],
         )
         # Game 3: Alice underbids, Bob overbids
         await _play_full_game(
-            client, pg["id"], cookies,
+            client,
+            pg["id"],
+            cookies,
             players=["Alice", "Bob"],
-            bids=[1, 7], hands=[4, 4],
+            bids=[1, 7],
+            hands=[4, 4],
         )
 
         resp = await client.get(
-            f"/api/playground/{pg['share_code']}/stats", cookies=cookies,
+            f"/api/playground/{pg['share_code']}/stats",
+            cookies=cookies,
         )
         body = resp.json()
         assert body["total_games"] == 3
@@ -291,7 +379,9 @@ class TestPlaygroundStats:
             assert extras["games_played"] == 3
             assert "bidding_style" in extras
             assert extras["bidding_style"] in (
-                "aggressive", "conservative", "balanced",
+                "aggressive",
+                "conservative",
+                "balanced",
             )
             assert "consistency" in extras
             assert "trend" in extras
@@ -301,20 +391,25 @@ class TestPlaygroundStats:
             assert "version" in body["insights"]
 
     async def test_highlights_cached_in_insights_blob(
-        self, client: AsyncClient,
+        self,
+        client: AsyncClient,
     ):
         """Highlights computed post-game and cached in insights blob."""
         pg, cookies = await _setup(client, "Highlights Cache")
 
         for _ in range(3):
             await _play_full_game(
-                client, pg["id"], cookies,
+                client,
+                pg["id"],
+                cookies,
                 players=["Alice", "Bob"],
-                bids=[2, 3], hands=[2, 6],
+                bids=[2, 3],
+                hands=[2, 6],
             )
 
         resp = await client.get(
-            f"/api/playground/{pg['share_code']}/stats", cookies=cookies,
+            f"/api/playground/{pg['share_code']}/stats",
+            cookies=cookies,
         )
         body = resp.json()
         # Highlights should be in the response
@@ -330,7 +425,8 @@ class TestPlaygroundStats:
         assert "zero_master" in career
 
     async def test_insights_from_multi_round_games(
-        self, client: AsyncClient,
+        self,
+        client: AsyncClient,
     ):
         """Insights computed correctly from realistic multi-round games."""
         pg, cookies = await _setup(client, "MultiRound Insights")
@@ -348,14 +444,17 @@ class TestPlaygroundStats:
                 ([2, 2, 1], [2, 2, 1]),
             ]
             await _play_multi_round_game(
-                client, pg["id"], cookies,
+                client,
+                pg["id"],
+                cookies,
                 players=["Alice", "Bob", "Charlie"],
                 rounds_data=rounds,
                 settings={"num_sets": 1, "rounds_per_set": 8},
             )
 
         resp = await client.get(
-            f"/api/playground/{pg['share_code']}/stats", cookies=cookies,
+            f"/api/playground/{pg['share_code']}/stats",
+            cookies=cookies,
         )
         body = resp.json()
         assert body["total_games"] == 3
@@ -376,61 +475,71 @@ class TestPlaygroundStats:
             assert extras["total_rounds"] == 12  # 4 rounds × 3 games
 
         # Personalities should all be unique
-        personalities = [
-            insights["players"][n]["personality"]
-            for n in ["Alice", "Bob", "Charlie"]
-        ]
+        personalities = [insights["players"][n]["personality"] for n in ["Alice", "Bob", "Charlie"]]
         assert len(set(personalities)) == 3
 
     async def test_clear_stats_deletes_finished_games(
-        self, client: AsyncClient,
+        self,
+        client: AsyncClient,
     ):
         """Clear stats removes all finished games but keeps active ones."""
         pg, cookies = await _setup(client, "Clear Stats")
 
         # Play and finish a game
         await _play_full_game(
-            client, pg["id"], cookies,
+            client,
+            pg["id"],
+            cookies,
             players=["Alice", "Bob"],
-            bids=[2, 3], hands=[2, 6],
+            bids=[2, 3],
+            hands=[2, 6],
         )
 
         # Verify stats show 1 game
         resp = await client.get(
-            f"/api/playground/{pg['share_code']}/stats", cookies=cookies,
+            f"/api/playground/{pg['share_code']}/stats",
+            cookies=cookies,
         )
         assert resp.json()["total_games"] == 1
 
         # Clear stats
         resp = await client.delete(
-            f"/api/playground/{pg['share_code']}/stats", cookies=cookies,
+            f"/api/playground/{pg['share_code']}/stats",
+            cookies=cookies,
         )
         assert resp.status_code == 200
         assert resp.json()["deleted_games"] == 1
 
         # Stats should be empty now
         resp = await client.get(
-            f"/api/playground/{pg['share_code']}/stats", cookies=cookies,
+            f"/api/playground/{pg['share_code']}/stats",
+            cookies=cookies,
         )
         assert resp.json()["total_games"] == 0
         assert resp.json()["game_history"] == []
 
     async def test_clear_stats_keeps_active_game(
-        self, client: AsyncClient,
+        self,
+        client: AsyncClient,
     ):
         """Clear stats does not delete active (in-progress) games."""
         pg, cookies = await _setup(client, "Clear Active")
 
         # Create an active game (don't finish it)
-        await client.post("/api/game", json={
-            "playground_id": pg["id"],
-            "players": ["Alice", "Bob"],
-            "settings": {"num_sets": 1},
-        }, cookies=cookies)
+        await client.post(
+            "/api/game",
+            json={
+                "playground_id": pg["id"],
+                "players": ["Alice", "Bob"],
+                "settings": {"num_sets": 1},
+            },
+            cookies=cookies,
+        )
 
         # Clear stats — should delete 0 (only finished games)
         resp = await client.delete(
-            f"/api/playground/{pg['share_code']}/stats", cookies=cookies,
+            f"/api/playground/{pg['share_code']}/stats",
+            cookies=cookies,
         )
         assert resp.status_code == 200
         assert resp.json()["deleted_games"] == 0
@@ -457,13 +566,17 @@ class TestHighlights:
         # Game: Alice bids 1 makes 1 (sniper). Bob bids 0 makes 0.
         # Round with 8 cards: hands must sum to 8
         await _play_full_game(
-            client, pg["id"], cookies,
+            client,
+            pg["id"],
+            cookies,
             players=["Alice", "Bob"],
-            bids=[1, 0], hands=[1, 7],
+            bids=[1, 0],
+            hands=[1, 7],
         )
 
         resp = await client.get(
-            f"/api/playground/{pg['share_code']}/stats", cookies=cookies,
+            f"/api/playground/{pg['share_code']}/stats",
+            cookies=cookies,
         )
         highlights = resp.json()["highlights"]
         sniper = highlights["career"]["sniper"]
@@ -473,47 +586,58 @@ class TestHighlights:
         assert bob["count"] == 0
 
     async def test_career_zero_master_counts_bid0_made(
-        self, client: AsyncClient,
+        self,
+        client: AsyncClient,
     ):
         """Zero master counts times a player bid 0 and made it."""
         pg, cookies = await _setup(client, "ZeroMaster Stats")
 
         # Bob bids 0 and makes 0 (zero master). Alice takes all 8 hands.
         await _play_full_game(
-            client, pg["id"], cookies,
+            client,
+            pg["id"],
+            cookies,
             players=["Alice", "Bob"],
-            bids=[3, 0], hands=[8, 0],
+            bids=[3, 0],
+            hands=[8, 0],
         )
 
         resp = await client.get(
-            f"/api/playground/{pg['share_code']}/stats", cookies=cookies,
+            f"/api/playground/{pg['share_code']}/stats",
+            cookies=cookies,
         )
         zero_master = resp.json()["highlights"]["career"]["zero_master"]
         bob = next(p for p in zero_master if p["name"] == "Bob")
         assert bob["count"] == 1
 
     async def test_career_high_roller_counts_bid3plus_made(
-        self, client: AsyncClient,
+        self,
+        client: AsyncClient,
     ):
         """High roller counts times a player bid 3+ and made it."""
         pg, cookies = await _setup(client, "HighRoller Stats")
 
         # Alice bids 5, makes 5 (high roller)
         await _play_full_game(
-            client, pg["id"], cookies,
+            client,
+            pg["id"],
+            cookies,
             players=["Alice", "Bob"],
-            bids=[5, 0], hands=[5, 3],
+            bids=[5, 0],
+            hands=[5, 3],
         )
 
         resp = await client.get(
-            f"/api/playground/{pg['share_code']}/stats", cookies=cookies,
+            f"/api/playground/{pg['share_code']}/stats",
+            cookies=cookies,
         )
         high_roller = resp.json()["highlights"]["career"]["high_roller"]
         alice = next(p for p in high_roller if p["name"] == "Alice")
         assert alice["count"] == 1
 
     async def test_career_jinxed_tracks_longest_miss_streak(
-        self, client: AsyncClient,
+        self,
+        client: AsyncClient,
     ):
         """Jinxed tracks longest consecutive missed bids per player."""
         pg, cookies = await _setup(client, "Jinxed Stats")
@@ -522,7 +646,9 @@ class TestHighlights:
         # Round 1: 8 cards. Alice bids 3 gets 1 (miss), Bob bids 0 gets 0 (made)
         # Round 2: 7 cards. Alice bids 2 gets 0 (miss), Bob bids 0 gets 0 (made)
         await _play_multi_round_game(
-            client, pg["id"], cookies,
+            client,
+            pg["id"],
+            cookies,
             players=["Alice", "Bob"],
             rounds_data=[
                 ([3, 0], [8, 0]),  # Alice miss (bid 3 got 8), Bob makes (bid 0 got 0)
@@ -532,20 +658,22 @@ class TestHighlights:
         )
 
         resp = await client.get(
-            f"/api/playground/{pg['share_code']}/stats", cookies=cookies,
+            f"/api/playground/{pg['share_code']}/stats",
+            cookies=cookies,
         )
         jinxed = resp.json()["highlights"]["career"]["jinxed"]
         alice = next(p for p in jinxed if p["name"] == "Alice")
         bob = next(p for p in jinxed if p["name"] == "Bob")
         assert alice["longest"] == 2  # missed both rounds
-        assert bob["longest"] == 0   # made both rounds
+        assert bob["longest"] == 0  # made both rounds
 
     async def test_highlights_empty_with_no_games(self, client: AsyncClient):
         """Highlights are empty when no games played."""
         pg, cookies = await _setup(client, "Empty Highlights")
 
         resp = await client.get(
-            f"/api/playground/{pg['share_code']}/stats", cookies=cookies,
+            f"/api/playground/{pg['share_code']}/stats",
+            cookies=cookies,
         )
         body = resp.json()
         assert body["total_games"] == 0
@@ -560,7 +688,9 @@ class TestHighlights:
         # Round 1 (8 cards): Alice bids 5 makes 5 (+50), Bob bids 0 makes 0 (+10)
         # Round 2 (7 cards): Alice bids 2 makes 0 (miss -20), Bob bids 0 makes 0 (+10)
         await _play_multi_round_game(
-            client, pg["id"], cookies,
+            client,
+            pg["id"],
+            cookies,
             players=["Alice", "Bob"],
             rounds_data=[
                 ([5, 0], [5, 3]),  # Alice: +50 (bold bid 5), Bob: -10 (bid 0 got 3)
@@ -570,7 +700,8 @@ class TestHighlights:
         )
 
         resp = await client.get(
-            f"/api/playground/{pg['share_code']}/stats", cookies=cookies,
+            f"/api/playground/{pg['share_code']}/stats",
+            cookies=cookies,
         )
         last_game = resp.json()["highlights"]["last_game"]
         assert last_game is not None
@@ -602,17 +733,20 @@ class TestHighlights:
 
         # Bob makes both bids (bid 0, got 0). Alice makes 1/2.
         await _play_multi_round_game(
-            client, pg["id"], cookies,
+            client,
+            pg["id"],
+            cookies,
             players=["Alice", "Bob"],
             rounds_data=[
-                ([3, 0], [3, 5]),   # Alice makes (bid 3 got 3), Bob misses (bid 0 got 5)
-                ([2, 0], [2, 0]),   # Alice makes (bid 2 got 2), Bob makes (bid 0 got 0)
+                ([3, 0], [3, 5]),  # Alice makes (bid 3 got 3), Bob misses (bid 0 got 5)
+                ([2, 0], [2, 0]),  # Alice makes (bid 2 got 2), Bob makes (bid 0 got 0)
             ],
             settings={"num_sets": 1, "rounds_per_set": 8},
         )
 
         resp = await client.get(
-            f"/api/playground/{pg['share_code']}/stats", cookies=cookies,
+            f"/api/playground/{pg['share_code']}/stats",
+            cookies=cookies,
         )
         last_game = resp.json()["highlights"]["last_game"]
         # Alice: 2/2 = 100%, Bob: 1/2 = 50%
@@ -620,31 +754,41 @@ class TestHighlights:
         assert last_game["sharpshooter"]["accuracy"] == 100
 
     async def test_empty_finished_games_not_counted(
-        self, client: AsyncClient,
+        self,
+        client: AsyncClient,
     ):
         """Games ended without any scored rounds should not inflate total_games."""
         pg, cookies = await _setup(client, "Empty Game Count")
 
         # Play one real game
         await _play_full_game(
-            client, pg["id"], cookies,
+            client,
+            pg["id"],
+            cookies,
             players=["Alice", "Bob", "Charlie"],
-            bids=[2, 1, 0], hands=[2, 1, 5],
+            bids=[2, 1, 0],
+            hands=[2, 1, 5],
         )
 
         # Create and immediately end a game (no rounds played)
-        game_resp = await client.post("/api/game", json={
-            "playground_id": pg["id"],
-            "players": ["Alice", "Bob", "Charlie"],
-            "settings": {"num_sets": 1},
-        }, cookies=cookies)
+        game_resp = await client.post(
+            "/api/game",
+            json={
+                "playground_id": pg["id"],
+                "players": ["Alice", "Bob", "Charlie"],
+                "settings": {"num_sets": 1},
+            },
+            cookies=cookies,
+        )
         empty_game_id = game_resp.json()["id"]
         await client.post(
-            f"/api/game/{empty_game_id}/end", cookies=cookies,
+            f"/api/game/{empty_game_id}/end",
+            cookies=cookies,
         )
 
         resp = await client.get(
-            f"/api/playground/{pg['share_code']}/stats", cookies=cookies,
+            f"/api/playground/{pg['share_code']}/stats",
+            cookies=cookies,
         )
         body = resp.json()
         # total_games should match game_history length — empty games excluded

@@ -17,71 +17,89 @@ MIN_CONFIDENCE_GAP = 0.1
 
 # Pre-defined personality centroids (raw, normalized to unit length at load)
 _RAW_CENTROIDS = {
-    "sniper":       [1.0, 0.0, 0.0, 0.3, 0.5, 0.8, 0.8, 0.5, 0.5, 0.3],
-    "gambler":      [0.3, 1.0, 0.0, 0.7, 0.1, 0.4, 0.2, 0.6, 0.4, 0.3],
-    "phoenix":      [0.5, 0.3, 0.3, 0.5, 0.4, 0.5, 0.5, 0.2, 0.9, 0.6],
-    "rock":         [0.6, 0.3, 0.3, 0.0, 0.5, 0.5, 0.5, 0.5, 0.5, 0.3],
-    "sprinter":     [0.5, 0.3, 0.3, 0.5, 0.4, 0.5, 0.5, 0.9, 0.2, 0.2],
-    "ghost":        [0.5, 0.0, 0.3, 0.3, 1.0, 0.4, 0.5, 0.5, 0.5, 0.3],
-    "architect":    [0.6, 0.3, 0.2, 0.4, 0.3, 1.0, 0.2, 0.5, 0.5, 0.3],
-    "minimalist":   [0.6, 0.2, 0.3, 0.4, 0.5, 0.2, 1.0, 0.5, 0.5, 0.3],
+    "sniper": [1.0, 0.0, 0.0, 0.3, 0.5, 0.8, 0.8, 0.5, 0.5, 0.3],
+    "gambler": [0.3, 1.0, 0.0, 0.7, 0.1, 0.4, 0.2, 0.6, 0.4, 0.3],
+    "phoenix": [0.5, 0.3, 0.3, 0.5, 0.4, 0.5, 0.5, 0.2, 0.9, 0.6],
+    "rock": [0.6, 0.3, 0.3, 0.0, 0.5, 0.5, 0.5, 0.5, 0.5, 0.3],
+    "sprinter": [0.5, 0.3, 0.3, 0.5, 0.4, 0.5, 0.5, 0.9, 0.2, 0.2],
+    "ghost": [0.5, 0.0, 0.3, 0.3, 1.0, 0.4, 0.5, 0.5, 0.5, 0.3],
+    "architect": [0.6, 0.3, 0.2, 0.4, 0.3, 1.0, 0.2, 0.5, 0.5, 0.3],
+    "minimalist": [0.6, 0.2, 0.3, 0.4, 0.5, 0.2, 1.0, 0.5, 0.5, 0.3],
     "comeback_kid": [0.4, 0.3, 0.3, 0.6, 0.3, 0.5, 0.5, 0.2, 0.7, 1.0],
-    "wildcard":     [0.4, 0.5, 0.5, 1.0, 0.3, 0.4, 0.4, 0.5, 0.5, 0.4],
+    "wildcard": [0.4, 0.5, 0.5, 1.0, 0.3, 0.4, 0.4, 0.5, 0.5, 0.4],
 }
 
 
 def _normalize_to_unit(vec: list[float]) -> list[float]:
-    magnitude = math.sqrt(sum(v ** 2 for v in vec))
+    magnitude = math.sqrt(sum(v**2 for v in vec))
     if magnitude < 1e-10:
         return vec[:]
     return [v / magnitude for v in vec]
 
 
-PERSONALITY_CENTROIDS = {
-    name: _normalize_to_unit(vec) for name, vec in _RAW_CENTROIDS.items()
-}
+PERSONALITY_CENTROIDS = {name: _normalize_to_unit(vec) for name, vec in _RAW_CENTROIDS.items()}
 
 # Single source of truth for personality display — served via API to frontend
 PERSONALITY_META = {
     "sniper": {
-        "name": "The Sniper", "tagline": "Calls the shot. Makes the shot.",
-        "color": "#1B5E20", "icon": "🎯",
+        "name": "The Sniper",
+        "tagline": "Calls the shot. Makes the shot.",
+        "color": "#1B5E20",
+        "icon": "🎯",
     },
     "gambler": {
-        "name": "The Gambler", "tagline": "Goes big. Sometimes it pays off.",
-        "color": "#E65100", "icon": "🎲",
+        "name": "The Gambler",
+        "tagline": "Goes big. Sometimes it pays off.",
+        "color": "#E65100",
+        "icon": "🎲",
     },
     "phoenix": {
-        "name": "The Phoenix", "tagline": "Slow start? That's the plan.",
-        "color": "#BF360C", "icon": "🔥",
+        "name": "The Phoenix",
+        "tagline": "Slow start? That's the plan.",
+        "color": "#BF360C",
+        "icon": "🔥",
     },
     "rock": {
-        "name": "The Rock", "tagline": "Steady hands. No surprises.",
-        "color": "#37474F", "icon": "🪨",
+        "name": "The Rock",
+        "tagline": "Steady hands. No surprises.",
+        "color": "#37474F",
+        "icon": "🪨",
     },
     "sprinter": {
-        "name": "The Sprinter", "tagline": "Out of the gate like lightning.",
-        "color": "#0D47A1", "icon": "⚡",
+        "name": "The Sprinter",
+        "tagline": "Out of the gate like lightning.",
+        "color": "#0D47A1",
+        "icon": "⚡",
     },
     "ghost": {
-        "name": "The Ghost", "tagline": "Bids nothing. Wins everything.",
-        "color": "#4A148C", "icon": "👻",
+        "name": "The Ghost",
+        "tagline": "Bids nothing. Wins everything.",
+        "color": "#4A148C",
+        "icon": "👻",
     },
     "architect": {
-        "name": "The Architect", "tagline": "More cards, more to build.",
-        "color": "#006064", "icon": "🏗️",
+        "name": "The Architect",
+        "tagline": "More cards, more to build.",
+        "color": "#006064",
+        "icon": "🏗️",
     },
     "minimalist": {
-        "name": "The Minimalist", "tagline": "Less is more. Always.",
-        "color": "#3E2723", "icon": "✨",
+        "name": "The Minimalist",
+        "tagline": "Less is more. Always.",
+        "color": "#3E2723",
+        "icon": "✨",
     },
     "comeback_kid": {
-        "name": "The Comeback Kid", "tagline": "Don't count them out.",
-        "color": "#880E4F", "icon": "🦅",
+        "name": "The Comeback Kid",
+        "tagline": "Don't count them out.",
+        "color": "#880E4F",
+        "icon": "🦅",
     },
     "wildcard": {
-        "name": "The Wildcard", "tagline": "You never know what you get.",
-        "color": "#FF6F00", "icon": "🃏",
+        "name": "The Wildcard",
+        "tagline": "You never know what you get.",
+        "color": "#FF6F00",
+        "icon": "🃏",
     },
 }
 
@@ -150,10 +168,7 @@ def james_stein_shrink(
 ) -> list[float]:
     """Apply James-Stein shrinkage toward population mean."""
     num_dims = len(player_vector)
-    diff_squared_sum = sum(
-        (player_vector[i] - population_mean[i]) ** 2
-        for i in range(num_dims)
-    )
+    diff_squared_sum = sum((player_vector[i] - population_mean[i]) ** 2 for i in range(num_dims))
 
     if diff_squared_sum < 1e-10 or games_played == 0:
         return player_vector[:]
@@ -175,17 +190,14 @@ def ema_update(
     """Exponential moving average for feature vector smoothing."""
     if stored_vector is None:
         return new_vector[:]
-    return [
-        alpha * new_vector[i] + (1 - alpha) * stored_vector[i]
-        for i in range(len(new_vector))
-    ]
+    return [alpha * new_vector[i] + (1 - alpha) * stored_vector[i] for i in range(len(new_vector))]
 
 
 def cosine_similarity(vec_a: list[float], vec_b: list[float]) -> float:
     """Cosine similarity between two vectors. Returns 0.0 for near-zero vectors."""
     dot_product = sum(a * b for a, b in zip(vec_a, vec_b, strict=True))
-    magnitude_a = math.sqrt(sum(a ** 2 for a in vec_a))
-    magnitude_b = math.sqrt(sum(b ** 2 for b in vec_b))
+    magnitude_a = math.sqrt(sum(a**2 for a in vec_a))
+    magnitude_b = math.sqrt(sum(b**2 for b in vec_b))
     if magnitude_a < 1e-10 or magnitude_b < 1e-10:
         return 0.0
     return dot_product / (magnitude_a * magnitude_b)
@@ -197,15 +209,15 @@ def assign_personality(
 ) -> dict:
     """Assign personality archetype based on cosine similarity to centroids."""
     available = {
-        name: centroid for name, centroid in PERSONALITY_CENTROIDS.items()
+        name: centroid
+        for name, centroid in PERSONALITY_CENTROIDS.items()
         if not excluded or name not in excluded
     }
     if not available:
         available = PERSONALITY_CENTROIDS
 
     similarities = {
-        name: cosine_similarity(vector, centroid)
-        for name, centroid in available.items()
+        name: cosine_similarity(vector, centroid) for name, centroid in available.items()
     }
     sorted_matches = sorted(similarities.items(), key=lambda x: -x[1])
     top_name, top_score = sorted_matches[0]
@@ -261,12 +273,14 @@ def _draft_assign(
             continue
 
         remaining = {
-            n: c for n, c in PERSONALITY_CENTROIDS.items()
+            n: c
+            for n, c in PERSONALITY_CENTROIDS.items()
             if n not in taken and n != personality_name
         }
         second_score = (
             max(cosine_similarity(vectors[player_name], c) for c in remaining.values())
-            if remaining else 0.0
+            if remaining
+            else 0.0
         )
 
         results[player_name] = {

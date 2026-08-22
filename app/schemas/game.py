@@ -12,9 +12,7 @@ class GameSettings(BaseModel):
     num_sets: int = Field(default=3, ge=1, le=10)
     rounds_per_set: int = Field(default=8, ge=1, le=26)
     must_lose: bool = Field(default=False)
-    trump_rotation: list[str] = Field(
-        default=["spades", "diamonds", "clubs", "hearts"]
-    )
+    trump_rotation: list[str] = Field(default=["spades", "diamonds", "clubs", "hearts"])
 
 
 class GameCreate(BaseModel):

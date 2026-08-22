@@ -1,6 +1,5 @@
 """Unit tests for analytics — career rules, awards, highlights caching."""
 
-
 from app.services.analytics import (
     CAREER_RULES,
     _accumulate_game_stats,
@@ -21,29 +20,42 @@ class TestIterRoundBids:
                 self.hands_won = hands_won
                 self.scores = scores
                 self.cards_dealt = 8
+
         return MockRound(bids, hands, scores)
 
     def test_yields_name_bid_hand_score(self):
-        rounds = [self._make_round(
-            {"0": 2, "1": 3}, {"0": 2, "1": 1}, {"0": 20, "1": -30},
-        )]
+        rounds = [
+            self._make_round(
+                {"0": 2, "1": 3},
+                {"0": 2, "1": 1},
+                {"0": 20, "1": -30},
+            )
+        ]
         results = list(_iter_round_bids(["Ravi", "Meera"], rounds))
         assert len(results) == 2
         assert results[0] == ("Ravi", 2, 2, 20, rounds[0])
         assert results[1] == ("Meera", 3, 1, -30, rounds[0])
 
     def test_skips_out_of_range_index(self):
-        rounds = [self._make_round(
-            {"0": 2, "5": 3}, {"0": 2, "5": 3}, {"0": 20, "5": 30},
-        )]
+        rounds = [
+            self._make_round(
+                {"0": 2, "5": 3},
+                {"0": 2, "5": 3},
+                {"0": 20, "5": 30},
+            )
+        ]
         results = list(_iter_round_bids(["Ravi"], rounds))
         assert len(results) == 1
         assert results[0][0] == "Ravi"
 
     def test_skips_none_bid_or_hand(self):
-        rounds = [self._make_round(
-            {"0": None}, {"0": 2}, {"0": 20},
-        )]
+        rounds = [
+            self._make_round(
+                {"0": None},
+                {"0": 2},
+                {"0": 20},
+            )
+        ]
         results = list(_iter_round_bids(["Ravi"], rounds))
         assert len(results) == 0
 
@@ -148,15 +160,20 @@ class TestAccumulateGameStats:
                 self.bids = bids
                 self.hands_won = hands_won
                 self.scores = scores
+
         return MockRound(bids, hands, scores)
 
     def test_totals_accumulated(self):
         rounds = [
             self._make_round(
-                {"0": 2, "1": 3}, {"0": 2, "1": 3}, {"0": 20, "1": 30},
+                {"0": 2, "1": 3},
+                {"0": 2, "1": 3},
+                {"0": 20, "1": 30},
             ),
             self._make_round(
-                {"0": 1, "1": 4}, {"0": 1, "1": 2}, {"0": 11, "1": -40},
+                {"0": 1, "1": 4},
+                {"0": 1, "1": 2},
+                {"0": 11, "1": -40},
             ),
         ]
         stats = _accumulate_game_stats(["Ravi", "Meera"], rounds)
@@ -166,7 +183,9 @@ class TestAccumulateGameStats:
     def test_overbid_underbid_counted(self):
         rounds = [
             self._make_round(
-                {"0": 5, "1": 1}, {"0": 2, "1": 3}, {"0": -50, "1": -10},
+                {"0": 5, "1": 1},
+                {"0": 2, "1": 3},
+                {"0": -50, "1": -10},
             ),
         ]
         stats = _accumulate_game_stats(["Ravi", "Meera"], rounds)
@@ -176,7 +195,9 @@ class TestAccumulateGameStats:
     def test_zero_bids_tracked(self):
         rounds = [
             self._make_round(
-                {"0": 0, "1": 5}, {"0": 0, "1": 5}, {"0": 10, "1": 50},
+                {"0": 0, "1": 5},
+                {"0": 0, "1": 5},
+                {"0": 10, "1": 50},
             ),
         ]
         stats = _accumulate_game_stats(["Ravi", "Meera"], rounds)
@@ -186,7 +207,9 @@ class TestAccumulateGameStats:
     def test_best_bid_tracked(self):
         rounds = [
             self._make_round(
-                {"0": 5, "1": 2}, {"0": 5, "1": 2}, {"0": 50, "1": 20},
+                {"0": 5, "1": 2},
+                {"0": 5, "1": 2},
+                {"0": 50, "1": 20},
             ),
         ]
         stats = _accumulate_game_stats(["Ravi", "Meera"], rounds)
@@ -239,7 +262,12 @@ class TestBuildAwards:
         }
         awards = _build_awards(stats)
         expected_keys = {
-            "mvp", "sharpshooter", "brick_wall", "bold_move",
-            "cursed", "sandbagger", "gambler",
+            "mvp",
+            "sharpshooter",
+            "brick_wall",
+            "bold_move",
+            "cursed",
+            "sandbagger",
+            "gambler",
         }
         assert set(awards.keys()) == expected_keys

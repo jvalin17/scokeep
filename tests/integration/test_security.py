@@ -8,31 +8,49 @@ from httpx import AsyncClient
 
 
 async def _create_playground_and_auth(
-    client: AsyncClient, name: str, pin: str = "1234", players: list[str] | None = None,
+    client: AsyncClient,
+    name: str,
+    pin: str = "1234",
+    players: list[str] | None = None,
 ):
     """Create playground, auth, return (playground_dict, cookies)."""
     players = players or ["Alice", "Bob", "Charlie"]
-    await client.post("/api/playground", json={
-        "name": name, "pin": pin, "players": players,
-    })
-    auth = await client.post("/api/playground/auth", json={
-        "name": name, "pin": pin,
-    })
+    await client.post(
+        "/api/playground",
+        json={
+            "name": name,
+            "pin": pin,
+            "players": players,
+        },
+    )
+    auth = await client.post(
+        "/api/playground/auth",
+        json={
+            "name": name,
+            "pin": pin,
+        },
+    )
     cookies = {"scokeep_session": auth.cookies.get("scokeep_session")}
     return auth.json(), cookies
 
 
 async def _create_game(
-    client: AsyncClient, playground_id: int, cookies: dict,
+    client: AsyncClient,
+    playground_id: int,
+    cookies: dict,
     players: list[str] | None = None,
 ):
     """Create a game and return the game dict."""
     players = players or ["Alice", "Bob", "Charlie"]
-    resp = await client.post("/api/game", json={
-        "playground_id": playground_id,
-        "players": players,
-        "settings": {"num_sets": 1},
-    }, cookies=cookies)
+    resp = await client.post(
+        "/api/game",
+        json={
+            "playground_id": playground_id,
+            "players": players,
+            "settings": {"num_sets": 1},
+        },
+        cookies=cookies,
+    )
     return resp.json()
 
 
@@ -41,14 +59,17 @@ class TestXSSPrevention:
 
     async def test_html_in_player_name_is_escaped_in_response(self, client: AsyncClient):
         """API should escape player names containing HTML tags."""
-        xss_name = '<img onerror=alert(1) src=x>'
+        xss_name = "<img onerror=alert(1) src=x>"
         pg, cookies = await _create_playground_and_auth(
-            client, "XSS Test", players=[xss_name, "Bob", "Charlie"],
+            client,
+            "XSS Test",
+            players=[xss_name, "Bob", "Charlie"],
         )
 
         # The stored name should be sanitized
         resp = await client.get(
-            f"/api/playground/{pg['share_code']}", cookies=cookies,
+            f"/api/playground/{pg['share_code']}",
+            cookies=cookies,
         )
         assert resp.status_code == 200
         returned_names = resp.json()["players"]
@@ -61,7 +82,9 @@ class TestXSSPrevention:
         """Script tags must be stripped/escaped."""
         xss_name = '<script>alert("xss")</script>'
         pg, cookies = await _create_playground_and_auth(
-            client, "XSS Script Test", players=[xss_name, "Bob"],
+            client,
+            "XSS Script Test",
+            players=[xss_name, "Bob"],
         )
 
         game = await _create_game(client, pg["id"], cookies, players=[xss_name, "Bob"])
@@ -94,9 +117,14 @@ class TestCrossPlaygroundAuth:
         game_b = await _create_game(client, pg_b["id"], cookies_b)
 
         # User A tries to bid on game B — should be 403
-        resp = await client.post(f"/api/game/{game_b['id']}/bid", json={
-            "player_index": 0, "value": 2,
-        }, cookies=cookies_a)
+        resp = await client.post(
+            f"/api/game/{game_b['id']}/bid",
+            json={
+                "player_index": 0,
+                "value": 2,
+            },
+            cookies=cookies_a,
+        )
         assert resp.status_code == 403, f"Expected 403, got {resp.status_code}"
 
     async def test_cannot_end_other_playground_game(self, client: AsyncClient):
@@ -133,22 +161,30 @@ class TestGameCreateAuth:
     """IDOR — game creation must use session playground_id, not request body."""
 
     async def test_cannot_create_game_under_other_playground(
-        self, client: AsyncClient,
+        self,
+        client: AsyncClient,
     ):
         """User authed to playground A must NOT create a game under playground B."""
         pg_a, cookies_a = await _create_playground_and_auth(
-            client, "Create Auth Alpha",
+            client,
+            "Create Auth Alpha",
         )
         pg_b, cookies_b = await _create_playground_and_auth(
-            client, "Create Auth Beta", pin="5678",
+            client,
+            "Create Auth Beta",
+            pin="5678",
         )
 
         # User A tries to create a game under playground B
-        resp = await client.post("/api/game", json={
-            "playground_id": pg_b["id"],
-            "players": ["Nadia", "Carlos", "Wei"],
-            "settings": {},
-        }, cookies=cookies_a)
+        resp = await client.post(
+            "/api/game",
+            json={
+                "playground_id": pg_b["id"],
+                "players": ["Nadia", "Carlos", "Wei"],
+                "settings": {},
+            },
+            cookies=cookies_a,
+        )
         assert resp.status_code == 403, (
             f"Expected 403 for cross-playground game create, got {resp.status_code}"
         )
@@ -156,13 +192,18 @@ class TestGameCreateAuth:
     async def test_own_playground_game_create_works(self, client: AsyncClient):
         """User authed to playground A CAN create games in their own playground."""
         pg, cookies = await _create_playground_and_auth(
-            client, "Create Auth Own",
+            client,
+            "Create Auth Own",
         )
-        resp = await client.post("/api/game", json={
-            "playground_id": pg["id"],
-            "players": ["Nadia", "Carlos", "Wei"],
-            "settings": {},
-        }, cookies=cookies)
+        resp = await client.post(
+            "/api/game",
+            json={
+                "playground_id": pg["id"],
+                "players": ["Nadia", "Carlos", "Wei"],
+                "settings": {},
+            },
+            cookies=cookies,
+        )
         assert resp.status_code == 201
 
 
@@ -170,14 +211,18 @@ class TestActiveGameAuth:
     """IDOR — active game query must verify session matches path playground_id."""
 
     async def test_cannot_query_other_playground_active_game(
-        self, client: AsyncClient,
+        self,
+        client: AsyncClient,
     ):
         """User authed to playground A must NOT query playground B's active game."""
         pg_a, cookies_a = await _create_playground_and_auth(
-            client, "Active Auth Alpha",
+            client,
+            "Active Auth Alpha",
         )
         pg_b, cookies_b = await _create_playground_and_auth(
-            client, "Active Auth Beta", pin="5678",
+            client,
+            "Active Auth Beta",
+            pin="5678",
         )
 
         # Create a game in B
@@ -185,7 +230,8 @@ class TestActiveGameAuth:
 
         # User A queries B's active game
         resp = await client.get(
-            f"/api/game/active/{pg_b['id']}", cookies=cookies_a,
+            f"/api/game/active/{pg_b['id']}",
+            cookies=cookies_a,
         )
         assert resp.status_code == 403, (
             f"Expected 403 for cross-playground active query, got {resp.status_code}"
@@ -194,12 +240,14 @@ class TestActiveGameAuth:
     async def test_own_playground_active_game_works(self, client: AsyncClient):
         """User can query their own playground's active game."""
         pg, cookies = await _create_playground_and_auth(
-            client, "Active Auth Own",
+            client,
+            "Active Auth Own",
         )
         await _create_game(client, pg["id"], cookies)
 
         resp = await client.get(
-            f"/api/game/active/{pg['id']}", cookies=cookies,
+            f"/api/game/active/{pg['id']}",
+            cookies=cookies,
         )
         assert resp.status_code == 200
 
@@ -218,7 +266,8 @@ class TestStatsEndpointAuth:
 
         # User A tries to read B's stats
         resp = await client.get(
-            f"/api/playground/{pg_b['share_code']}/stats", cookies=cookies_a,
+            f"/api/playground/{pg_b['share_code']}/stats",
+            cookies=cookies_a,
         )
         assert resp.status_code == 403, (
             f"Expected 403 for cross-playground stats, got {resp.status_code}"
@@ -233,7 +282,8 @@ class TestStatsEndpointAuth:
         await client.post(f"/api/game/{game['id']}/end", cookies=cookies_b)
 
         resp = await client.delete(
-            f"/api/playground/{pg_b['share_code']}/stats", cookies=cookies_a,
+            f"/api/playground/{pg_b['share_code']}/stats",
+            cookies=cookies_a,
         )
         assert resp.status_code == 403, (
             f"Expected 403 for cross-playground stats delete, got {resp.status_code}"
@@ -246,6 +296,7 @@ class TestStatsEndpointAuth:
         await client.post(f"/api/game/{game['id']}/end", cookies=cookies)
 
         resp = await client.get(
-            f"/api/playground/{pg['share_code']}/stats", cookies=cookies,
+            f"/api/playground/{pg['share_code']}/stats",
+            cookies=cookies,
         )
         assert resp.status_code == 200

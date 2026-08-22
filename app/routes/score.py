@@ -25,7 +25,9 @@ async def get_scoreboard(
     game = await get_game_with_auth(db, game_id, playground_id)
 
     scoreboard = await ScoreboardService.get_scoreboard(
-        db, game_id, player_count=len(game.players),
+        db,
+        game_id,
+        player_count=len(game.players),
     )
     return scoreboard
 
@@ -89,7 +91,8 @@ async def correct_score(
 
     result = await db.execute(
         select(Round).where(
-            Round.game_id == game_id, Round.round_num == round_num,
+            Round.game_id == game_id,
+            Round.round_num == round_num,
         )
     )
     rnd = result.scalar_one_or_none()
@@ -102,6 +105,7 @@ async def correct_score(
 
     # Recompute insights (career records, highlights, personalities)
     from app.services.insights import compute_insights
+
     await compute_insights(db, game.playground_id)
 
     return {"status": "corrected", "round_num": round_num, "updated_score": body.score}

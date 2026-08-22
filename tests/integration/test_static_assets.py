@@ -85,7 +85,6 @@ class TestJSModules:
 
 
 class TestHealthEndpoint:
-
     async def test_health_returns_status(self, client: AsyncClient):
         response = await client.get("/api/health")
         assert response.status_code == 200
