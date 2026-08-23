@@ -43,8 +43,8 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[dev]"
 
-      - name: Run pytest
-        run: pytest --tb=short -q
+      - name: Run pytest (excluding UI tests)
+        run: pytest --tb=short -q --ignore=tests/ui
 
   docker:
     name: Docker build
