@@ -55,33 +55,23 @@ jobs:
       - name: Build Docker image
         run: docker build -t scokeep:ci-${{ github.sha }} .
 
-  # ── Future: UI tests ──────────────────────────────────────
-  # Uncomment when Playwright tests exist in tests/ui/
-  #
-  # ui:
-  #   name: UI tests (Playwright)
-  #   needs: [docker]
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #
-  #     - uses: actions/setup-python@v5
-  #       with:
-  #         python-version: "3.12"
-  #         cache: pip
-  #
-  #     - name: Install dependencies
-  #       run: |
-  #         pip install -e ".[dev]"
-  #         pip install playwright pytest-playwright
-  #         playwright install --with-deps chromium
-  #
-  #     - name: Start app
-  #       run: |
-  #         uvicorn app.main:app --host 0.0.0.0 --port 8050 &
-  #         sleep 3
-  #       env:
-  #         DATABASE_URL: "sqlite+aiosqlite:///./ui_test.db"
-  #
-  #     - name: Run Playwright tests
-  #       run: pytest tests/ui/ --tb=short -q
+  ui:
+    name: UI tests (Playwright)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install -e ".[dev]"
+          playwright install --with-deps chromium
+
+      - name: Run Playwright tests
+        run: pytest tests/ui/ --tb=short -q --override-ini="asyncio_mode=strict"
+        env:
+          RATE_LIMIT_ENABLED: "false"
