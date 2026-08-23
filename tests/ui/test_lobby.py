@@ -2,13 +2,13 @@
 
 import pytest
 
-from tests.ui.helpers import VIEWPORTS, create_playground
+from tests.ui.helpers import VIEWPORTS, create_playground, unique_name
 
 
 @pytest.fixture
 def lobby_page(page, server):
     page.goto(server)
-    create_playground(page, "UITest Lobby", "1234", ["Alice", "Bob", "Charlie"])
+    create_playground(page, unique_name("Lobby"), "1234", ["Alice", "Bob", "Charlie"])
     return page
 
 

@@ -10,13 +10,14 @@ from tests.ui.helpers import (
     enter_bids_for_all,
     enter_hands_won,
     start_game,
+    unique_name,
 )
 
 
 @pytest.fixture
 def final_page(page, server):
     page.goto(server)
-    create_playground(page, "UITest Final", "1234", ["Alice", "Bob", "Charlie"])
+    create_playground(page, unique_name("Final"), "1234", ["Alice", "Bob", "Charlie"])
     start_game(page)
     enter_bids_for_all(page, [2, 3, 1])
     confirm_bids(page)

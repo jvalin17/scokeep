@@ -6,13 +6,14 @@ from tests.ui.helpers import (
     VIEWPORTS,
     create_playground,
     start_game,
+    unique_name,
 )
 
 
 @pytest.fixture
 def game_page(page, server):
     page.goto(server)
-    create_playground(page, "UITest Responsive", "1234", ["Alice", "Bob", "Charlie"])
+    create_playground(page, unique_name("Responsive"), "1234", ["Alice", "Bob", "Charlie"])
     return page
 
 
@@ -33,7 +34,7 @@ def test_bidding_responsive(game_page, viewport):
         "() => document.documentElement.scrollWidth > document.documentElement.clientWidth"
     )
     assert not overflow
-    keypad = game_page.locator(".keypad-grid")
+    keypad = game_page.locator(".keypad")
     assert keypad.is_visible()
 
 
@@ -54,7 +55,7 @@ def test_desktop_interactive_preserves_colors(page, server, viewport):
         pytest.skip("Only relevant on desktop")
     page.set_viewport_size(viewport)
     page.goto(server)
-    create_playground(page, f"UITest Color {viewport['name']}", "1234", ["A", "B", "C"])
+    create_playground(page, unique_name(f"Color {viewport['name']}"), "1234", ["A", "B", "C"])
     start_game(page, {"appearance": "Interactive"})
 
     appearance = page.locator("body").get_attribute("data-appearance")

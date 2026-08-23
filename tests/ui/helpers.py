@@ -1,70 +1,80 @@
 """Shared UI test actions — create playgrounds, play rounds, etc.
 
-Uses Playwright SYNC API to avoid event loop conflicts with pytest-asyncio.
+Uses Playwright SYNC API. Selectors match the actual HTML in screens/*.js.
 """
 
+import uuid
+
 from playwright.sync_api import Page
+
+
+def unique_name(prefix: str) -> str:
+    """Generate a unique playground name to avoid collisions across tests."""
+    return f"{prefix} {uuid.uuid4().hex[:6]}"
 
 
 def create_playground(page: Page, name: str, pin: str, players: list[str]):
     """Create a playground via the home screen form."""
     base = page.url.split("#")[0]
     page.goto(base)
-    page.fill('input[placeholder*="name" i], input[name="name"]', name)
-    page.fill('input[placeholder*="pin" i], input[type="password"]', pin)
+    page.wait_for_selector("#create-form", timeout=5000)
 
-    for player in players:
-        player_input = page.locator(
-            'input[placeholder*="player" i], input[placeholder*="name" i]'
-        ).last
-        player_input.fill(player)
-        add_btn = page.locator('button:has-text("Add"), button:has-text("+")')
-        if add_btn.count() > 0:
-            add_btn.first.click()
+    page.fill("#create-name", name)
+    page.fill("#create-pin", pin)
 
-    page.locator('button:has-text("Create")').click()
-    page.wait_for_url("**/playground/**", timeout=5000)
+    # Fill existing player inputs and add more if needed
+    existing_inputs = page.locator(".player-name")
+    for i, player in enumerate(players):
+        if i < existing_inputs.count():
+            existing_inputs.nth(i).fill(player)
+        else:
+            page.click("#add-player")
+            page.locator(".player-name").last.fill(player)
+
+    page.click('#create-form button[type="submit"]')
+    page.wait_for_function("() => location.hash.includes('playground')", timeout=5000)
 
 
 def auth_playground(page: Page, server: str, name: str, pin: str):
-    """Authenticate to an existing playground."""
+    """Authenticate to an existing playground via the Join tab."""
     page.goto(server)
-    page.fill('input[placeholder*="name" i], input[name="name"]', name)
-    page.fill('input[placeholder*="pin" i], input[type="password"]', pin)
-    page.locator('button:has-text("Enter"), button:has-text("Go")').click()
-    page.wait_for_url("**/playground/**", timeout=5000)
+    page.wait_for_selector(".tabs", timeout=5000)
+    page.click('.tab[data-tab="join"]')
+    page.wait_for_selector("#join-form:not(.hidden)", timeout=3000)
+    page.fill("#join-name", name)
+    page.fill("#join-pin", pin)
+    page.click('#join-form button[type="submit"]')
+    page.wait_for_function("() => location.hash.includes('playground')", timeout=5000)
 
 
 def start_game(page: Page, settings: dict | None = None):
-    """Click start game from lobby."""
+    """Click start game from lobby. Settings use <select> elements."""
+    page.wait_for_selector("#start-game", timeout=5000)
+
     if settings:
         if "mode" in settings:
-            mode_btn = page.locator(f'button:has-text("{settings["mode"]}")')
-            if mode_btn.count() > 0:
-                mode_btn.click()
+            page.select_option("#setting-mode", settings["mode"].lower())
         if "appearance" in settings:
-            app_btn = page.locator(f'button:has-text("{settings["appearance"]}")')
-            if app_btn.count() > 0:
-                app_btn.click()
+            page.select_option("#setting-appearance", settings["appearance"].lower())
+        if "sets" in settings:
+            page.select_option("#setting-sets", str(settings["sets"]))
 
-    page.locator('button:has-text("Start Game")').click()
-    page.wait_for_selector(".keypad-grid", timeout=5000)
+    page.click("#start-game")
+    page.wait_for_selector(".keypad", timeout=5000)
 
 
 def enter_bid(page: Page, value: int):
-    """Enter a bid via the keypad."""
-    page.locator(f'.keypad-grid button:has-text("{value}")').click()
-    confirm = page.locator('button:has-text("Confirm"), button:has-text("✓")')
-    if confirm.count() > 0:
-        confirm.first.click()
+    """Enter a bid via the keypad and wait for advance."""
+    page.locator(f".keypad-key:has-text('{value}')").click()
+    # Wait for auto-advance (timer) or next player
+    page.wait_for_timeout(1500)
 
 
 def enter_bids_for_all(page: Page, bids: list[int]):
     """Enter bids for all players in sequence."""
     for bid in bids:
-        page.wait_for_selector(".keypad-grid", timeout=5000)
+        page.wait_for_selector(".keypad", timeout=5000)
         enter_bid(page, bid)
-    page.wait_for_timeout(500)
 
 
 def confirm_bids(page: Page):
@@ -76,14 +86,14 @@ def confirm_bids(page: Page):
 
 
 def enter_hands_won(page: Page, hands: list[int]):
-    """Enter hands won for all players."""
+    """Enter hands won for all players after clicking enter round end."""
     end_round_btn = page.locator('button:has-text("End Round"), button:has-text("Enter Results")')
     if end_round_btn.count() > 0:
         end_round_btn.first.click()
         page.wait_for_timeout(500)
 
     for hand in hands:
-        page.wait_for_selector(".keypad-grid", timeout=5000)
+        page.wait_for_selector(".keypad", timeout=5000)
         enter_bid(page, hand)
     page.wait_for_timeout(500)
 
@@ -106,13 +116,23 @@ def play_one_round(page: Page, bids: list[int], hands: list[int]):
 
 def end_game(page: Page):
     """End the game from scoreboard or play screen."""
-    end_btn = page.locator('button:has-text("End Game")')
+    end_btn = page.locator('#end-game, #end-game-btn, button:has-text("End Game")')
     if end_btn.count() > 0:
-        end_btn.click()
-        confirm = page.locator('button:has-text("Confirm"), button:has-text("Yes")')
-        if confirm.count() > 0:
-            confirm.first.click()
-        page.wait_for_timeout(1000)
+        # Accept browser confirm() dialog before triggering it
+        page.once("dialog", lambda dialog: dialog.accept())
+        end_btn.first.click()
+        page.wait_for_function(
+            "() => location.hash.includes('scoreboard') || location.hash.includes('final')",
+            timeout=10000,
+        )
+
+
+def navigate_to_stats(page: Page, server: str, name: str, pin: str):
+    """Auth to a playground and click Stats."""
+    auth_playground(page, server, name, pin)
+    page.wait_for_selector("#view-stats", timeout=5000)
+    page.click("#view-stats")
+    page.wait_for_timeout(1000)
 
 
 VIEWPORTS = [

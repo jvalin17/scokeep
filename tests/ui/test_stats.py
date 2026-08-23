@@ -4,20 +4,22 @@ import pytest
 
 from tests.ui.helpers import (
     VIEWPORTS,
-    auth_playground,
     confirm_bids,
     create_playground,
     end_game,
     enter_bids_for_all,
     enter_hands_won,
+    navigate_to_stats,
     start_game,
+    unique_name,
 )
 
 
 @pytest.fixture
 def stats_page(page, server):
+    name = unique_name("Stats")
     page.goto(server)
-    create_playground(page, "UITest Stats", "1234", ["Alice", "Bob", "Charlie"])
+    create_playground(page, name, "1234", ["Alice", "Bob", "Charlie"])
     start_game(page)
     enter_bids_for_all(page, [2, 3, 1])
     confirm_bids(page)
@@ -26,11 +28,7 @@ def stats_page(page, server):
     end_game(page)
     page.wait_for_timeout(500)
 
-    auth_playground(page, server, "UITest Stats", "1234")
-    stats_btn = page.locator('button:has-text("Stats"), a:has-text("Stats")')
-    if stats_btn.count() > 0:
-        stats_btn.first.click()
-        page.wait_for_timeout(1000)
+    navigate_to_stats(page, server, name, "1234")
     return page
 
 

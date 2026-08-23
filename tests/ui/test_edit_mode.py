@@ -3,20 +3,22 @@
 import pytest
 
 from tests.ui.helpers import (
-    auth_playground,
     confirm_bids,
     create_playground,
     end_game,
     enter_bids_for_all,
     enter_hands_won,
+    navigate_to_stats,
     start_game,
+    unique_name,
 )
 
 
 @pytest.fixture
 def stats_with_game(page, server):
+    name = unique_name("Edit")
     page.goto(server)
-    create_playground(page, "UITest Edit", "1234", ["Alice", "Bob", "Charlie"])
+    create_playground(page, name, "1234", ["Alice", "Bob", "Charlie"])
     start_game(page)
     enter_bids_for_all(page, [2, 3, 1])
     confirm_bids(page)
@@ -24,11 +26,7 @@ def stats_with_game(page, server):
     page.wait_for_timeout(500)
     end_game(page)
     page.wait_for_timeout(500)
-    auth_playground(page, server, "UITest Edit", "1234")
-    stats_btn = page.locator('button:has-text("Stats"), a:has-text("Stats")')
-    if stats_btn.count() > 0:
-        stats_btn.first.click()
-        page.wait_for_timeout(1000)
+    navigate_to_stats(page, server, name, "1234")
     return page
 
 
@@ -53,9 +51,9 @@ def test_edit_mode_toggle(stats_with_game):
 
 def test_edit_mode_does_not_leak(page, server):
     page.goto(server)
-    create_playground(page, "UITest Edit Room1", "1234", ["Alice", "Bob"])
+    create_playground(page, unique_name("Edit Room1"), "1234", ["Alice", "Bob"])
     page.goto(server)
-    create_playground(page, "UITest Edit Room2", "5678", ["Charlie", "Dave"])
+    create_playground(page, unique_name("Edit Room2"), "5678", ["Charlie", "Dave"])
 
     storage_keys = page.evaluate("() => Object.keys(sessionStorage)")
     admin_keys = [k for k in storage_keys if "admin_key" in k]
