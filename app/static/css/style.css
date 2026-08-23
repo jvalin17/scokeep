@@ -394,9 +394,9 @@ input::placeholder { color: var(--text-muted); }
 .score-table {
     background: var(--bg-card);
     border-radius: var(--radius);
-    overflow: hidden;
     box-shadow: var(--shadow);
 }
+.score-table:not(.score-table-full) { overflow: hidden; }
 .score-header {
     display: flex;
     justify-content: space-between;
@@ -1028,12 +1028,12 @@ input::placeholder { color: var(--text-muted); }
         padding: 32px 40px;
         margin-top: 24px;
         margin-bottom: 24px;
-        background: var(--bg-card);
+        background: var(--bg-page);
         border-radius: 16px;
         box-shadow: var(--shadow-lg);
-        min-height: calc(100dvh - 48px);
     }
     body { background: #EEEEEE; }
+    [data-appearance="standard"] #app { background: var(--bg-card); }
     .logo { margin-top: 48px; }
     .btn-primary { max-width: 400px; margin-left: auto; margin-right: auto; }
     .scoresheet { font-size: 0.95rem; }
