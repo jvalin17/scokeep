@@ -1,0 +1,25 @@
+name: Sync Staging DB from Production
+
+on:
+  workflow_dispatch:
+
+jobs:
+  sync:
+    name: Copy prod data → staging
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install asyncpg
+
+      - name: Sync data
+        env:
+          PROD_DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+          STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+        run: python scripts/sync_staging_db.py
