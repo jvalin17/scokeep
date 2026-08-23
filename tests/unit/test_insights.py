@@ -1085,8 +1085,8 @@ class TestEdgeCasesReviewerFindings:
         assert MIN_GAMES_FOR_PERSONALITY == 3
         # 2 < 3, so no personality
 
-    def test_tied_scores_winner_deterministic(self):
-        """When scores are tied, winner is deterministic (max picks first)."""
+    def test_tied_scores_winner_is_none(self):
+        """When scores are tied, winner is None — no arbitrary pick."""
         from app.services.insights import _GameWithRounds
 
         class FakeGame:
@@ -1098,8 +1098,7 @@ class TestEdgeCasesReviewerFindings:
                 self.scores = {"0": 20, "1": 20}
 
         game = _GameWithRounds(FakeGame(), [FakeRound()])
-        # max() with tied values returns first in iteration order
-        assert game.winner in ("Alice", "Bob")
+        assert game.winner is None  # Ties produce no winner
 
 
 class TestComebackThresholdConsistency:

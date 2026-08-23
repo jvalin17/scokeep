@@ -175,17 +175,19 @@ def _iter_round_bids(players, game_rounds):
 
 def _resolve_highlights(insights_blob, games, rounds_by_game):
     """Return cached highlights if fresh, otherwise recompute."""
+    # Filter to games with scored rounds — matches insights blob total_games
+    games_with_rounds = [g for g in games if g.id in rounds_by_game]
     cached = (insights_blob or {}).get("highlights")
     cached_total = (insights_blob or {}).get("total_games", 0)
-    if cached and cached_total == len(games):
+    if cached and cached_total == len(games_with_rounds):
         return cached
 
     highlights = AnalyticsService._calc_highlights(
-        games,
+        games_with_rounds,
         rounds_by_game,
     )
     last_game = AnalyticsService._calc_last_game_awards(
-        games,
+        games_with_rounds,
         rounds_by_game,
     )
     highlights["last_game"] = last_game
@@ -242,7 +244,12 @@ def _game_to_history(game, game_rounds):
             idx = int(idx_str)
             if idx < len(players):
                 game_totals[players[idx]] += score
-    winner = max(game_totals, key=lambda n: game_totals[n]) if game_totals else None
+    if game_totals:
+        top_score = max(game_totals.values())
+        leaders = [n for n, s in game_totals.items() if s == top_score]
+        winner = leaders[0] if len(leaders) == 1 else None
+    else:
+        winner = None
     return {
         "game_id": game.id,
         "date": game.started_at.isoformat() if game.started_at else None,
@@ -346,6 +353,8 @@ def _best_player(data, key="value"):
 def _build_awards(stats):
     """Transform accumulated stats into award dicts."""
     totals = stats["totals"]
+    if not totals:
+        return None
     mvp_name = max(totals, key=lambda n: totals[n])
     return {
         "mvp": {"name": mvp_name, "score": totals[mvp_name]},

@@ -92,7 +92,11 @@ class _GameWithRounds:
                 idx = int(idx_str)
                 if idx < len(players):
                     totals[players[idx]] += score
-        return max(totals, key=lambda n: totals[n]) if totals else None
+        if not totals:
+            return None
+        top_score = max(totals.values())
+        leaders = [n for n, s in totals.items() if s == top_score]
+        return leaders[0] if len(leaders) == 1 else None
 
 
 async def compute_insights(db: AsyncSession, playground_id: int) -> dict | None:
@@ -168,7 +172,10 @@ def _assemble_blob(
         "version": 1,
         "computed_at": datetime.now(UTC).isoformat(),
         "players": players_data,
-        "highlights": _compute_cached_highlights(games, rounds_by_game),
+        "highlights": _compute_cached_highlights(
+            [g for g in games if g.id in rounds_by_game],
+            rounds_by_game,
+        ),
         "total_games": len(wrapped_games),
     }
 

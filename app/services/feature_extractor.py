@@ -136,6 +136,7 @@ class _FeatureAccumulator:
         """Process all rounds in a single game."""
         halfway = len(game.rounds) // 2
         game_total_score = 0.0
+        rounds_processed = 0
 
         for round_idx, rnd in enumerate(game.rounds):
             data = _get_player_round_data(rnd, player_idx_str)
@@ -144,7 +145,10 @@ class _FeatureAccumulator:
             bid, hand, score = data
             self._process_round(bid, hand, score, rnd.cards_dealt, round_idx, halfway)
             game_total_score += score
+            rounds_processed += 1
 
+        if rounds_processed == 0:
+            return
         self.game_scores.append(game_total_score)
         self._check_comeback(game, player_name, halfway)
 
@@ -182,6 +186,8 @@ class _FeatureAccumulator:
                 self.low_card_correct += low_weight
 
     def _track_tempo(self, score, round_idx, halfway):
+        if halfway < 1:
+            return  # Skip tempo for games with < 2 rounds
         if round_idx < halfway:
             self.first_half_score_sum += score
             self.first_half_round_count += 1
@@ -283,9 +289,6 @@ class _ExtrasAccumulator:
 
     def process_game(self, game, player_name: str):
         player_idx_str = str(game.players.index(player_name))
-        self.games_played += 1
-        if game.winner == player_name:
-            self.wins += 1
 
         game_correct = 0
         game_total = 0
@@ -300,6 +303,13 @@ class _ExtrasAccumulator:
             game_total += 1
             if bid == hand:
                 game_correct += 1
+
+        if game_total == 0:
+            return
+
+        self.games_played += 1
+        if game.winner == player_name:
+            self.wins += 1
 
         game_score = sum(
             rnd.scores.get(player_idx_str, 0)
@@ -355,6 +365,8 @@ class _ExtrasAccumulator:
             self.zero_bid_streak = 0
 
     def _track_tempo(self, score, round_idx, halfway):
+        if halfway < 1:
+            return  # Skip tempo for games with < 2 rounds
         if round_idx < halfway:
             self.first_half_scores.append(score)
         else:
