@@ -84,6 +84,8 @@ class _GameWithRounds:
 
     @staticmethod
     def _determine_winner(players, rounds):
+        if not rounds:
+            return None
         totals = dict.fromkeys(players, 0)
         for rnd in rounds:
             for idx_str, score in rnd.scores.items():
@@ -103,7 +105,9 @@ async def compute_insights(db: AsyncSession, playground_id: int) -> dict | None:
     if not games:
         return None
 
-    wrapped_games = [_GameWithRounds(g, rounds_by_game.get(g.id, [])) for g in games]
+    wrapped_games = [
+        _GameWithRounds(g, rounds_by_game[g.id]) for g in games if g.id in rounds_by_game
+    ]
 
     player_game_counts = _count_player_games(wrapped_games)
     all_players = set(player_game_counts.keys())
@@ -165,7 +169,7 @@ def _assemble_blob(
         "computed_at": datetime.now(UTC).isoformat(),
         "players": players_data,
         "highlights": _compute_cached_highlights(games, rounds_by_game),
-        "total_games": len(games),
+        "total_games": len(wrapped_games),
     }
 
 

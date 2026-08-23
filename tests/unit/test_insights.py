@@ -1367,3 +1367,40 @@ class TestRealisticMultiRoundGames:
         games = self._build_three_games()
         extras = compute_player_extras("Ravi", games)
         assert extras["trend"] == "steady"  # Only 3 games, not enough
+
+
+class TestEmptyGameWins:
+    """Games with 0 scored rounds must not produce phantom wins."""
+
+    def test_empty_game_excluded_from_wrapped_games(self):
+        """_GameWithRounds should not be created for games with no rounds."""
+        from app.services.insights import _GameWithRounds
+
+        class FakeGame:
+            def __init__(self, players):
+                self.players = players
+                self.id = 1
+
+        # Empty rounds → _determine_winner picks first player as "winner" with 0
+        game = _GameWithRounds(FakeGame(["Alice", "Bob"]), [])
+        # This phantom winner is the bug — winner should be None for empty games
+        assert game.winner is None
+
+    def test_total_wins_matches_games_played(self):
+        """Sum of all player wins must equal number of games with rounds."""
+        games = [
+            _make_game(
+                ["Alice", "Bob"],
+                [(8, {"0": 2, "1": 3}, {"0": 2, "1": 6}, {"0": 20, "1": 30})],
+                winner="Bob",
+            ),
+            _make_game(
+                ["Alice", "Bob"],
+                [(8, {"0": 3, "1": 1}, {"0": 3, "1": 5}, {"0": 30, "1": -11})],
+                winner="Alice",
+            ),
+        ]
+        alice_extras = compute_player_extras("Alice", games)
+        bob_extras = compute_player_extras("Bob", games)
+        total_wins = alice_extras["wins"] + bob_extras["wins"]
+        assert total_wins == 2  # 2 games, 2 wins total
