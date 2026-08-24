@@ -45,21 +45,23 @@ async def sync():
     staging_conn = await asyncpg.connect(staging_url, ssl="require")
 
     try:
+        # Delete in reverse order (child → parent) to respect foreign keys
+        for table in reversed(TABLES):
+            await staging_conn.execute(f"DELETE FROM {table}")  # noqa: S608
+            print(f"  {table}: cleared")
+
+        # Insert in forward order (parent → child)
         for table in TABLES:
-            # Read all rows from prod
             rows = await prod_conn.fetch(f"SELECT * FROM {table}")  # noqa: S608
             count = len(rows)
             if count == 0:
                 print(f"  {table}: 0 rows (skipped)")
                 continue
 
-            # Get column names from first row
             columns = list(rows[0].keys())
             col_list = ", ".join(columns)
             placeholders = ", ".join(f"${i + 1}" for i in range(len(columns)))
 
-            # Truncate staging table and insert prod data
-            await staging_conn.execute(f"DELETE FROM {table}")  # noqa: S608
             for row in rows:
                 values = [row[col] for col in columns]
                 await staging_conn.execute(
