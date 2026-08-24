@@ -21,7 +21,7 @@ export const homeScreen = {
                 <form id="create-form" class="form visible">
                     <input type="text" id="create-name" placeholder="Playground name"
                         maxlength="50" required autocomplete="off">
-                    <input type="text" id="create-pin" placeholder="4-digit PIN"
+                    <input type="password" id="create-pin" placeholder="4-digit PIN"
                         maxlength="4" pattern="\\d{4}" inputmode="numeric" required>
                     <div id="player-list" class="player-list">
                         <div class="player-input-row">
@@ -42,7 +42,7 @@ export const homeScreen = {
                     <div id="recent-playgrounds"></div>
                     <input type="text" id="join-name" placeholder="Playground name"
                         maxlength="50" required autocomplete="off">
-                    <input type="text" id="join-pin" placeholder="4-digit PIN"
+                    <input type="password" id="join-pin" placeholder="4-digit PIN"
                         maxlength="4" pattern="\\d{4}" inputmode="numeric" required>
                     <button type="submit" class="btn btn-primary">Enter</button>
                     <p id="join-error" class="error hidden"></p>
