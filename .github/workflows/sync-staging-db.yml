@@ -1,12 +1,15 @@
 name: Sync Staging DB from Production
 
 on:
-  workflow_dispatch:
+  schedule:
+    - cron: "0 0,12 * * *"  # 12am and 12pm UTC
+  workflow_dispatch:  # Keep manual trigger as fallback
 
 jobs:
   sync:
-    name: Copy prod data → staging
+    name: Incremental sync prod → staging
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
