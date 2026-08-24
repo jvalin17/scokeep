@@ -13,12 +13,14 @@ jobs:
   lint:
     name: Lint (ruff)
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
 
       - name: Install ruff
         run: pip install ruff>=0.8.0
@@ -32,6 +34,7 @@ jobs:
   test:
     name: Tests (pytest)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -49,6 +52,8 @@ jobs:
   docker:
     name: Docker build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [lint, test]
     steps:
       - uses: actions/checkout@v4
 
@@ -57,8 +62,9 @@ jobs:
 
   ui:
     name: UI tests (Playwright)
-    continue-on-error: true  # Non-blocking until helpers are fully tuned
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [lint, test]
     steps:
       - uses: actions/checkout@v4
 

@@ -23,7 +23,10 @@ def stats_with_game(page, server):
     enter_bids_for_all(page, [2, 3, 1])
     confirm_bids(page)
     enter_hands_won(page, [2, 3, 3])
-    page.wait_for_timeout(500)
+    score_btn = page.locator('button:has-text("Score Round")')
+    if score_btn.count() > 0:
+        score_btn.click()
+        page.wait_for_timeout(1000)
     end_game(page)
     page.wait_for_timeout(500)
     navigate_to_stats(page, server, name, "1234")
@@ -47,6 +50,36 @@ def test_edit_mode_toggle(stats_with_game):
             if edit_mode.count() > 0:
                 bg = edit_mode.evaluate("el => getComputedStyle(el).backgroundColor")
                 assert bg != "rgba(0, 0, 0, 0)"
+
+
+def test_edit_mode_wrong_password(stats_with_game):
+    """Wrong admin password shows 'Wrong password' placeholder, no edit mode."""
+    page = stats_with_game
+    # Open settings panel via gear button
+    gear_btn = page.locator("#stats-gear")
+    gear_btn.wait_for(state="visible", timeout=5000)
+    gear_btn.click()
+    page.wait_for_selector("#stats-actions:not(.hidden)", timeout=3000)
+    # Click toggle-edit to show password input
+    toggle_edit = page.locator("#toggle-edit")
+    toggle_edit.click()
+    page.wait_for_timeout(300)
+    # Fill in wrong password and submit
+    pwd_input = page.locator('input[type="password"]')
+    pwd_input.wait_for(state="visible", timeout=3000)
+    pwd_input.fill("definitely-wrong-password")
+    go_btn = page.locator('button:has-text("Go")')
+    go_btn.click()
+    # Wait for the wrong-password feedback
+    page.wait_for_function(
+        "() => document.querySelector('input[type=\"password\"]')"
+        "?.placeholder === 'Wrong password'",
+        timeout=5000,
+    )
+    placeholder = pwd_input.get_attribute("placeholder")
+    assert placeholder == "Wrong password", f"Expected 'Wrong password', got: {placeholder!r}"
+    edit_mode_el = page.locator(".edit-mode")
+    assert edit_mode_el.count() == 0, ".edit-mode class should not be present after wrong password"
 
 
 def test_edit_mode_does_not_leak(page, server):

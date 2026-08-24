@@ -50,3 +50,18 @@ def test_no_horizontal_overflow(lobby_page):
         "() => document.documentElement.scrollWidth > document.documentElement.clientWidth"
     )
     assert not overflow
+
+
+def test_sound_mute_toggle(lobby_page):
+    """Toggle-sound button switches between 🔊 and 🔇 and persists to localStorage."""
+    page = lobby_page
+    toggle = page.locator("#toggle-sound")
+    assert toggle.count() > 0, "#toggle-sound button not found"
+    initial_text = toggle.inner_text()
+    assert "🔊" in initial_text, f"Expected 🔊 initially, got: {initial_text!r}"
+    toggle.click()
+    page.wait_for_timeout(300)
+    muted_text = toggle.inner_text()
+    assert "🔇" in muted_text, f"Expected 🔇 after click, got: {muted_text!r}"
+    stored = page.evaluate("() => localStorage.getItem('scokeep_mute')")
+    assert stored == "1", f"Expected localStorage scokeep_mute='1', got: {stored!r}"
