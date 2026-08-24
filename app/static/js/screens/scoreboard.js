@@ -1,7 +1,7 @@
 // Scoreboard screen — cumulative scores, next round / end game
 
 import { getGame, getScoreboard, undoRound, endGame, nextRound } from '../api.js';
-import { getTrump } from '../components/game-utils.js';
+import { getTrump, escapeHtml } from '../components/game-utils.js';
 import { soundNextRound, soundEndGame, soundUndo } from '../components/sounds.js';
 
 export const scoreboardScreen = {
@@ -60,7 +60,7 @@ export const scoreboardScreen = {
                     ${standings.map((player, rank) => `
                         <div class="rank-row ${rank === 0 ? 'rank-first' : ''}">
                             <span class="rank-badge">${rankEmojis[rank] || rank + 1}</span>
-                            <span class="rank-name">${player.name}</span>
+                            <span class="rank-name">${escapeHtml(player.name)}</span>
                             <span class="rank-score">${player.score}</span>
                         </div>
                     `).join('')}
@@ -71,7 +71,7 @@ export const scoreboardScreen = {
                 <div class="final-celebration">
                     <div class="confetti-container">${confettiPieces}</div>
                     <div class="final-trophy">🏆</div>
-                    <h2 class="final-winner">${winner.name}</h2>
+                    <h2 class="final-winner">${escapeHtml(winner.name)}</h2>
                     <p class="final-score">${winner.score} points</p>
                 </div>
             `;
@@ -83,7 +83,7 @@ export const scoreboardScreen = {
                         <thead>
                             <tr>
                                 <th>R#</th>
-                                ${players.map(name => `<th>${name}</th>`).join('')}
+                                ${players.map(name => `<th>${escapeHtml(name)}</th>`).join('')}
                             </tr>
                         </thead>
                         <tbody>
@@ -124,7 +124,7 @@ export const scoreboardScreen = {
                         const score = lastRound.scores[key] || 0;
                         return `
                             <div class="score-row">
-                                <span>${name}</span>
+                                <span>${escapeHtml(name)}</span>
                                 <span class="score-value ${score < 0 ? 'score-negative' : ''}">${score > 0 ? '+' : ''}${score}</span>
                             </div>
                         `;

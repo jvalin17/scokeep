@@ -93,6 +93,24 @@ class TestXSSPrevention:
             assert "<script>" not in name, f"Script tag in player name: {name}"
 
 
+    async def test_html_in_playground_name_is_escaped(self, client: AsyncClient):
+        """Playground names with HTML must be escaped — defense at input boundary."""
+        xss_name = '<img onerror=alert(1) src=x>'
+        pg, cookies = await _create_playground_and_auth(
+            client,
+            xss_name,
+        )
+
+        resp = await client.get(
+            f"/api/playground/{pg['share_code']}",
+            cookies=cookies,
+        )
+        assert resp.status_code == 200
+        returned_name = resp.json()["name"]
+        assert "<" not in returned_name, f"Raw HTML in playground name: {returned_name}"
+        assert ">" not in returned_name, f"Raw HTML in playground name: {returned_name}"
+
+
 class TestCrossPlaygroundAuth:
     """BUG-003: User authed to playground A must NOT access playground B's games."""
 

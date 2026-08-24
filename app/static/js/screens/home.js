@@ -1,6 +1,7 @@
 // Home screen — create or join playground
 
 import { createPlayground, authPlayground, listRecentPlaygrounds } from '../api.js';
+import { escapeHtml } from '../components/game-utils.js';
 
 export const homeScreen = {
     mount(container, state, { navigate }) {
@@ -152,7 +153,7 @@ export const homeScreen = {
                 if (recentEl && names.length > 0) {
                     recentEl.innerHTML = `
                         <div class="recent-list">
-                            ${names.map(name => `<button type="button" class="recent-item">${name}</button>`).join('')}
+                            ${names.map(name => `<button type="button" class="recent-item">${escapeHtml(name)}</button>`).join('')}
                         </div>
                     `;
                     recentEl.querySelectorAll('.recent-item').forEach(btn => {

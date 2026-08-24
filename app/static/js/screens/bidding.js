@@ -2,7 +2,7 @@
 
 import { submitBid, getBids, editBid, startRound, resyncGame, guardPhase } from '../api.js';
 import { Keypad, InlineKeypad } from '../components/keypad.js';
-import { getRoundCards } from '../components/game-utils.js';
+import { getRoundCards, escapeHtml } from '../components/game-utils.js';
 import { getEntryOrder } from '../components/entry-utils.js';
 import { renderGameIsland, renderRoundInfoBar, renderTrumpDisplay, attachEndGameHandler, showError, setScreenContext } from '../components/screen-parts.js';
 import { soundStartRound } from '../components/sounds.js';
@@ -74,7 +74,7 @@ export const biddingScreen = {
                 <div class="bidding">
                     ${renderGameIsland(game, rps)}
                     ${renderRoundInfoBar(state)}
-                    <div class="bid-player-name">${players[pi]}</div>
+                    <div class="bid-player-name">${escapeHtml(players[pi])}</div>
                     <p class="bid-prompt">How many will you bid?</p>
                     <p class="claimed-info">${Object.values(bidsCollected).reduce((s, v) => s + v, 0)} / ${cardsDealt} claimed</p>
                     <div id="keypad-container"></div>
@@ -134,7 +134,7 @@ export const biddingScreen = {
                             const needsRebid = !hasBid && !isEditing;
                             return `
                                 <div class="bid-summary-row ${needsRebid ? 'must-lose-warn' : ''}">
-                                    <span>${players[pi]}${pi === game.dealer_index ? ' (D)' : ''}</span>
+                                    <span>${escapeHtml(players[pi])}${pi === game.dealer_index ? ' (D)' : ''}</span>
                                     <span class="bid-summary-value">${hasBid ? bidsCollected[key] : '?'}</span>
                                     <button class="btn-small btn-edit" data-edit="${pi}">${isEditing ? 'Cancel' : 'Edit'}</button>
                                 </div>

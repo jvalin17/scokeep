@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.constants import SHARE_CODE_LENGTH
 from app.models.playground import Playground
-from app.utils.sanitize import sanitize_player_names
+from app.utils.sanitize import sanitize_player_names, sanitize_text
 
 SHARE_CODE_ALPHABET = string.ascii_uppercase + string.digits
 
@@ -34,7 +34,7 @@ class PlaygroundService:
         pin_hash = _hash_pin(pin)
 
         playground = Playground(
-            name=name,
+            name=sanitize_text(name),
             pin_hash=pin_hash,
             share_code=share_code,
             players=sanitize_player_names(players),

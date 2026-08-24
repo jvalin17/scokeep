@@ -1,7 +1,7 @@
 // Play screen — trump display, round info, end round button
 
 import { getBids, enterRoundEnd, resyncGame, guardPhase } from '../api.js';
-import { getRoundCards } from '../components/game-utils.js';
+import { getRoundCards, escapeHtml } from '../components/game-utils.js';
 import { renderGameIsland, renderRoundInfoBar, renderTrumpDisplay, attachEndGameHandler, setScreenContext } from '../components/screen-parts.js';
 
 export const playScreen = {
@@ -28,7 +28,7 @@ export const playScreen = {
                         <h3>Bids</h3>
                         ${players.map((name, index) => `
                             <div class="play-bid-row">
-                                <span>${name}</span>
+                                <span>${escapeHtml(name)}</span>
                                 <span class="play-bid-value">${bids[String(index)] ?? '-'}</span>
                             </div>
                         `).join('')}

@@ -18,6 +18,7 @@ from app.schemas.playground import PlaygroundAuth, PlaygroundCreate, PlaygroundR
 from app.services.analytics import AnalyticsService
 from app.services.insights import backfill_meta
 from app.services.playground import PlaygroundService
+from app.utils.sanitize import sanitize_text
 
 router = APIRouter(prefix="/api/playground", tags=["playground"])
 limiter = Limiter(key_func=get_remote_address, enabled=settings.rate_limit_enabled)
@@ -65,7 +66,7 @@ async def auth_playground(
     response: Response,
     db: AsyncSession = Depends(get_db),
 ):
-    playground = await PlaygroundService.get_by_name(db, data.name)
+    playground = await PlaygroundService.get_by_name(db, sanitize_text(data.name))
     if not playground:
         raise HTTPException(status_code=404, detail="Playground not found")
 
@@ -165,7 +166,7 @@ async def delete_playground(
     db: AsyncSession = Depends(get_db),
 ):
     """Delete a playground and all its data. Requires name + PIN."""
-    playground = await PlaygroundService.get_by_name(db, data.name)
+    playground = await PlaygroundService.get_by_name(db, sanitize_text(data.name))
     if not playground:
         raise HTTPException(status_code=404, detail="Playground not found")
     if not PlaygroundService.verify_pin(playground, data.pin):

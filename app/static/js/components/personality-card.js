@@ -1,6 +1,8 @@
 // Personality card component — flippable cards with avatar, insights, accuracy chart
 // Personality metadata served from API (Python is single source of truth)
 
+import { escapeHtml } from './game-utils.js';
+
 const FALLBACK_META = { name: 'Unknown', tagline: '', color: '#37474F', icon: '❓' };
 
 export function renderPersonalityCards(players) {
@@ -45,7 +47,7 @@ function renderLockedCard(playerName, data) {
             <div class="personality-card-inner">
                 <div class="personality-front">
                     <div class="personality-icon" style="font-size: 3rem; opacity: 0.3;">🔒</div>
-                    <div class="personality-name">${playerName}</div>
+                    <div class="personality-name">${escapeHtml(playerName)}</div>
                     <div class="personality-tagline">Personality unlocking...</div>
                     <div class="personality-unlock-bar">
                         <div class="personality-unlock-fill" style="width: ${pct}%"></div>
@@ -67,7 +69,7 @@ function renderCardFront(playerName, data, meta) {
             <div class="personality-type">${meta.name}</div>
             <div class="personality-tagline">${meta.tagline}</div>
             ${overallAccuracy !== null ? renderAccuracyDial(overallAccuracy) : ''}
-            <div class="personality-player-name">${playerName}</div>
+            <div class="personality-player-name">${escapeHtml(playerName)}</div>
             <div class="personality-flip-hint">tap to flip</div>
         </div>
     `;
@@ -113,7 +115,7 @@ function renderCardBack(playerName, data) {
     const overallAccuracy = computeOverallAccuracy(accuracy);
 
     const previousNote = data.previous_personality
-        ? `<div class="personality-evolution">Evolved from ${data.previous_personality}</div>`
+        ? `<div class="personality-evolution">Evolved from ${escapeHtml(data.previous_personality)}</div>`
         : '';
 
     return `
@@ -123,8 +125,8 @@ function renderCardBack(playerName, data) {
             ${renderStatsTable(extras)}
 
             <div class="personality-insights">
-                ${insights[0] ? `<div class="insight-strength">💡 ${insights[0]}</div>` : ''}
-                ${insights[1] ? `<div class="insight-growth">🌱 ${insights[1]}</div>` : ''}
+                ${insights[0] ? `<div class="insight-strength">💡 ${escapeHtml(insights[0])}</div>` : ''}
+                ${insights[1] ? `<div class="insight-growth">🌱 ${escapeHtml(insights[1])}</div>` : ''}
             </div>
 
             ${renderFunFacts(extras.fun_facts)}
@@ -247,7 +249,7 @@ function renderFunFacts(facts) {
     }
     return `
         <div class="fun-facts">
-            ${facts.map(f => `<div class="fun-fact">⚡ ${f}</div>`).join('')}
+            ${facts.map(f => `<div class="fun-fact">⚡ ${escapeHtml(f)}</div>`).join('')}
         </div>
     `;
 }

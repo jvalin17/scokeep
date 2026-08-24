@@ -2,6 +2,7 @@
 
 import { getPlayground, createGame, getActiveGame, endGame } from '../api.js';
 import { initDragReorder } from '../components/drag-reorder.js';
+import { escapeHtml } from '../components/game-utils.js';
 import { isMuted, toggleMute, soundEndGame } from '../components/sounds.js';
 
 export const lobbyScreen = {
@@ -31,7 +32,7 @@ export const lobbyScreen = {
                 <div class="lobby">
                     <div class="lobby-header">
                         <button class="btn-text" id="lobby-home" style="position:absolute;left:16px;">← Home</button>
-                        <h2>${playground.name}</h2>
+                        <h2>${escapeHtml(playground.name)}</h2>
                         <p class="share-code">Code: <strong>${playground.share_code}</strong></p>
                     </div>
 
@@ -51,7 +52,7 @@ export const lobbyScreen = {
                             ${players.map((name, index) => `
                                 <div class="lobby-player" data-index="${index}">
                                     <span class="drag-handle" data-drag="${index}">&#9776;</span>
-                                    <span class="player-name-display">${name}</span>
+                                    <span class="player-name-display">${escapeHtml(name)}</span>
                                     <button class="btn-remove" data-remove="${index}">&times;</button>
                                 </div>
                             `).join('')}

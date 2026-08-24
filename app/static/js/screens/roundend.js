@@ -2,7 +2,7 @@
 
 import { submitHands, endRound, extendGame, nextRound, resyncGame, guardPhase } from '../api.js';
 import { Keypad, InlineKeypad } from '../components/keypad.js';
-import { getRoundCards } from '../components/game-utils.js';
+import { getRoundCards, escapeHtml } from '../components/game-utils.js';
 import { getEntryOrder } from '../components/entry-utils.js';
 import { renderGameIsland, renderRoundInfoBar, renderTrumpDisplay, attachEndGameHandler, showError, setScreenContext } from '../components/screen-parts.js';
 import { soundScoreRound, soundNextRound } from '../components/sounds.js';
@@ -59,7 +59,7 @@ export const roundendScreen = {
                 <div class="roundend">
                     ${renderGameIsland(game, rps)}
                     ${renderRoundInfoBar(state)}
-                    <div class="bid-player-name">${players[pi]}</div>
+                    <div class="bid-player-name">${escapeHtml(players[pi])}</div>
                     <p class="bid-prompt">How many hands did they make?</p>
                     <p class="claimed-info">${totalHands} of ${cardsDealt} hands accounted${isLastPlayer ? ` — must be ${cardsDealt - totalHands}` : ''}</p>
                     <div id="keypad-container"></div>
@@ -108,7 +108,7 @@ export const roundendScreen = {
                             const isEditing = editingPi === pi;
                             return `
                                 <div class="bid-summary-row">
-                                    <span>${players[pi]}${pi === game.dealer_index ? ' (D)' : ''}</span>
+                                    <span>${escapeHtml(players[pi])}${pi === game.dealer_index ? ' (D)' : ''}</span>
                                     <span class="bid-summary-value">${handsCollected[key] ?? '?'}</span>
                                     <button class="btn-small btn-edit" data-edit="${pi}">${isEditing ? 'Cancel' : 'Edit'}</button>
                                 </div>

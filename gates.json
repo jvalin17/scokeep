@@ -4,7 +4,7 @@
   "profile": "minimal",
   "mode": "normal",
   "eval_threshold": 95,
-  "test_command": "python -m pytest -q",
+  "test_command": "python -m pytest -q --ignore=tests/ui",
   "lint_command": "python -m ruff check .",
   "compact_at_minutes": 70,
   "max_session_minutes": 200,

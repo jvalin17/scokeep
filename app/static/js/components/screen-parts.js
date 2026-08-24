@@ -4,7 +4,7 @@
  */
 
 import { endGame } from '../api.js';
-import { getRoundCards, getTrump } from './game-utils.js';
+import { getRoundCards, getTrump, escapeHtml } from './game-utils.js';
 import { soundEndGame } from './sounds.js';
 
 /**
@@ -25,7 +25,7 @@ export function renderGameIsland(game, roundsPerSet) {
     const dealerName = game.players[game.dealer_index];
     return `
         <div class="game-island">
-            <span>${dealerName} deals</span>
+            <span>${escapeHtml(dealerName)} deals</span>
             <span class="island-sep">·</span>
             <span>${cardsDealt} card${cardsDealt > 1 ? 's' : ''}</span>
             <span class="island-sep">·</span>

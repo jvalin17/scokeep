@@ -14,7 +14,6 @@ import asyncio
 import os
 import sys
 
-
 TABLES = ["playground", "game", "round"]
 
 

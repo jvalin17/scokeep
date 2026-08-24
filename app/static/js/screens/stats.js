@@ -1,7 +1,7 @@
 // Stats screen — insights (personality cards), awards, game history
 
 import { getPlaygroundStats, clearPlaygroundStats, getScoreboard } from '../api.js';
-import { getTrump } from '../components/game-utils.js';
+import { getTrump, escapeHtml } from '../components/game-utils.js';
 import { renderPersonalityCards } from '../components/personality-card.js';
 
 async function patchScore(gameId, roundNum, playerIndex, score, adminKey) {
@@ -315,7 +315,7 @@ export const statsScreen = {
                             ${filtered.map((p, i) => `
                                 <tr>
                                     <td>${i + 1}</td>
-                                    <td>${p.name}</td>
+                                    <td>${escapeHtml(p.name)}</td>
                                     <td><strong>${p[valueKey]}</strong></td>
                                 </tr>
                             `).join('')}
@@ -344,7 +344,7 @@ export const statsScreen = {
                         <div class="stats-card" style="margin-bottom:8px;padding:10px 12px;">
                             <div style="display:flex;justify-content:space-between;align-items:center;">
                                 <span>${a.emoji} ${a.title}</span>
-                                <strong style="margin-left:8px;">${data.name}</strong>
+                                <strong style="margin-left:8px;">${escapeHtml(data.name)}</strong>
                             </div>
                             <div class="stats-muted" style="margin-top:2px;font-size:0.7rem;">${a.desc}</div>
                             <div class="stats-muted" style="margin-top:2px;font-size:0.8rem;">
@@ -375,7 +375,7 @@ export const statsScreen = {
                             <div class="stats-game-scores">
                                 ${g.players.map(name => `
                                     <div class="stats-game-player ${name === g.winner ? 'stats-game-winner' : ''}">
-                                        <span>${name}</span>
+                                        <span>${escapeHtml(name)}</span>
                                         <span>${g.scores[name]}${name === g.winner ? ' 👑' : ''}</span>
                                     </div>
                                 `).join('')}
@@ -460,7 +460,7 @@ export const statsScreen = {
             const legend = players.map((name, idx) => {
                 const color = CHART_COLORS[idx % CHART_COLORS.length];
                 return `<span style="display:inline-flex;align-items:center;gap:3px;margin-right:8px;font-size:11px;">
-                    <span style="width:10px;height:3px;background:${color};display:inline-block;border-radius:1px;"></span>${name}
+                    <span style="width:10px;height:3px;background:${color};display:inline-block;border-radius:1px;"></span>${escapeHtml(name)}
                 </span>`;
             }).join('');
 
@@ -492,7 +492,7 @@ export const statsScreen = {
                             <thead>
                                 <tr>
                                     <th>R#</th>
-                                    ${players.map(name => `<th>${name}</th>`).join('')}
+                                    ${players.map(name => `<th>${escapeHtml(name)}</th>`).join('')}
                                 </tr>
                             </thead>
                             <tbody>

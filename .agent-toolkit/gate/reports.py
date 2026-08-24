@@ -26,6 +26,19 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _report_date(path: Path) -> str:
+    """Extract date from report header comment, fall back to mtime."""
+    try:
+        first_line = path.read_text(encoding="utf-8", errors="replace").split("\n", 1)[0]
+        m = re.search(r"\|\s*v\d+\s*\|\s*(\d{4}-\d{2}-\d{2})\s*\|", first_line)
+        if m:
+            return m.group(1)
+    except OSError:
+        pass
+    # Fallback to mtime (works locally, unreliable in CI after checkout)
+    return ""
+
+
 def latest_report(project_root: Path, skill: str) -> Path | None:
     subdir = SKILL_REPORT_DIRS.get(skill, skill)
     report_dir = project_root / "reports" / subdir
@@ -39,7 +52,7 @@ def latest_report(project_root: Path, skill: str) -> Path | None:
     }.get(skill, "")
     candidates = sorted(
         (p for p in report_dir.glob("*.md") if not prefix or p.name.startswith(prefix)),
-        key=lambda p: p.stat().st_mtime,
+        key=lambda p: (_report_date(p), p.stat().st_mtime),
         reverse=True,
     )
     return candidates[0] if candidates else None
