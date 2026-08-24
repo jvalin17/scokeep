@@ -22,7 +22,11 @@ def final_page(page, server):
     enter_bids_for_all(page, [2, 3, 1])
     confirm_bids(page)
     enter_hands_won(page, [2, 3, 3])
-    page.wait_for_timeout(500)
+    # Score the round before ending the game
+    score_btn = page.locator('button:has-text("Score Round")')
+    if score_btn.count() > 0:
+        score_btn.click()
+        page.wait_for_timeout(1000)
     end_game(page)
     page.wait_for_timeout(1000)
     return page

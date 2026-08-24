@@ -43,6 +43,7 @@ node_modules/
 
 # Database files
 *.db
+ui_test_server.log
 
 # Project docs (kept locally, not in repo)
 *.md

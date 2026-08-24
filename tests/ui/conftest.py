@@ -33,6 +33,7 @@ def setup_database():
 DB_PATH = Path("ui_test.db")
 SERVER_PORT = 8050
 BASE_URL = f"http://localhost:{SERVER_PORT}"
+SERVER_LOG = Path("ui_test_server.log")
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -52,6 +53,9 @@ def server():
         "RATE_LIMIT_ENABLED": "false",
         "ADMIN_KEY": "test-admin-key",
     }
+    # Write server output to a log file instead of PIPE to avoid
+    # subprocess deadlock when the pipe buffer fills up (~64KB).
+    log_file = SERVER_LOG.open("w")
     proc = subprocess.Popen(  # noqa: S603
         [
             sys.executable,
@@ -64,21 +68,31 @@ def server():
             str(SERVER_PORT),
         ],
         env=env,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        stdout=log_file,
+        stderr=log_file,
     )
 
     # Wait for server to be ready (up to 30s)
     for _ in range(60):
+        if proc.poll() is not None:
+            log_file.close()
+            log_content = SERVER_LOG.read_text()
+            raise RuntimeError(
+                f"Server process exited with code {proc.returncode}\nLog:\n{log_content[-2000:]}"
+            )
         try:
             urllib.request.urlopen(f"{BASE_URL}/api/health", timeout=2)  # noqa: S310
             break
         except (urllib.error.URLError, ConnectionError, TimeoutError, OSError):
             time.sleep(0.5)
     else:
+        log_file.close()
+        log_content = SERVER_LOG.read_text()
         proc.terminate()
-        raise RuntimeError("Server did not start within 30 seconds")
+        raise RuntimeError(f"Server did not start within 30 seconds\nLog:\n{log_content[-2000:]}")
 
     yield BASE_URL
     proc.terminate()
     proc.wait(timeout=5)
+    log_file.close()
+    SERVER_LOG.unlink(missing_ok=True)

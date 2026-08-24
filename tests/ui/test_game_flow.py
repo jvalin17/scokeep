@@ -58,8 +58,11 @@ class TestExpertGameFlow:
         enter_bids_for_all(page, [2, 3, 1])
         confirm_bids(page)
         enter_hands_won(page, [2, 3, 3])
-        page.wait_for_timeout(1000)
-        # After round end, we should be on scoreboard already
+        # Click "Score Round" on the confirm screen
+        score_btn = page.locator('button:has-text("Score Round")')
+        if score_btn.count() > 0:
+            score_btn.click()
+            page.wait_for_timeout(1000)
         url_hash = page.evaluate("() => location.hash")
         assert "scoreboard" in url_hash or "bid" in url_hash or "play" in url_hash
 
