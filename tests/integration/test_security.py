@@ -92,10 +92,9 @@ class TestXSSPrevention:
         for name in game["players"]:
             assert "<script>" not in name, f"Script tag in player name: {name}"
 
-
     async def test_html_in_playground_name_is_escaped(self, client: AsyncClient):
         """Playground names with HTML must be escaped — defense at input boundary."""
-        xss_name = '<img onerror=alert(1) src=x>'
+        xss_name = "<img onerror=alert(1) src=x>"
         pg, cookies = await _create_playground_and_auth(
             client,
             xss_name,
