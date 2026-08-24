@@ -32,8 +32,10 @@ def scoreboard_page(page, server):
 @pytest.mark.parametrize("viewport", VIEWPORTS, ids=lambda v: v["name"])
 def test_scoreboard_renders(scoreboard_page, viewport):
     scoreboard_page.set_viewport_size(viewport)
-    content = scoreboard_page.content()
-    assert "score" in content.lower() or "round" in content.lower()
+    url_hash = scoreboard_page.evaluate("() => location.hash")
+    assert "scoreboard" in url_hash, f"Not on scoreboard: {url_hash}"
+    score_table = scoreboard_page.locator(".score-table, .scoreboard")
+    assert score_table.count() > 0, "No score display on scoreboard"
 
 
 def test_scoresheet_scrollable(scoreboard_page):

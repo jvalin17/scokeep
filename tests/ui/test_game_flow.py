@@ -50,8 +50,9 @@ class TestExpertGameFlow:
         confirm_bids(page)
         enter_hands_won(page, [2, 3, 3])
         page.wait_for_timeout(1000)
-        content = page.content()
-        assert "score" in content.lower() or "round" in content.lower()
+        # Should be on confirm-hands or scoreboard screen
+        url_hash = page.evaluate("() => location.hash")
+        assert "roundend" in url_hash or "scoreboard" in url_hash
 
     def test_end_game_navigates(self, playground_expert):
         page = playground_expert

@@ -196,8 +196,8 @@ function renderStatsTable(extras) {
     if (extras.best_trump) {
         const isRed = extras.best_trump === '♦' || extras.best_trump === '♥';
         const suitHtml = isRed
-            ? `<span style="color:#D32F2F;">${extras.best_trump}</span>`
-            : `<span>${extras.best_trump}</span>`;
+            ? `<span style="color:#D32F2F;">${escapeHtml(extras.best_trump)}</span>`
+            : `<span>${escapeHtml(extras.best_trump)}</span>`;
         rows.push(['Best suit', `${suitHtml} ${extras.best_trump_pct}%`]);
     }
 

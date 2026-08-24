@@ -35,8 +35,11 @@ def final_page(page, server):
 @pytest.mark.parametrize("viewport", VIEWPORTS, ids=lambda v: v["name"])
 def test_final_renders(final_page, viewport):
     final_page.set_viewport_size(viewport)
+    url_hash = final_page.evaluate("() => location.hash")
+    assert "scoreboard" in url_hash or "final" in url_hash, f"Not on final screen: {url_hash}"
     content = final_page.content()
-    assert "🏆" in content or "final" in final_page.url or "home" in content.lower()
+    has_player = any(name in content for name in ["Alice", "Bob", "Charlie"])
+    assert has_player, "No player names on final screen"
 
 
 def test_winner_displayed(final_page):

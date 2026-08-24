@@ -39,8 +39,8 @@ def stats_page(page, server):
 @pytest.mark.parametrize("viewport", VIEWPORTS, ids=lambda v: v["name"])
 def test_stats_renders(stats_page, viewport):
     stats_page.set_viewport_size(viewport)
-    content = stats_page.content()
-    assert "stats" in content.lower() or "game" in content.lower()
+    tabs = stats_page.locator(".stats-tab")
+    assert tabs.count() >= 2, "Stats tabs not rendered"
 
 
 def test_tabs_exist(stats_page):
@@ -55,7 +55,9 @@ def test_tab_switching(stats_page):
         stats_page.wait_for_timeout(500)
         tabs.nth(0).click()
         stats_page.wait_for_timeout(500)
-        assert len(stats_page.content()) > 100
+        # First tab should render stats content
+        stats_content = stats_page.locator(".stats-content")
+        assert stats_content.count() > 0, "Stats content not rendered after tab switch"
 
 
 def test_game_history_shows(stats_page):
@@ -63,8 +65,8 @@ def test_game_history_shows(stats_page):
     if games_tab.count() > 0:
         games_tab.click()
         stats_page.wait_for_timeout(500)
-    content = stats_page.content()
-    assert "game" in content.lower() or "round" in content.lower()
+    game_cards = stats_page.locator(".stats-game-card")
+    assert game_cards.count() > 0, "No game cards in history tab"
 
 
 def test_expand_game_scoresheet(stats_page):
