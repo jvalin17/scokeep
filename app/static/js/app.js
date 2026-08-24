@@ -1,5 +1,6 @@
 // Scokeep — client-side router and state manager
 
+import { escapeHtml } from './components/game-utils.js';
 import { logger } from './components/logger.js';
 import { homeScreen } from './screens/home.js';
 import { lobbyScreen } from './screens/lobby.js';
@@ -85,7 +86,7 @@ async function render() {
         appElement.innerHTML = `
             <div class="error-screen">
                 <h2>Something went wrong</h2>
-                <p>${error.message}</p>
+                <p>${escapeHtml(error.message)}</p>
                 <button id="err-home" class="btn">Go Home</button>
                 <button id="err-reload" class="btn" style="margin-top:8px;">Reload</button>
             </div>

@@ -108,6 +108,7 @@ class TestXSSPrevention:
         returned_name = resp.json()["name"]
         assert "<" not in returned_name, f"Raw HTML in playground name: {returned_name}"
         assert ">" not in returned_name, f"Raw HTML in playground name: {returned_name}"
+        assert "&lt;" in returned_name, f"Escaped HTML not found in: {returned_name}"
 
 
 class TestCrossPlaygroundAuth:

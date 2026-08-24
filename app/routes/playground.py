@@ -161,7 +161,9 @@ async def clear_playground_stats(
 
 
 @router.delete("")
+@limiter.limit(AUTH_RATE_LIMIT)
 async def delete_playground(
+    request: Request,
     data: PlaygroundAuth,
     db: AsyncSession = Depends(get_db),
 ):
