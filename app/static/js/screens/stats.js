@@ -251,7 +251,7 @@ export const statsScreen = {
         }
 
         function bindCardFlipListeners() {
-            container.querySelectorAll('.personality-card').forEach(card => {
+            container.querySelectorAll('.personality-card:not(.personality-card-locked)').forEach(card => {
                 let flipping = false;
                 card.addEventListener('click', () => {
                     if (flipping) return;

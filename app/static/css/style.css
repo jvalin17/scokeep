@@ -1032,7 +1032,7 @@ input::placeholder { color: var(--text-muted); }
         border-radius: 16px;
         box-shadow: var(--shadow-lg);
     }
-    body { background: #EEEEEE; }
+    body { background: var(--bg-page, #EEEEEE); }
     [data-appearance="standard"] #app { background: var(--bg-card); }
     .logo { margin-top: 48px; }
     .btn-primary { max-width: 400px; margin-left: auto; margin-right: auto; }

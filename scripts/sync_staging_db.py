@@ -34,24 +34,35 @@ async def sync():
 
     prod_url, staging_url = _get_urls()
 
-    print("Connecting to production (read-only)...")
-    prod_conn = await asyncpg.connect(prod_url, ssl="require")
-
-    print("Connecting to staging...")
-    staging_conn = await asyncpg.connect(staging_url, ssl="require")
+    prod_conn = None
+    staging_conn = None
 
     try:
+        print("Connecting to production (read-only)...")
+        prod_conn = await asyncpg.connect(prod_url, ssl="require")
+
+        print("Connecting to staging...")
+        staging_conn = await asyncpg.connect(staging_url, ssl="require")
+
         await _sync_table(
             prod_conn,
             staging_conn,
             "playground",
-            upsert_cols=["name", "pin_hash", "players", "insights", "updated_at"],
+            upsert_cols=[
+                "name",
+                "pin_hash",
+                "share_code",
+                "players",
+                "insights",
+                "updated_at",
+            ],
         )
         await _sync_table(
             prod_conn,
             staging_conn,
             "game",
             upsert_cols=[
+                "playground_id",
                 "players",
                 "settings",
                 "current_round",
@@ -67,8 +78,10 @@ async def sync():
 
         print("\nSync complete.")
     finally:
-        await prod_conn.close()
-        await staging_conn.close()
+        if prod_conn:
+            await prod_conn.close()
+        if staging_conn:
+            await staging_conn.close()
 
 
 async def _sync_table(prod_conn, staging_conn, table, upsert_cols=None):
@@ -96,13 +109,21 @@ async def _sync_table(prod_conn, staging_conn, table, upsert_cols=None):
         sql = f"INSERT INTO {table} ({col_list}) VALUES ({placeholders}) ON CONFLICT DO NOTHING"  # noqa: S608
 
     inserted = 0
+    errors = 0
     for row in rows:
         values = [row[col] for col in columns]
-        result = await staging_conn.execute(sql, *values)
-        if "INSERT" in result:
-            inserted += 1
+        try:
+            result = await staging_conn.execute(sql, *values)
+            if "INSERT" in result:
+                inserted += 1
+        except Exception as exc:  # noqa: BLE001
+            errors += 1
+            print(f"    WARN: {table} id={row.get('id', '?')}: {exc}")
 
-    print(f"  {table}: {len(rows)} prod rows, {inserted} new/updated in staging")
+    status = f"{len(rows)} prod rows, {inserted} new/updated"
+    if errors:
+        status += f", {errors} errors"
+    print(f"  {table}: {status}")
 
 
 if __name__ == "__main__":
