@@ -84,6 +84,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "default-src 'self'; "
             "style-src 'self' 'unsafe-inline'; "
             "script-src 'self'; "
+            "worker-src 'self'; "
             "img-src 'self' data:; "
             "connect-src 'self'"
         )

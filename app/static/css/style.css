@@ -99,7 +99,7 @@ h3 { font-size: 1rem; font-weight: 600; color: var(--text-secondary); text-trans
 
 /* Forms */
 .form { display: flex; flex-direction: column; gap: 12px; }
-input[type="text"], select {
+input[type="text"], input[type="password"], select {
     width: 100%;
     padding: 12px 14px;
     border: 1px solid var(--border);
@@ -331,10 +331,6 @@ input::placeholder { color: var(--text-muted); }
 .bid-summary-row.must-lose-warn { background: rgba(220, 53, 69, 0.08); }
 .bid-summary-row.must-lose-warn .bid-summary-value { color: var(--danger); }
 
-/* Timer */
-.timer { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 8px; }
-.timer-display { font-size: 1.2rem; font-weight: 600; color: var(--text-secondary); min-width: 36px; text-align: center; }
-.timer-next { background: var(--accent); color: #fff; border-color: var(--accent); }
 
 /* Bid summary / confirm */
 .bid-summary {
