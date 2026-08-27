@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Incremental sync: copy new/updated prod data to staging.
+"""Sync prod data to staging using ID-offset separation.
 
-No DELETE — staging is append-only. Uses UPSERT (ON CONFLICT DO UPDATE)
-for playground and game, INSERT ON CONFLICT DO NOTHING for round.
+Prod data occupies IDs < 1,000,000. Staging-created data uses IDs >= 1,000,000.
+On each sync: wipe prod-range rows, re-insert prod data, reset sequences.
+Staging test data (IDs >= 1M) is preserved across syncs.
 
 Usage:
   PROD_DATABASE_URL=... STAGING_DATABASE_URL=... python scripts/sync_staging_db.py
@@ -13,6 +14,11 @@ Requires: asyncpg (pip install asyncpg)
 import asyncio
 import os
 import sys
+
+TABLES = ["playground", "game", "round"]
+# Prod IDs stay below this value; staging-created IDs start here.
+# At ~1800 rounds/year, prod won't reach 1M for ~555 years.
+STAGING_ID_OFFSET = 1_000_000
 
 
 def _get_urls():
@@ -44,37 +50,60 @@ async def sync():
         print("Connecting to staging...")
         staging_conn = await asyncpg.connect(staging_url, ssl="require")
 
-        await _sync_table(
-            prod_conn,
-            staging_conn,
-            "playground",
-            upsert_cols=[
-                "name",
-                "pin_hash",
-                "share_code",
-                "players",
-                "insights",
-                "updated_at",
-            ],
-        )
-        await _sync_table(
-            prod_conn,
-            staging_conn,
-            "game",
-            upsert_cols=[
-                "playground_id",
-                "players",
-                "settings",
-                "current_round",
-                "total_rounds",
-                "phase",
-                "dealer_index",
-                "status",
-                "updated_at",
-                "finished_at",
-            ],
-        )
-        await _sync_table(prod_conn, staging_conn, "round")
+        total_errors = 0
+
+        async with staging_conn.transaction():
+            # 1. Delete prod-range rows (child → parent order)
+            for table in reversed(TABLES):
+                result = await staging_conn.execute(
+                    f"DELETE FROM {table} WHERE id < $1",  # noqa: S608
+                    STAGING_ID_OFFSET,
+                )
+                count = int(result.split()[-1])
+                if count:
+                    print(f"  {table}: cleared {count} prod-range rows")
+
+            # 2. Insert prod data (parent → child order)
+            for table in TABLES:
+                rows = await prod_conn.fetch(f"SELECT * FROM {table}")  # noqa: S608
+                if not rows:
+                    print(f"  {table}: 0 rows in prod (skipped)")
+                    continue
+
+                columns = list(rows[0].keys())
+                col_list = ", ".join(columns)
+                placeholders = ", ".join(f"${i + 1}" for i in range(len(columns)))
+                sql = f"INSERT INTO {table} ({col_list}) VALUES ({placeholders})"  # noqa: S608
+
+                errors = 0
+                for row in rows:
+                    values = [row[col] for col in columns]
+                    try:
+                        await staging_conn.execute(sql, *values)
+                    except Exception as exc:  # noqa: BLE001
+                        errors += 1
+                        print(f"    WARN: {table} id={row.get('id', '?')}: {exc}")
+
+                total_errors += errors
+                status = f"{len(rows)} rows synced"
+                if errors:
+                    status += f", {errors} errors"
+                print(f"  {table}: {status}")
+
+            # 3. Set sequences so new staging IDs start at max(offset, max_id+1)
+            for table in TABLES:
+                await staging_conn.execute(
+                    f"SELECT setval("  # noqa: S608
+                    f"pg_get_serial_sequence('{table}', 'id'), "
+                    f"GREATEST($1, COALESCE((SELECT MAX(id) FROM {table}), 0) + 1), "
+                    f"false)",
+                    STAGING_ID_OFFSET,
+                )
+            print(f"  sequences: reset to >= {STAGING_ID_OFFSET}")
+
+        if total_errors:
+            print(f"\nSync finished with {total_errors} errors.")
+            sys.exit(1)
 
         print("\nSync complete.")
     finally:
@@ -82,48 +111,6 @@ async def sync():
             await prod_conn.close()
         if staging_conn:
             await staging_conn.close()
-
-
-async def _sync_table(prod_conn, staging_conn, table, upsert_cols=None):
-    """Sync a single table from prod to staging.
-
-    If upsert_cols is provided, uses ON CONFLICT (id) DO UPDATE for those columns.
-    Otherwise uses ON CONFLICT DO NOTHING (append-only).
-    """
-    rows = await prod_conn.fetch(f"SELECT * FROM {table}")  # noqa: S608
-    if not rows:
-        print(f"  {table}: 0 rows in prod (skipped)")
-        return
-
-    columns = list(rows[0].keys())
-    col_list = ", ".join(columns)
-    placeholders = ", ".join(f"${i + 1}" for i in range(len(columns)))
-
-    if upsert_cols:
-        update_clause = ", ".join(f"{c} = EXCLUDED.{c}" for c in upsert_cols)
-        sql = (
-            f"INSERT INTO {table} ({col_list}) VALUES ({placeholders}) "  # noqa: S608
-            f"ON CONFLICT (id) DO UPDATE SET {update_clause}"
-        )
-    else:
-        sql = f"INSERT INTO {table} ({col_list}) VALUES ({placeholders}) ON CONFLICT DO NOTHING"  # noqa: S608
-
-    inserted = 0
-    errors = 0
-    for row in rows:
-        values = [row[col] for col in columns]
-        try:
-            result = await staging_conn.execute(sql, *values)
-            if "INSERT" in result:
-                inserted += 1
-        except Exception as exc:  # noqa: BLE001
-            errors += 1
-            print(f"    WARN: {table} id={row.get('id', '?')}: {exc}")
-
-    status = f"{len(rows)} prod rows, {inserted} new/updated"
-    if errors:
-        status += f", {errors} errors"
-    print(f"  {table}: {status}")
 
 
 if __name__ == "__main__":
