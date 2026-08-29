@@ -35,14 +35,20 @@ async def _recompute_all_insights():
     async with async_session_factory() as db:
         result = await db.execute(select(Playground.id))
         pg_ids = [row[0] for row in result.all()]
-        for pg_id in pg_ids:
+
+    succeeded = 0
+    for pg_id in pg_ids:
+        async with async_session_factory() as db:
             try:
                 await compute_insights(db, pg_id)
+                succeeded += 1
             except Exception:
                 logger.warning(
-                    "Failed to recompute insights for playground %s", pg_id, exc_info=True
+                    "Failed to recompute insights for playground %s",
+                    pg_id,
+                    exc_info=True,
                 )
-        logger.info("Recomputed insights for %d playgrounds", len(pg_ids))
+    logger.info("Recomputed insights: %d/%d playgrounds", succeeded, len(pg_ids))
 
 
 def _log_task_error(task: asyncio.Task):
