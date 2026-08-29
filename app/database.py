@@ -43,16 +43,19 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 async def create_tables() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        # Add updated_at column to game table if missing (no migration tool)
-        import contextlib
 
-        from sqlalchemy import text
+    import contextlib
 
-        # Add columns if missing (no migration tool)
-        for statement in [
-            "ALTER TABLE game ADD COLUMN updated_at TIMESTAMP DEFAULT NOW()",
-            "ALTER TABLE playground ADD COLUMN insights JSON DEFAULT NULL",
-            "ALTER TABLE playground ADD COLUMN pin_hint VARCHAR(100) DEFAULT NULL",
-        ]:
+    from sqlalchemy import text
+
+    # Add columns if missing (no migration tool).
+    # Each ALTER runs in its own transaction — if one fails (column exists),
+    # it doesn't abort subsequent ALTERs.
+    for statement in [
+        "ALTER TABLE game ADD COLUMN updated_at TIMESTAMP DEFAULT NOW()",
+        "ALTER TABLE playground ADD COLUMN insights JSON DEFAULT NULL",
+        "ALTER TABLE playground ADD COLUMN pin_hint VARCHAR(100) DEFAULT NULL",
+    ]:
+        async with engine.begin() as conn:
             with contextlib.suppress(Exception):
                 await conn.execute(text(statement))
