@@ -41,7 +41,7 @@ export const homeScreen = {
                 </form>
 
                 <form id="join-form" class="form hidden">
-                    <button type="button" id="browse-rooms-btn" class="btn-text" style="margin-bottom:8px;">Browse All Rooms</button>
+                    <button type="button" id="browse-rooms-btn" class="browse-toggle"><span aria-hidden="true">🔍</span> Browse Rooms</button>
                     <div id="browse-rooms" class="hidden">
                         <input type="text" id="browse-filter" placeholder="Filter by player name..." autocomplete="off" style="margin-bottom:8px;">
                         <div id="browse-list"></div>

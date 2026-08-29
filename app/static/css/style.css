@@ -148,8 +148,16 @@ input::placeholder { color: var(--text-muted); }
     transition: all 0.15s;
 }
 .recent-item:active { background: var(--accent); color: #fff; }
+.browse-toggle {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 10px 18px; min-height: 44px; border: 1px solid var(--border); border-radius: 22px;
+    background: var(--bg-card); font-size: 0.875rem; color: var(--text-secondary);
+    cursor: pointer; transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+    margin-bottom: 8px;
+}
+.browse-toggle:active { background: var(--accent); color: #fff; border-color: var(--accent); }
 .browse-list { display: flex; flex-wrap: wrap; gap: 6px; max-height: 200px; overflow-y: auto; }
-.browse-item { font-size: 0.8rem; padding: 4px 12px; }
+.browse-item { font-size: 0.875rem; padding: 10px 14px; min-height: 44px; }
 
 /* Player list (home) */
 .player-list { display: flex; flex-direction: column; gap: 8px; }
