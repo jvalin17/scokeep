@@ -148,6 +148,8 @@ input::placeholder { color: var(--text-muted); }
     transition: all 0.15s;
 }
 .recent-item:active { background: var(--accent); color: #fff; }
+.browse-list { display: flex; flex-wrap: wrap; gap: 6px; max-height: 200px; overflow-y: auto; }
+.browse-item { font-size: 0.8rem; padding: 4px 12px; }
 
 /* Player list (home) */
 .player-list { display: flex; flex-direction: column; gap: 8px; }

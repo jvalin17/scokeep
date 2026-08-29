@@ -226,11 +226,15 @@ export const homeScreen = {
         const browseFilter = container.querySelector('#browse-filter');
         const browseList = container.querySelector('#browse-list');
 
+        const recentEl = container.querySelector('#recent-playgrounds');
+
         browseBtn.addEventListener('click', async () => {
             if (!browsePanel.classList.contains('hidden')) {
                 browsePanel.classList.add('hidden');
+                if (recentEl) recentEl.classList.remove('hidden');
                 return;
             }
+            if (recentEl) recentEl.classList.add('hidden');
             if (!allRooms) {
                 try {
                     const data = await browsePlaygrounds();
@@ -260,6 +264,7 @@ export const homeScreen = {
                     : '<p class="stats-muted" style="padding:8px;">No rooms yet — create one!</p>';
                 return;
             }
+            browseList.className = 'browse-list';
             browseList.innerHTML = rooms
                 .map(r => `<button type="button" class="recent-item browse-item" data-name="${escapeHtml(r.name)}">${escapeHtml(r.name)}</button>`)
                 .join('');
@@ -267,6 +272,7 @@ export const homeScreen = {
                 btn.addEventListener('click', () => {
                     container.querySelector('#join-name').value = btn.dataset.name;
                     browsePanel.classList.add('hidden');
+                    if (recentEl) recentEl.classList.remove('hidden');
                     container.querySelector('#join-pin').focus();
                 });
             });

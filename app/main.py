@@ -39,7 +39,9 @@ async def _recompute_all_insights():
             try:
                 await compute_insights(db, pg_id)
             except Exception:
-                logger.warning("Failed to recompute insights for playground %s", pg_id)
+                logger.warning(
+                    "Failed to recompute insights for playground %s", pg_id, exc_info=True
+                )
         logger.info("Recomputed insights for %d playgrounds", len(pg_ids))
 
 
