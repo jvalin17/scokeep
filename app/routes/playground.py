@@ -44,6 +44,13 @@ async def list_recent_playgrounds(db: AsyncSession = Depends(get_db)):
     return {"names": names}
 
 
+@router.get("/browse")
+async def browse_playgrounds(db: AsyncSession = Depends(get_db)):
+    """List all rooms (name + share_code) sorted alphabetically. Public."""
+    rooms = await PlaygroundService.list_all(db)
+    return {"rooms": rooms}
+
+
 @router.post("", status_code=201, response_model=PlaygroundResponse)
 async def create_playground(
     data: PlaygroundCreate,

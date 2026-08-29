@@ -1,6 +1,6 @@
 // Home screen — create or join playground
 
-import { createPlayground, authPlayground, listRecentPlaygrounds } from '../api.js';
+import { createPlayground, authPlayground, listRecentPlaygrounds, browsePlaygrounds } from '../api.js';
 import { escapeHtml } from '../components/game-utils.js';
 
 export const homeScreen = {
@@ -46,6 +46,11 @@ export const homeScreen = {
                         maxlength="4" pattern="\\d{4}" inputmode="numeric" required>
                     <button type="submit" class="btn btn-primary">Enter</button>
                     <p id="join-error" class="error hidden"></p>
+                    <button type="button" id="browse-rooms-btn" class="btn-text" style="margin-top:8px;">Browse All Rooms</button>
+                    <div id="browse-rooms" class="hidden">
+                        <input type="text" id="browse-filter" placeholder="Filter rooms..." autocomplete="off" style="margin-bottom:8px;">
+                        <div id="browse-list"></div>
+                    </div>
                 </form>
 
                 <div id="howto-section" class="form hidden">
@@ -181,6 +186,55 @@ export const homeScreen = {
                 if (target === 'join') loadRecent();
             });
         });
+
+        // Browse all rooms
+        let allRooms = null;
+        const browseBtn = container.querySelector('#browse-rooms-btn');
+        const browsePanel = container.querySelector('#browse-rooms');
+        const browseFilter = container.querySelector('#browse-filter');
+        const browseList = container.querySelector('#browse-list');
+
+        browseBtn.addEventListener('click', async () => {
+            if (!browsePanel.classList.contains('hidden')) {
+                browsePanel.classList.add('hidden');
+                return;
+            }
+            if (!allRooms) {
+                try {
+                    const data = await browsePlaygrounds();
+                    allRooms = data.rooms || [];
+                } catch { allRooms = []; }
+            }
+            browseFilter.value = '';
+            renderBrowseList(allRooms);
+            browsePanel.classList.remove('hidden');
+            browseFilter.focus();
+        });
+
+        browseFilter.addEventListener('input', () => {
+            const q = browseFilter.value.toLowerCase();
+            const filtered = (allRooms || []).filter(r => r.name.toLowerCase().includes(q));
+            renderBrowseList(filtered);
+        });
+
+        function renderBrowseList(rooms) {
+            if (!rooms.length) {
+                browseList.innerHTML = allRooms && allRooms.length
+                    ? '<p class="stats-muted" style="padding:8px;">No rooms found</p>'
+                    : '<p class="stats-muted" style="padding:8px;">No rooms yet — create one!</p>';
+                return;
+            }
+            browseList.innerHTML = rooms
+                .map(r => `<button type="button" class="recent-item browse-item" data-name="${escapeHtml(r.name)}">${escapeHtml(r.name)}</button>`)
+                .join('');
+            browseList.querySelectorAll('.browse-item').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    container.querySelector('#join-name').value = btn.dataset.name;
+                    browsePanel.classList.add('hidden');
+                    container.querySelector('#join-pin').focus();
+                });
+            });
+        }
 
         // Add player button
         let playerCount = 2;

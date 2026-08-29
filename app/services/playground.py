@@ -77,6 +77,14 @@ class PlaygroundService:
         await db.commit()
 
     @staticmethod
+    async def list_all(db: AsyncSession) -> list[dict]:
+        """Return all playgrounds (name + share_code) sorted alphabetically."""
+        result = await db.execute(
+            select(Playground.name, Playground.share_code).order_by(Playground.name)
+        )
+        return [{"name": row[0], "share_code": row[1]} for row in result.all()]
+
+    @staticmethod
     async def list_recent_names(db: AsyncSession, limit: int = 5) -> list[str]:
         result = await db.execute(
             select(Playground.name).order_by(Playground.updated_at.desc()).limit(limit)

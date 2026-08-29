@@ -67,6 +67,10 @@ export function listRecentPlaygrounds() {
     return request('GET', '/playground/recent');
 }
 
+export function browsePlaygrounds() {
+    return request('GET', '/playground/browse');
+}
+
 export function createPlayground(name, pin, players) {
     return request('POST', '/playground', { name, pin, players });
 }
