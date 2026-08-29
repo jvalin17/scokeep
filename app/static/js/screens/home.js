@@ -95,38 +95,45 @@ export const homeScreen = {
                         <div class="howto-steps">
                             <div class="howto-step">
                                 <strong>1. Create a Room</strong>
-                                <p>Give your group a name and a 4-digit PIN. Add player names and drag to set clockwise seating order.</p>
+                                <p>Give your group a name, a 4-digit PIN, and an optional PIN hint (in case you forget it later). Add player names and drag to set clockwise seating order.</p>
                                 <p>Rooms are reusable — come back anytime with the same name + PIN. Other players can also join with the room name and PIN.</p>
                             </div>
                             <div class="howto-step">
-                                <strong>2. Pick Settings</strong>
-                                <p>Choose game mode, scoring type (Ones or Zeros), number of sets, appearance, and must-lose toggle. All configurable before the game starts.</p>
+                                <strong>2. Find Your Room</strong>
+                                <p>On the Join tab, enter your room name and PIN. Can't remember the name? Tap <strong>Browse All Rooms</strong> to see every room, filter by name, and pick yours with one tap.</p>
+                                <p>Forgot your PIN? Tap <strong>Forgot PIN?</strong> to see the hint you set when creating the room.</p>
                             </div>
                             <div class="howto-step">
-                                <strong>3. Enter Bids</strong>
+                                <strong>3. Pick Settings</strong>
+                                <p>Choose game mode, scoring type (Ones or Zeros), number of sets, cards per round, appearance, and must-lose toggle. All configurable before the game starts.</p>
+                            </div>
+                            <div class="howto-step">
+                                <strong>4. Enter Bids</strong>
                                 <p>Tap each player's bid on the keypad. You can go back to previous players, and edit any bid on the confirm screen before starting the round.</p>
+                                <p>In must-lose mode, the last player (dealer) cannot bid a number that makes the total equal the cards dealt.</p>
                             </div>
                             <div class="howto-step">
-                                <strong>4. Play & Score</strong>
-                                <p>After the round, tap how many tricks each player won. You can edit results with inline editing — the last player auto-adjusts to match the total.</p>
-                                <p>Made a mistake? Undo the last round from the scoreboard to re-enter scores.</p>
+                                <strong>5. Play & Score</strong>
+                                <p>After the round, tap how many tricks each player won. The last player's value auto-locks to match the total cards dealt.</p>
+                                <p>Made a mistake after scoring? Tap <strong>Edit Hands</strong> on the scoreboard to re-enter hands and re-score the round — your bids stay intact. Or use <strong>Undo Last Round</strong> to start the round over completely.</p>
                             </div>
                             <div class="howto-step">
                                 <strong>Takeover Anytime</strong>
                                 <p>Anyone with the room name and PIN can open the app and take over scoring mid-game. Just join the room — the game resumes exactly where it left off.</p>
                             </div>
                             <div class="howto-step">
-                                <strong>5. Extend or End</strong>
+                                <strong>6. Extend or End</strong>
                                 <p>After the last round, choose to add 1–4 more sets or see final scores. Sets alternate direction — if set 1 goes 8→1, set 2 goes 1→8.</p>
                                 <p>You can end the game anytime. If you take a break, the game is recoverable for 30 minutes — just come back to your room.</p>
                             </div>
                             <div class="howto-step">
-                                <strong>6. Stats & Awards</strong>
-                                <p>View leaderboard, bid accuracy, overbid/underbid trends, and awards. Every player gets a chance to shine.</p>
+                                <strong>7. Stats & Insights</strong>
+                                <p>View career awards (Sniper, Zero Master, High Roller), game history with expandable scoresheets, and score progression charts.</p>
+                                <p>After 3 games, each player unlocks a <strong>Personality Card</strong> — tap to flip and see accuracy stats, bidding style, strengths, and fun facts.</p>
                             </div>
                             <div class="howto-step">
-                                <strong>7. Install as App</strong>
-                                <p>Scokeep is a PWA — tap "Add to Home Screen" in your browser to install it. It works like a native app with offline support and no browser chrome.</p>
+                                <strong>8. Install as App</strong>
+                                <p>Scokeep is a PWA — tap "Add to Home Screen" in your browser to install it. Works like a native app with offline support and no browser chrome.</p>
                             </div>
                         </div>
 
