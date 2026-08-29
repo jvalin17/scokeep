@@ -41,6 +41,11 @@ export const homeScreen = {
                 </form>
 
                 <form id="join-form" class="form hidden">
+                    <button type="button" id="browse-rooms-btn" class="btn-text" style="margin-bottom:8px;">Browse All Rooms</button>
+                    <div id="browse-rooms" class="hidden">
+                        <input type="text" id="browse-filter" placeholder="Filter by player name..." autocomplete="off" style="margin-bottom:8px;">
+                        <div id="browse-list"></div>
+                    </div>
                     <div id="recent-playgrounds"></div>
                     <input type="text" id="join-name" placeholder="Playground name"
                         maxlength="50" required autocomplete="off">
@@ -50,11 +55,6 @@ export const homeScreen = {
                     <button type="button" id="forgot-pin" class="btn-text" style="font-size:0.8rem;">Forgot PIN?</button>
                     <p id="pin-hint-display" class="stats-muted hidden" style="font-size:0.85rem;"></p>
                     <p id="join-error" class="error hidden"></p>
-                    <button type="button" id="browse-rooms-btn" class="btn-text" style="margin-top:8px;">Browse All Rooms</button>
-                    <div id="browse-rooms" class="hidden">
-                        <input type="text" id="browse-filter" placeholder="Filter rooms..." autocomplete="off" style="margin-bottom:8px;">
-                        <div id="browse-list"></div>
-                    </div>
                 </form>
 
                 <div id="howto-section" class="form hidden">
@@ -100,7 +100,7 @@ export const homeScreen = {
                             </div>
                             <div class="howto-step">
                                 <strong>2. Find Your Room</strong>
-                                <p>On the Join tab, enter your room name and PIN. Can't remember the name? Tap <strong>Browse All Rooms</strong> to see every room, filter by name, and pick yours with one tap.</p>
+                                <p>On the Join tab, tap <strong>Browse All Rooms</strong> to see every room. Type a player's name to filter — find your room even if you forgot the room name. Pick yours with one tap.</p>
                                 <p>Forgot your PIN? Tap <strong>Forgot PIN?</strong> to see the hint you set when creating the room.</p>
                             </div>
                             <div class="howto-step">
@@ -245,7 +245,11 @@ export const homeScreen = {
 
         browseFilter.addEventListener('input', () => {
             const q = browseFilter.value.toLowerCase();
-            const filtered = (allRooms || []).filter(r => r.name.toLowerCase().includes(q));
+            const filtered = (allRooms || []).filter(r => {
+                const nameMatch = r.name.toLowerCase().includes(q);
+                const playerMatch = (r.players || []).some(p => p.toLowerCase().includes(q));
+                return nameMatch || playerMatch;
+            });
             renderBrowseList(filtered);
         });
 

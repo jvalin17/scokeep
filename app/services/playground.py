@@ -80,11 +80,13 @@ class PlaygroundService:
 
     @staticmethod
     async def list_all(db: AsyncSession) -> list[dict]:
-        """Return all playgrounds (name + share_code) sorted alphabetically."""
+        """Return all playgrounds sorted alphabetically. Includes players for filtering."""
         result = await db.execute(
-            select(Playground.name, Playground.share_code).order_by(Playground.name)
+            select(Playground.name, Playground.share_code, Playground.players).order_by(
+                Playground.name
+            )
         )
-        return [{"name": row[0], "share_code": row[1]} for row in result.all()]
+        return [{"name": row[0], "share_code": row[1], "players": row[2]} for row in result.all()]
 
     @staticmethod
     async def list_recent_names(db: AsyncSession, limit: int = 5) -> list[str]:
