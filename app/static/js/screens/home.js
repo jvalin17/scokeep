@@ -41,12 +41,18 @@ export const homeScreen = {
                 </form>
 
                 <form id="join-form" class="form hidden">
-                    <button type="button" id="browse-rooms-btn" class="browse-toggle"><span aria-hidden="true">🔍</span> Browse Rooms</button>
-                    <div id="browse-rooms" class="hidden">
-                        <input type="text" id="browse-filter" placeholder="Filter by player name..." autocomplete="off" style="margin-bottom:8px;">
-                        <div id="browse-list"></div>
+                    <div class="room-finder">
+                        <div class="room-finder-header">
+                            <span class="room-finder-label">Rooms</span>
+                            <button type="button" id="browse-rooms-btn" class="browse-toggle">Browse all</button>
+                        </div>
+                        <div id="recent-playgrounds" class="room-finder-list"></div>
+                        <div id="browse-rooms" class="hidden">
+                            <input type="text" id="browse-filter-room" placeholder="Search by room name..." autocomplete="off" class="room-finder-search">
+                            <input type="text" id="browse-filter-player" placeholder="Search by player name..." autocomplete="off" class="room-finder-search">
+                            <div id="browse-list" class="room-finder-list"></div>
+                        </div>
                     </div>
-                    <div id="recent-playgrounds"></div>
                     <input type="text" id="join-name" placeholder="Playground name"
                         maxlength="50" required autocomplete="off">
                     <input type="password" id="join-pin" placeholder="4-digit PIN"
@@ -219,18 +225,19 @@ export const homeScreen = {
             }
         });
 
-        // Browse all rooms
+        // Room finder — browse all rooms
         let allRooms = null;
         const browseBtn = container.querySelector('#browse-rooms-btn');
         const browsePanel = container.querySelector('#browse-rooms');
-        const browseFilter = container.querySelector('#browse-filter');
+        const filterRoom = container.querySelector('#browse-filter-room');
+        const filterPlayer = container.querySelector('#browse-filter-player');
         const browseList = container.querySelector('#browse-list');
-
         const recentEl = container.querySelector('#recent-playgrounds');
 
         browseBtn.addEventListener('click', async () => {
             if (!browsePanel.classList.contains('hidden')) {
                 browsePanel.classList.add('hidden');
+                browseBtn.textContent = 'Browse all';
                 if (recentEl) recentEl.classList.remove('hidden');
                 return;
             }
@@ -241,21 +248,27 @@ export const homeScreen = {
                     allRooms = data.rooms || [];
                 } catch { allRooms = []; }
             }
-            browseFilter.value = '';
+            filterRoom.value = '';
+            filterPlayer.value = '';
             renderBrowseList(allRooms);
             browsePanel.classList.remove('hidden');
-            browseFilter.focus();
+            browseBtn.textContent = 'Close ×';
+            filterRoom.focus();
         });
 
-        browseFilter.addEventListener('input', () => {
-            const q = browseFilter.value.toLowerCase();
+        function applyFilters() {
+            const roomQuery = filterRoom.value.toLowerCase();
+            const playerQuery = filterPlayer.value.toLowerCase();
             const filtered = (allRooms || []).filter(r => {
-                const nameMatch = r.name.toLowerCase().includes(q);
-                const playerMatch = (r.players || []).some(p => p.toLowerCase().includes(q));
-                return nameMatch || playerMatch;
+                const roomMatch = !roomQuery || r.name.toLowerCase().includes(roomQuery);
+                const playerMatch = !playerQuery || (r.players || []).some(p => p.toLowerCase().includes(playerQuery));
+                return roomMatch && playerMatch;
             });
             renderBrowseList(filtered);
-        });
+        }
+
+        filterRoom.addEventListener('input', applyFilters);
+        filterPlayer.addEventListener('input', applyFilters);
 
         function renderBrowseList(rooms) {
             if (!rooms.length) {
@@ -264,7 +277,6 @@ export const homeScreen = {
                     : '<p class="stats-muted" style="padding:8px;">No rooms yet — create one!</p>';
                 return;
             }
-            browseList.className = 'browse-list';
             browseList.innerHTML = rooms
                 .map(r => `<button type="button" class="recent-item browse-item" data-name="${escapeHtml(r.name)}">${escapeHtml(r.name)}</button>`)
                 .join('');
@@ -272,6 +284,7 @@ export const homeScreen = {
                 btn.addEventListener('click', () => {
                     container.querySelector('#join-name').value = btn.dataset.name;
                     browsePanel.classList.add('hidden');
+                    browseBtn.textContent = 'Browse all';
                     if (recentEl) recentEl.classList.remove('hidden');
                     container.querySelector('#join-pin').focus();
                 });
