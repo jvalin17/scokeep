@@ -16,7 +16,7 @@ async function request(method, path, body = null) {
         options.body = JSON.stringify(body);
     }
     const response = await fetch(`${BASE}${path}`, options);
-    if (response.status === 401) {
+    if (response.status === 401 && path !== '/playground/auth' && path !== '/playground') {
         logger.apiError(method, path, 401, 'Session expired');
         window.location.hash = '';
         throw new Error('Session expired — please re-enter your PIN');
@@ -71,8 +71,14 @@ export function browsePlaygrounds() {
     return request('GET', '/playground/browse');
 }
 
-export function createPlayground(name, pin, players) {
-    return request('POST', '/playground', { name, pin, players });
+export function createPlayground(name, pin, players, pinHint = null) {
+    const body = { name, pin, players };
+    if (pinHint) body.pin_hint = pinHint;
+    return request('POST', '/playground', body);
+}
+
+export function getPinHint(name) {
+    return request('GET', `/playground/hint/${encodeURIComponent(name)}`);
 }
 
 export function authPlayground(name, pin) {
@@ -153,6 +159,10 @@ export function submitHands(gameId, playerIndex, value) {
 
 export function endRound(gameId) {
     return request('POST', `/game/${gameId}/end-round`);
+}
+
+export function enterRescore(gameId) {
+    return request('POST', `/game/${gameId}/enter-rescore`);
 }
 
 // Scoreboard

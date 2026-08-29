@@ -1,6 +1,6 @@
 // Home screen — create or join playground
 
-import { createPlayground, authPlayground, listRecentPlaygrounds, browsePlaygrounds } from '../api.js';
+import { createPlayground, authPlayground, listRecentPlaygrounds, browsePlaygrounds, getPinHint } from '../api.js';
 import { escapeHtml } from '../components/game-utils.js';
 
 export const homeScreen = {
@@ -23,6 +23,8 @@ export const homeScreen = {
                         maxlength="50" required autocomplete="off">
                     <input type="password" id="create-pin" placeholder="4-digit PIN"
                         maxlength="4" pattern="\\d{4}" inputmode="numeric" required>
+                    <input type="text" id="create-hint" placeholder="PIN hint (optional, e.g. birthday)"
+                        maxlength="100" autocomplete="off">
                     <div id="player-list" class="player-list">
                         <div class="player-input-row">
                             <input type="text" placeholder="Player 1" class="player-name"
@@ -45,6 +47,8 @@ export const homeScreen = {
                     <input type="password" id="join-pin" placeholder="4-digit PIN"
                         maxlength="4" pattern="\\d{4}" inputmode="numeric" required>
                     <button type="submit" class="btn btn-primary">Enter</button>
+                    <button type="button" id="forgot-pin" class="btn-text" style="font-size:0.8rem;">Forgot PIN?</button>
+                    <p id="pin-hint-display" class="stats-muted hidden" style="font-size:0.85rem;"></p>
                     <p id="join-error" class="error hidden"></p>
                     <button type="button" id="browse-rooms-btn" class="btn-text" style="margin-top:8px;">Browse All Rooms</button>
                     <div id="browse-rooms" class="hidden">
@@ -187,6 +191,27 @@ export const homeScreen = {
             });
         });
 
+        // Forgot PIN — show hint
+        container.querySelector('#forgot-pin').addEventListener('click', async () => {
+            const name = container.querySelector('#join-name').value.trim();
+            const hintEl = container.querySelector('#pin-hint-display');
+            if (!name) {
+                hintEl.textContent = 'Enter the room name first';
+                hintEl.classList.remove('hidden');
+                return;
+            }
+            try {
+                const data = await getPinHint(name);
+                hintEl.textContent = data.hint
+                    ? `Hint: ${data.hint}`
+                    : 'No hint was set for this room';
+                hintEl.classList.remove('hidden');
+            } catch {
+                hintEl.textContent = 'Room not found';
+                hintEl.classList.remove('hidden');
+            }
+        });
+
         // Browse all rooms
         let allRooms = null;
         const browseBtn = container.querySelector('#browse-rooms-btn');
@@ -263,6 +288,7 @@ export const homeScreen = {
 
             const name = container.querySelector('#create-name').value.trim();
             const pin = container.querySelector('#create-pin').value;
+            const pinHint = container.querySelector('#create-hint').value.trim() || null;
             const players = Array.from(container.querySelectorAll('.player-name'))
                 .map(input => input.value.trim())
                 .filter(name => name.length > 0);
@@ -279,7 +305,7 @@ export const homeScreen = {
             submitBtn.disabled = true;
 
             try {
-                const playground = await createPlayground(name, pin, players);
+                const playground = await createPlayground(name, pin, players, pinHint);
                 await authPlayground(name, pin);
                 state.playground = playground;
                 navigate(`playground/${playground.share_code}`);

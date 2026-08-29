@@ -1,13 +1,13 @@
-"""Browse Rooms tests — public endpoint to list all room names alphabetically."""
+"""Browse Rooms + PIN hint tests."""
 
 from httpx import AsyncClient
 
 
-async def _create_playground(client: AsyncClient, name: str):
-    await client.post(
-        "/api/playground",
-        json={"name": name, "pin": "1234", "players": ["Alice", "Bob"]},
-    )
+async def _create_playground(client: AsyncClient, name: str, pin_hint: str | None = None):
+    body = {"name": name, "pin": "1234", "players": ["Alice", "Bob"]}
+    if pin_hint:
+        body["pin_hint"] = pin_hint
+    await client.post("/api/playground", json=body)
 
 
 class TestBrowseRooms:
@@ -47,3 +47,47 @@ class TestBrowseRooms:
         resp = await client.get("/api/playground/browse")
         assert resp.status_code == 200
         assert resp.json()["rooms"] == []
+
+
+class TestPinHint:
+    async def test_hint_returned_when_set(self, client: AsyncClient):
+        await _create_playground(client, "Hint Room", pin_hint="birthday")
+        resp = await client.get("/api/playground/hint/Hint Room")
+        assert resp.status_code == 200
+        assert resp.json()["hint"] == "birthday"
+
+    async def test_hint_null_when_not_set(self, client: AsyncClient):
+        await _create_playground(client, "No Hint Room")
+        resp = await client.get("/api/playground/hint/No Hint Room")
+        assert resp.status_code == 200
+        assert resp.json()["hint"] is None
+
+    async def test_hint_404_for_unknown_room(self, client: AsyncClient):
+        resp = await client.get("/api/playground/hint/Nonexistent")
+        assert resp.status_code == 404
+
+    async def test_hint_no_auth_required(self, client: AsyncClient):
+        """Hint is public — no session cookie needed."""
+        await _create_playground(client, "Public Hint", pin_hint="test")
+        resp = await client.get("/api/playground/hint/Public Hint")
+        assert resp.status_code == 200
+
+    async def test_hint_with_special_chars(self, client: AsyncClient):
+        """Hints with & and < are stored correctly."""
+        await _create_playground(client, "Special Hint", pin_hint="mom & dad's bday")
+        resp = await client.get("/api/playground/hint/Special Hint")
+        assert resp.status_code == 200
+        # Stored with html.escape, so & becomes &amp;
+        hint = resp.json()["hint"]
+        assert hint is not None
+        assert "mom" in hint
+
+    async def test_hint_not_in_auth_response(self, client: AsyncClient):
+        """pin_hint must NOT appear in auth response."""
+        await _create_playground(client, "Auth Hint", pin_hint="secret")
+        resp = await client.post(
+            "/api/playground/auth",
+            json={"name": "Auth Hint", "pin": "1234"},
+        )
+        assert resp.status_code == 200
+        assert "pin_hint" not in resp.json()

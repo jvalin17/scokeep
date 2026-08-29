@@ -169,3 +169,27 @@ async def end_round(
 
     await GameService.update_phase(db, game, "scoreboard")
     return round_obj
+
+
+@router.post("/{game_id}/enter-rescore")
+async def enter_rescore(
+    game_id: int,
+    playground_id: int = Depends(require_auth),
+    db: AsyncSession = Depends(get_db),
+):
+    """Reset current round to allow re-entering hands. Bids are preserved."""
+    game, round_obj = await _get_game_and_round(db, game_id, playground_id)
+
+    if game.phase != "scoreboard":
+        raise HTTPException(
+            status_code=409,
+            detail=f"Game is in '{game.phase}' phase, not 'scoreboard'",
+        )
+
+    round_obj.status = "round_end"
+    round_obj.hands_won = {}
+    round_obj.scores = {}
+    await db.commit()
+
+    await GameService.update_phase(db, game, "round_end")
+    return {"phase": game.phase}

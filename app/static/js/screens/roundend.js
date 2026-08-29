@@ -119,7 +119,7 @@ export const roundendScreen = {
                     <div class="bid-total">
                         Total: ${totalHands} / ${cardsDealt} ${totalHands === cardsDealt ? '✓' : '⚠'}
                     </div>
-                    ${totalHands === cardsDealt ? '<button id="score-round" class="btn btn-primary">Score Round</button>' : '<p class="claimed-info">Total must equal cards dealt</p>'}
+                    ${totalHands === cardsDealt ? `<button id="score-round" class="btn btn-primary">${state.rescore ? 'Re-Score Round' : 'Score Round'}</button>` : '<p class="claimed-info">Total must equal cards dealt</p>'}
                     <p id="score-error" class="error hidden"></p>
                 </div>
             `;
@@ -178,6 +178,7 @@ export const roundendScreen = {
                     try {
                         await endRound(gameId);
                         soundScoreRound();
+                        state.rescore = false;
                         const isFinalRound = game.current_round >= game.total_rounds;
                         if (isFinalRound) {
                             renderExtendPrompt();

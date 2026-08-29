@@ -51,6 +51,16 @@ async def browse_playgrounds(db: AsyncSession = Depends(get_db)):
     return {"rooms": rooms}
 
 
+@router.get("/hint/{name}")
+@limiter.limit(AUTH_RATE_LIMIT)
+async def get_pin_hint(request: Request, name: str, db: AsyncSession = Depends(get_db)):
+    """Get the PIN hint for a playground. Public — helps users remember their PIN."""
+    playground = await PlaygroundService.get_by_name(db, sanitize_text(name))
+    if not playground:
+        raise HTTPException(status_code=404, detail="Playground not found")
+    return {"hint": playground.pin_hint}
+
+
 @router.post("", status_code=201, response_model=PlaygroundResponse)
 async def create_playground(
     data: PlaygroundCreate,
@@ -61,6 +71,7 @@ async def create_playground(
         name=data.name,
         pin=data.pin,
         players=data.players,
+        pin_hint=data.pin_hint,
     )
     return playground
 

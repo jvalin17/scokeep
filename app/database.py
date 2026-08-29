@@ -52,6 +52,7 @@ async def create_tables() -> None:
         for statement in [
             "ALTER TABLE game ADD COLUMN updated_at TIMESTAMP DEFAULT NOW()",
             "ALTER TABLE playground ADD COLUMN insights JSON DEFAULT NULL",
+            "ALTER TABLE playground ADD COLUMN pin_hint VARCHAR(100) DEFAULT NULL",
         ]:
             with contextlib.suppress(Exception):
                 await conn.execute(text(statement))

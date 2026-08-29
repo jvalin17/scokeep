@@ -1,6 +1,6 @@
 // Scoreboard screen — cumulative scores, next round / end game
 
-import { getGame, getScoreboard, undoRound, endGame, nextRound } from '../api.js';
+import { getGame, getScoreboard, undoRound, endGame, nextRound, enterRescore } from '../api.js';
 import { getTrump, escapeHtml } from '../components/game-utils.js';
 import { soundNextRound, soundEndGame, soundUndo } from '../components/sounds.js';
 
@@ -149,7 +149,8 @@ export const scoreboardScreen = {
                         <button class="btn btn-primary" data-nav="${state.playground ? `playground/${state.playground.share_code}` : ''}">🏠 Back to Room</button>
                     ` : `
                         <button id="next-round" class="btn btn-primary">${isLastRound ? 'Finish Game' : 'Next Round'}</button>
-                        <button id="end-game" class="btn-text" style="margin-top: 32px; color: var(--danger);">End Game</button>
+                        <button id="edit-hands" class="btn-text" style="margin-top: 16px;">Edit Hands</button>
+                        <button id="end-game" class="btn-text" style="margin-top: 16px; color: var(--danger);">End Game</button>
                         <button id="undo-round" class="btn-text">Undo Last Round</button>
                     `}
                 </div>
@@ -175,6 +176,19 @@ export const scoreboardScreen = {
                             soundNextRound();
                             navigate(`bid/${gameId}`);
                         }
+                    } catch (error) {
+                        showError(error.message);
+                    }
+                });
+            }
+
+            const editHandsBtn = container.querySelector('#edit-hands');
+            if (editHandsBtn) {
+                editHandsBtn.addEventListener('click', async () => {
+                    try {
+                        await enterRescore(gameId);
+                        state.rescore = true;
+                        navigate(`roundend/${gameId}`);
                     } catch (error) {
                         showError(error.message);
                     }

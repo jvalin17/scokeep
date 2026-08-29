@@ -29,6 +29,7 @@ class PlaygroundService:
         name: str,
         pin: str,
         players: list[str],
+        pin_hint: str | None = None,
     ) -> Playground:
         share_code = _generate_share_code()
         pin_hash = _hash_pin(pin)
@@ -38,6 +39,7 @@ class PlaygroundService:
             pin_hash=pin_hash,
             share_code=share_code,
             players=sanitize_player_names(players),
+            pin_hint=sanitize_text(pin_hint) if pin_hint else None,
         )
         db.add(playground)
         await db.commit()
