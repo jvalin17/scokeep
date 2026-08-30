@@ -16,6 +16,7 @@ def lobby_page(page, server):
 def test_lobby_renders(lobby_page, viewport):
     """Lobby renders at all viewports."""
     lobby_page.set_viewport_size(viewport)
+    lobby_page.wait_for_selector(".player-name", timeout=5000)
     content = lobby_page.content()
     has_players = any(name in content for name in ["Alice", "Bob", "Charlie"])
     assert has_players
@@ -39,6 +40,7 @@ def test_settings_section_exists(lobby_page):
 
 def test_player_list_shows_all(lobby_page):
     """All added players appear in the lobby."""
+    lobby_page.wait_for_selector(".player-name", timeout=5000)
     content = lobby_page.content()
     for name in ["Alice", "Bob", "Charlie"]:
         assert name in content

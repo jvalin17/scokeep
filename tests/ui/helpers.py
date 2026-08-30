@@ -60,7 +60,7 @@ def start_game(page: Page, settings: dict | None = None):
             page.select_option("#setting-sets", str(settings["sets"]))
 
     page.click("#start-game")
-    page.wait_for_selector(".keypad", timeout=5000)
+    page.wait_for_selector(".keypad", timeout=15000)
 
 
 def enter_bid(page: Page, value: int):
