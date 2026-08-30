@@ -1023,8 +1023,10 @@ input::placeholder { color: var(--text-muted); }
     padding: 2px 0;
 }
 
-/* Edit mode — orange background */
-.stats.edit-mode { background: #FF9800; color: #fff; border-radius: var(--radius); }
+/* Edit mode — orange outer background, cards stay white */
+.stats.edit-mode { background: #FF9800; border-radius: var(--radius); }
+.stats.edit-mode .stats-content { background: var(--bg-card); border-radius: 12px; padding: 8px; }
+.stats.edit-mode .stats-tabs { background: var(--bg-card); border-radius: 12px; }
 .edit-mode-bar {
     background: #FFF3E0; border: 1px solid #FFB74D; color: #E65100;
     font-size: 0.8rem; font-weight: 600; padding: 8px 12px;
