@@ -705,27 +705,25 @@ class TestHighlights:
         )
         last_game = resp.json()["highlights"]["last_game"]
         assert last_game is not None
+        assert "titles" in last_game
+        titles = last_game["titles"]
+        assert isinstance(titles, list)
+        assert len(titles) >= 2
 
-        # MVP: Alice with 50 + (-20) = 30 vs Bob with -10 + 10 = 0
-        assert last_game["mvp"]["name"] == "Alice"
-        assert last_game["mvp"]["score"] == 30
+        def find_title(key):
+            return next((t for t in titles if t["key"] == key), None)
 
-        # Bold Move: Alice bid 5 and made it
-        assert last_game["bold_move"]["name"] == "Alice"
-        assert last_game["bold_move"]["bid"] == 5
+        champ = find_title("champion")
+        assert champ is not None
+        assert champ["player"] == "Alice"
 
-        # Brick Wall: Bob bid 0 once and made it
-        assert last_game["brick_wall"]["name"] == "Bob"
-        assert last_game["brick_wall"]["count"] == 1
+        bold = find_title("bold_move")
+        assert bold is not None
+        assert bold["player"] == "Alice"
 
-        # Gambler: Alice overbid once (bid 2, got 7 — underbid actually)
-        # Actually: round 1 Alice bid 5 got 5 (exact), round 2 bid 2 got 7 (underbid)
-        # Bob: round 1 bid 0 got 3 (underbid), round 2 bid 0 got 0 (exact)
-        # Sandbagger (most underbids): Alice 1, Bob 1 — tie, first alphabetically
-        # Gambler (most overbids): neither overbid in this data
-        # Let's just check the keys exist
-        assert "sandbagger" in last_game
-        assert "gambler" in last_game
+        titled_players = {t["player"] for t in titles}
+        assert "Alice" in titled_players
+        assert "Bob" in titled_players
 
     async def test_last_game_sharpshooter(self, client: AsyncClient):
         """Sharpshooter goes to player with best accuracy in last game."""
@@ -749,9 +747,11 @@ class TestHighlights:
             cookies=cookies,
         )
         last_game = resp.json()["highlights"]["last_game"]
-        # Alice: 2/2 = 100%, Bob: 1/2 = 50%
-        assert last_game["sharpshooter"]["name"] == "Alice"
-        assert last_game["sharpshooter"]["accuracy"] == 100
+        assert "titles" in last_game
+        titles = last_game["titles"]
+        sharpshooter = next((t for t in titles if t["key"] == "sharpshooter"), None)
+        assert sharpshooter is not None
+        assert sharpshooter["player"] == "Alice"
 
     async def test_empty_finished_games_not_counted(
         self,

@@ -133,8 +133,10 @@ class AnalyticsService:
         if not game_rounds:
             return None
 
-        stats = _accumulate_game_stats(game.players, game_rounds)
-        return _build_awards(stats)
+        from app.services.game_titles import evaluate_titles
+
+        titles = evaluate_titles(game.players, game_rounds)
+        return {"titles": titles}
 
     @staticmethod
     async def clear_stats(db: AsyncSession, playground_id: int) -> int:

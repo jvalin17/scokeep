@@ -358,6 +358,26 @@ export const statsScreen = {
 
         function renderLastGameAwards(lastGame) {
             if (!lastGame) return '';
+            // New titles array format
+            if (lastGame.titles && Array.isArray(lastGame.titles)) {
+                const cards = lastGame.titles.map(t => `
+                    <div class="stats-card" style="margin-bottom:8px;padding:10px 12px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <span>${"${t.emoji}"} ${"${escapeHtml(t.title)}"}</span>
+                            <strong style="margin-left:8px;">${"${escapeHtml(t.player)}"}</strong>
+                        </div>
+                        <div class="stats-muted" style="margin-top:2px;font-size:0.7rem;">${"${escapeHtml(t.desc)}"}</div>
+                        <div class="stats-muted" style="margin-top:2px;font-size:0.8rem;">
+                            ${"${escapeHtml(t.detail)}"}
+                        </div>
+                    </div>
+                `).join('');
+                return `
+                    <h3 style="margin-bottom:12px;">Last Game</h3>
+                    ${"${cards}"}
+                `;
+            }
+            // Legacy format fallback (cached data)
             const awards = [
                 { key: 'mvp', emoji: '🏆', title: 'MVP', desc: 'Highest total score', detail: lg => `${lg.score} points` },
                 { key: 'sharpshooter', emoji: '🎯', title: 'Sharpshooter', desc: 'Best bid accuracy', detail: lg => `${lg.accuracy}% accuracy` },
