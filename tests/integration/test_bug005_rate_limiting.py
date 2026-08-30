@@ -125,3 +125,28 @@ class TestBug005AuthRateLimiting:
         assert resp.status_code == 429, (
             f"6th auth must be rate-limited (429) even with correct PIN, got {resp.status_code}"
         )
+
+    async def test_create_playground_blocks_on_sixth_request(self, rate_limit_client):
+        """POST /api/playground must 429 on the 6th call within the window."""
+        client = rate_limit_client
+
+        for attempt in range(1, 6):
+            resp = await client.post(
+                "/api/playground",
+                json={
+                    "name": f"RateCreate{attempt}",
+                    "pin": "1234",
+                    "players": ["A", "B"],
+                },
+            )
+            assert resp.status_code == 201, (
+                f"Create #{attempt} should succeed (201), got {resp.status_code}"
+            )
+
+        resp = await client.post(
+            "/api/playground",
+            json={"name": "RateCreate6", "pin": "1234", "players": ["A", "B"]},
+        )
+        assert resp.status_code == 429, (
+            f"6th create must be rate-limited (429), got {resp.status_code}"
+        )

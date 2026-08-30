@@ -62,7 +62,9 @@ async def get_pin_hint(request: Request, name: str, db: AsyncSession = Depends(g
 
 
 @router.post("", status_code=201, response_model=PlaygroundResponse)
+@limiter.limit(AUTH_RATE_LIMIT)
 async def create_playground(
+    request: Request,
     data: PlaygroundCreate,
     db: AsyncSession = Depends(get_db),
 ):
