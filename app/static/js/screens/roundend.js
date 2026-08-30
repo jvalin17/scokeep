@@ -1,6 +1,6 @@
 // Round end screen — hands won entry via keypad + back button
 
-import { submitHands, endRound, extendGame, nextRound, resyncGame, guardPhase } from '../api.js';
+import { submitHands, endRound, extendGame, nextRound, resyncGame, guardPhase, getBids } from '../api.js';
 import { Keypad, InlineKeypad } from '../components/keypad.js';
 import { getRoundCards, escapeHtml } from '../components/game-utils.js';
 import { getEntryOrder } from '../components/entry-utils.js';
@@ -23,6 +23,18 @@ export const roundendScreen = {
         let editingPi = null;
 
         setScreenContext('roundend', game);
+
+        // Rescore mode: load existing hands and skip to confirm
+        if (state.rescore) {
+            try {
+                const roundData = await getBids(gameId);
+                const existingHands = roundData.hands_won || {};
+                for (const [key, value] of Object.entries(existingHands)) {
+                    handsCollected[key] = value;
+                }
+                entryPosition = players.length; // skip sequential entry
+            } catch { /* fall through to normal entry */ }
+        }
 
         function currentPlayer() { return entryOrder[entryPosition]; }
 

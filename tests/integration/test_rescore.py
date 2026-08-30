@@ -57,20 +57,28 @@ class TestEnterRescore:
         assert resp.status_code == 200
         assert resp.json()["phase"] == "round_end"
 
-    async def test_can_submit_new_hands_after_rescore(self, client: AsyncClient):
-        """After enter-rescore, hands can be re-submitted."""
+    async def test_can_edit_individual_hands_after_rescore(self, client: AsyncClient):
+        """After enter-rescore, individual hands can be edited."""
         game_id, cookies = await _setup_scored_round(client)
 
+        # Original hands: Alice=2, Bob=3, Charlie=3 (total=8)
         await client.post(f"/api/game/{game_id}/enter-rescore", cookies=cookies)
 
-        # Re-submit corrected hands: Alice=3, Bob=3, Charlie=2
-        for pi, hands in [(0, 3), (1, 3), (2, 2)]:
-            resp = await client.post(
-                f"/api/game/{game_id}/hands",
-                json={"player_index": pi, "value": hands},
-                cookies=cookies,
-            )
-            assert resp.status_code == 200
+        # Fix Charlie from 3 to 2, then fix Alice from 2 to 3
+        # Must change Charlie first to free up a card for Alice
+        resp = await client.post(
+            f"/api/game/{game_id}/hands",
+            json={"player_index": 2, "value": 2},
+            cookies=cookies,
+        )
+        assert resp.status_code == 200
+
+        resp = await client.post(
+            f"/api/game/{game_id}/hands",
+            json={"player_index": 0, "value": 3},
+            cookies=cookies,
+        )
+        assert resp.status_code == 200
 
     async def test_rescore_preserves_bids(self, client: AsyncClient):
         """Bids must not change during re-score."""
@@ -82,8 +90,8 @@ class TestEnterRescore:
 
         await client.post(f"/api/game/{game_id}/enter-rescore", cookies=cookies)
 
-        # Re-submit hands and re-score
-        for pi, hands in [(0, 3), (1, 3), (2, 2)]:
+        # Edit hands: change Charlie from 3→2 first (free card), then Alice 2→3
+        for pi, hands in [(2, 2), (0, 3)]:
             await client.post(
                 f"/api/game/{game_id}/hands",
                 json={"player_index": pi, "value": hands},
@@ -105,8 +113,8 @@ class TestEnterRescore:
 
         await client.post(f"/api/game/{game_id}/enter-rescore", cookies=cookies)
 
-        # Re-submit different hands: Alice=3, Bob=3, Charlie=2
-        for pi, hands in [(0, 3), (1, 3), (2, 2)]:
+        # Edit hands: change Charlie from 3→2 first (free card), then Alice 2→3
+        for pi, hands in [(2, 2), (0, 3)]:
             await client.post(
                 f"/api/game/{game_id}/hands",
                 json={"player_index": pi, "value": hands},
@@ -130,6 +138,23 @@ class TestEnterRescore:
         # Now in round_end phase — should fail
         resp2 = await client.post(f"/api/game/{game_id}/enter-rescore", cookies=cookies)
         assert resp2.status_code == 409
+
+    async def test_enter_rescore_preserves_hands(self, client: AsyncClient):
+        """enter-rescore must keep hands_won so the confirm screen can pre-fill."""
+        game_id, cookies = await _setup_scored_round(client)
+
+        # Original hands: Alice=2, Bob=3, Charlie=3
+        await client.post(f"/api/game/{game_id}/enter-rescore", cookies=cookies)
+
+        # Fetch the round — hands_won should still have the original values
+        resp = await client.get(f"/api/game/{game_id}/bids", cookies=cookies)
+        assert resp.status_code == 200
+        hands = resp.json()["hands_won"]
+        assert hands == {"0": 2, "1": 3, "2": 3}, f"Hands should be preserved, got: {hands}"
+
+        # Scores should be cleared
+        scores = resp.json()["scores"]
+        assert scores == {}, f"Scores should be cleared, got: {scores}"
 
     async def test_rescore_blocked_on_finished_game(self, client: AsyncClient):
         """Cannot rescore after game is ended/finished."""

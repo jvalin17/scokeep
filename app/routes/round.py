@@ -187,7 +187,6 @@ async def enter_rescore(
         )
 
     round_obj.status = "round_end"
-    round_obj.hands_won = {}
     round_obj.scores = {}
     await db.commit()
 
