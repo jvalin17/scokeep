@@ -69,7 +69,7 @@ export const statsScreen = {
         let expandedData = null;
 
         function render() {
-            const modeClass = clearMode ? 'clear-mode' : editMode ? 'edit-mode' : '';
+            const modeClass = editMode ? 'edit-mode' : '';
             container.innerHTML = `
                 <div class="stats ${modeClass}">
                     <div class="round-info">
@@ -77,9 +77,23 @@ export const statsScreen = {
                         <span>${stats.total_games} game${stats.total_games !== 1 ? 's' : ''}</span>
                         <button class="btn-refresh" id="stats-gear" title="Settings">⚙</button>
                     </div>
-                    <div id="stats-actions" class="stats-actions hidden">
-                        <button class="btn-small ${editMode ? 'btn-primary' : ''}" id="toggle-edit" style="font-size:0.8rem;padding:6px 12px;">${editMode ? '✏️ Edit Mode ON' : '✏️ Edit Mode'}</button>
-                        <button class="btn-small" id="clear-stats" style="font-size:0.8rem;padding:6px 12px;background:var(--danger);color:#fff;margin-top:6px;">Clear All Stats</button>
+                    ${editMode ? '<div class="edit-mode-bar">✏️ Edit Mode — tap scores to correct</div>' : ''}
+
+                    <div class="action-overlay hidden">
+                        <div class="action-dialog">
+                            <button class="action-dialog-close">&times;</button>
+                            <button class="action-btn action-btn-warning" id="toggle-edit">${editMode ? '✏️ Exit Edit Mode' : '✏️ Edit Mode'}</button>
+                            <div id="edit-auth-slot"></div>
+                            <button class="action-btn action-btn-danger" id="clear-stats">🗑️ Clear All Stats</button>
+                            <div class="clear-warning hidden">
+                                <p class="clear-warning-text">⚠️ Data cannot be recovered. Type <strong>DELETE</strong> to confirm.</p>
+                                <input type="text" id="clear-confirm-input" placeholder="Type DELETE" autocomplete="off" class="clear-confirm-input">
+                                <div class="clear-actions">
+                                    <button class="action-btn action-btn-cancel" id="clear-cancel">Cancel</button>
+                                    <button class="action-btn action-btn-danger-confirm" id="clear-proceed" disabled>Proceed</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="stats-tabs">
@@ -118,13 +132,20 @@ export const statsScreen = {
         }
 
         function bindActionListeners() {
+            const overlay = container.querySelector('.action-overlay');
+            const closeDialog = () => overlay.classList.add('hidden');
+
             const gearBtn = container.querySelector('#stats-gear');
             if (gearBtn) {
-                gearBtn.addEventListener('click', () => {
-                    const actions = container.querySelector('#stats-actions');
-                    actions.classList.toggle('hidden');
-                });
+                gearBtn.addEventListener('click', () => overlay.classList.remove('hidden'));
             }
+
+            const closeBtn = container.querySelector('.action-dialog-close');
+            if (closeBtn) closeBtn.addEventListener('click', closeDialog);
+
+            overlay.addEventListener('click', (event) => {
+                if (event.target === overlay) closeDialog();
+            });
 
             const editBtn = container.querySelector('#toggle-edit');
             if (editBtn) {
@@ -132,19 +153,19 @@ export const statsScreen = {
                     if (editMode) {
                         sessionStorage.removeItem(adminStorageKey);
                         editMode = false;
+                        closeDialog();
                         render();
                     } else {
-                        // Show password input inline
+                        const slot = container.querySelector('#edit-auth-slot');
+                        if (slot.children.length) return;
                         const wrap = document.createElement('div');
-                        wrap.style.cssText = 'margin-top:8px;display:flex;gap:6px;align-items:center;';
+                        wrap.className = 'edit-auth';
                         const input = document.createElement('input');
                         input.type = 'password';
                         input.placeholder = 'Admin password';
-                        input.style.cssText = 'flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:0.85rem;';
                         const go = document.createElement('button');
                         go.textContent = 'Go';
-                        go.className = 'btn-small btn-primary';
-                        go.style.cssText = 'padding:6px 12px;font-size:0.8rem;';
+                        go.className = 'action-btn action-btn-warning';
                         const submit = async () => {
                             if (!input.value) return;
                             try {
@@ -156,11 +177,12 @@ export const statsScreen = {
                                 if (!resp.ok) {
                                     input.value = '';
                                     input.placeholder = 'Wrong password';
-                                    input.style.borderColor = 'var(--danger)';
+                                    input.classList.add('auth-error');
                                     return;
                                 }
                                 sessionStorage.setItem(adminStorageKey, input.value);
                                 editMode = true;
+                                closeDialog();
                                 render();
                             } catch {
                                 input.placeholder = 'Error — try again';
@@ -170,28 +192,37 @@ export const statsScreen = {
                         input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
                         wrap.appendChild(input);
                         wrap.appendChild(go);
-                        editBtn.parentNode.appendChild(wrap);
+                        slot.appendChild(wrap);
                         input.focus();
                     }
                 });
             }
 
             const clearBtn = container.querySelector('#clear-stats');
+            const clearWarning = container.querySelector('.clear-warning');
             if (clearBtn) {
-                clearBtn.addEventListener('click', async () => {
-                    clearMode = true;
-                    render();
-                    if (!confirm('Clear all game history and stats? This cannot be undone.')) {
-                        clearMode = false;
-                        render();
-                        return;
-                    }
+                clearBtn.addEventListener('click', () => clearWarning.classList.remove('hidden'));
+            }
+
+            const cancelBtn = container.querySelector('#clear-cancel');
+            if (cancelBtn) {
+                cancelBtn.addEventListener('click', () => clearWarning.classList.add('hidden'));
+            }
+
+            const confirmInput = container.querySelector('#clear-confirm-input');
+            const proceedBtn = container.querySelector('#clear-proceed');
+            if (confirmInput && proceedBtn) {
+                confirmInput.addEventListener('input', () => {
+                    proceedBtn.disabled = confirmInput.value !== 'DELETE';
+                });
+                proceedBtn.addEventListener('click', async () => {
+                    if (confirmInput.value !== 'DELETE') return;
                     try {
                         await clearPlaygroundStats(shareCode);
-                        clearMode = false;
+                        closeDialog();
                         navigate(`stats/${shareCode}`);
                     } catch {
-                        clearMode = false;
+                        closeDialog();
                         render();
                     }
                 });

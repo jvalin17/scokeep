@@ -1,4 +1,4 @@
-"""Edit mode tests — admin key, purple tint, cross-room isolation."""
+"""Edit mode + clear stats tests — action sheet dialog flow."""
 
 import pytest
 
@@ -33,57 +33,133 @@ def stats_with_game(page, server):
     return page
 
 
-def test_edit_mode_toggle(stats_with_game):
-    """Correct admin password enables edit mode with visual indicator."""
+def test_gear_opens_action_dialog(stats_with_game):
+    """Clicking gear opens the action sheet dialog overlay."""
     page = stats_with_game
     gear_btn = page.locator("#stats-gear")
     gear_btn.wait_for(state="visible", timeout=5000)
     gear_btn.click()
-    page.wait_for_selector("#stats-actions:not(.hidden)", timeout=3000)
+    dialog = page.locator(".action-dialog")
+    dialog.wait_for(state="visible", timeout=3000)
+    assert dialog.is_visible(), "Action dialog should be visible"
 
-    toggle_edit = page.locator("#toggle-edit")
-    toggle_edit.click()
+
+def test_dialog_has_edit_and_clear_buttons(stats_with_game):
+    """Dialog shows Edit Mode and Clear All Stats buttons."""
+    page = stats_with_game
+    page.click("#stats-gear")
+    page.wait_for_selector(".action-dialog", timeout=3000)
+    edit_btn = page.locator("#toggle-edit")
+    clear_btn = page.locator("#clear-stats")
+    assert edit_btn.is_visible(), "Edit Mode button should be in dialog"
+    assert clear_btn.is_visible(), "Clear All Stats button should be in dialog"
+
+
+def test_dialog_closes_on_overlay_click(stats_with_game):
+    """Clicking the overlay backdrop dismisses the dialog."""
+    page = stats_with_game
+    page.click("#stats-gear")
+    page.wait_for_selector(".action-dialog", timeout=3000)
+    # Click the overlay (outside the dialog content)
+    page.locator(".action-overlay").click(position={"x": 10, "y": 10})
     page.wait_for_timeout(300)
+    assert page.locator(".action-overlay").is_hidden(), "Overlay should be hidden"
 
-    pwd_input = page.locator('input[type="password"]')
-    pwd_input.wait_for(state="visible", timeout=3000)
-    pwd_input.fill("test-admin-key")
-    go_btn = page.locator('button:has-text("Go")')
-    go_btn.click()
+
+def test_dialog_closes_on_x_button(stats_with_game):
+    """Clicking × dismisses the dialog."""
+    page = stats_with_game
+    page.click("#stats-gear")
+    page.wait_for_selector(".action-dialog", timeout=3000)
+    page.click(".action-dialog-close")
+    page.wait_for_timeout(300)
+    assert page.locator(".action-overlay").is_hidden()
+
+
+def test_edit_mode_toggle(stats_with_game):
+    """Correct admin password enables edit mode with orange background."""
+    page = stats_with_game
+    page.click("#stats-gear")
+    page.wait_for_selector(".action-dialog", timeout=3000)
+    page.click("#toggle-edit")
+    page.wait_for_selector('input[type="password"]', timeout=3000)
+    page.fill('input[type="password"]', "test-admin-key")
+    page.click('button:has-text("Go")')
     page.wait_for_timeout(500)
-
     edit_mode = page.locator(".edit-mode")
-    assert edit_mode.count() > 0, ".edit-mode class should be present after correct password"
+    assert edit_mode.count() > 0, ".edit-mode class should be present"
 
 
 def test_edit_mode_wrong_password(stats_with_game):
-    """Wrong admin password shows 'Wrong password' placeholder, no edit mode."""
+    """Wrong admin password shows 'Wrong password', no edit mode."""
     page = stats_with_game
-    # Open settings panel via gear button
-    gear_btn = page.locator("#stats-gear")
-    gear_btn.wait_for(state="visible", timeout=5000)
-    gear_btn.click()
-    page.wait_for_selector("#stats-actions:not(.hidden)", timeout=3000)
-    # Click toggle-edit to show password input
-    toggle_edit = page.locator("#toggle-edit")
-    toggle_edit.click()
-    page.wait_for_timeout(300)
-    # Fill in wrong password and submit
-    pwd_input = page.locator('input[type="password"]')
-    pwd_input.wait_for(state="visible", timeout=3000)
-    pwd_input.fill("definitely-wrong-password")
-    go_btn = page.locator('button:has-text("Go")')
-    go_btn.click()
-    # Wait for the wrong-password feedback
+    page.click("#stats-gear")
+    page.wait_for_selector(".action-dialog", timeout=3000)
+    page.click("#toggle-edit")
+    page.wait_for_selector('input[type="password"]', timeout=3000)
+    page.fill('input[type="password"]', "definitely-wrong")
+    page.click('button:has-text("Go")')
     page.wait_for_function(
         "() => document.querySelector('input[type=\"password\"]')"
         "?.placeholder === 'Wrong password'",
         timeout=5000,
     )
-    placeholder = pwd_input.get_attribute("placeholder")
-    assert placeholder == "Wrong password", f"Expected 'Wrong password', got: {placeholder!r}"
-    edit_mode_el = page.locator(".edit-mode")
-    assert edit_mode_el.count() == 0, ".edit-mode class should not be present after wrong password"
+    edit_mode = page.locator(".edit-mode")
+    assert edit_mode.count() == 0, "No edit-mode after wrong password"
+
+
+def test_exit_edit_mode_via_gear(stats_with_game):
+    """When edit mode is ON, gear dialog shows 'Exit Edit Mode'."""
+    page = stats_with_game
+    # Enter edit mode
+    page.click("#stats-gear")
+    page.wait_for_selector(".action-dialog", timeout=3000)
+    page.click("#toggle-edit")
+    page.wait_for_selector('input[type="password"]', timeout=3000)
+    page.fill('input[type="password"]', "test-admin-key")
+    page.click('button:has-text("Go")')
+    page.wait_for_timeout(500)
+    assert page.locator(".edit-mode").count() > 0
+
+    # Click gear again — should show "Exit Edit Mode"
+    page.click("#stats-gear")
+    page.wait_for_selector(".action-dialog", timeout=3000)
+    exit_btn = page.locator("#toggle-edit")
+    assert "Exit" in exit_btn.inner_text(), "Button should say Exit Edit Mode"
+    exit_btn.click()
+    page.wait_for_timeout(500)
+    assert page.locator(".edit-mode").count() == 0, "Edit mode should be off"
+
+
+def test_clear_stats_requires_delete_confirmation(stats_with_game):
+    """Clear stats shows warning and requires typing DELETE."""
+    page = stats_with_game
+    page.click("#stats-gear")
+    page.wait_for_selector(".action-dialog", timeout=3000)
+    page.click("#clear-stats")
+    # Warning should appear
+    warning = page.locator(".clear-warning")
+    warning.wait_for(state="visible", timeout=3000)
+    assert "cannot be recovered" in warning.inner_text().lower()
+    # Proceed button should be disabled
+    proceed_btn = page.locator("#clear-proceed")
+    assert proceed_btn.is_disabled(), "Proceed should be disabled before typing DELETE"
+    # Type DELETE
+    page.fill("#clear-confirm-input", "DELETE")
+    page.wait_for_timeout(200)
+    assert not proceed_btn.is_disabled(), "Proceed should be enabled after typing DELETE"
+
+
+def test_clear_stats_cancel(stats_with_game):
+    """Cancel button dismisses the clear warning."""
+    page = stats_with_game
+    page.click("#stats-gear")
+    page.wait_for_selector(".action-dialog", timeout=3000)
+    page.click("#clear-stats")
+    page.wait_for_selector(".clear-warning", timeout=3000)
+    page.click("#clear-cancel")
+    page.wait_for_timeout(300)
+    assert page.locator(".clear-warning").is_hidden(), "Warning should be hidden after cancel"
 
 
 def test_edit_mode_does_not_leak(page, server):
@@ -91,7 +167,6 @@ def test_edit_mode_does_not_leak(page, server):
     create_playground(page, unique_name("Edit Room1"), "1234", ["Alice", "Bob"])
     page.goto(server)
     create_playground(page, unique_name("Edit Room2"), "5678", ["Charlie", "Dave"])
-
     storage_keys = page.evaluate("() => Object.keys(sessionStorage)")
     admin_keys = [k for k in storage_keys if "admin_key" in k]
     for key in admin_keys:

@@ -1023,11 +1023,63 @@ input::placeholder { color: var(--text-muted); }
     padding: 2px 0;
 }
 
-/* Edit mode — bright orange so user knows they're in danger mode */
+/* Edit mode — orange background */
 .stats.edit-mode { background: #FF9800; color: #fff; border-radius: var(--radius); }
+.edit-mode-bar {
+    background: #FFF3E0; border: 1px solid #FFB74D; color: #E65100;
+    font-size: 0.8rem; font-weight: 600; padding: 8px 12px;
+    border-radius: 8px; text-align: center; margin-bottom: 8px;
+}
 
-/* Clear stats mode — red tint */
-.stats.clear-mode { background: #FFCDD2; border-radius: var(--radius); }
+/* Action dialog overlay */
+.action-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5); z-index: 100;
+    display: flex; align-items: center; justify-content: center;
+}
+.action-overlay.hidden { display: none; }
+.action-dialog {
+    background: var(--bg-card); border-radius: 16px; padding: 20px;
+    width: 90%; max-width: 320px; position: relative;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}
+.action-dialog-close {
+    position: absolute; top: 8px; right: 12px; background: none; border: none;
+    font-size: 1.5rem; color: var(--text-muted); cursor: pointer;
+    width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
+}
+.action-btn {
+    display: block; width: 100%; min-height: 48px; padding: 12px 16px;
+    border: none; border-radius: 10px; font-size: 0.95rem; font-weight: 600;
+    cursor: pointer; margin-bottom: 10px; text-align: center;
+}
+.action-btn-warning { background: #FFF3E0; color: #E65100; border: 1px solid #FFB74D; }
+.action-btn-warning:active { background: #FFE0B2; }
+.action-btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+.action-btn-danger:active { background: #FFEBEE; }
+.action-btn-cancel { background: var(--bg-card); color: var(--text-secondary); border: 1px solid var(--border); }
+.action-btn-danger-confirm { background: var(--danger); color: #fff; }
+.action-btn-danger-confirm:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Clear stats warning */
+.clear-warning { margin-top: 10px; }
+.clear-warning.hidden { display: none; }
+.clear-warning-text { font-size: 0.85rem; color: var(--danger); line-height: 1.4; margin: 0 0 10px; }
+.clear-confirm-input {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--danger); border-radius: 8px;
+    font-size: 0.9rem; margin-bottom: 10px; box-sizing: border-box;
+}
+.clear-actions { display: flex; gap: 8px; }
+.clear-actions .action-btn { flex: 1; margin-bottom: 0; }
+
+/* Edit auth input */
+.edit-auth { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+.edit-auth input {
+    flex: 1; min-height: 44px; padding: 8px 12px;
+    border: 1px solid var(--border); border-radius: 8px; font-size: 0.9rem;
+}
+.edit-auth input.auth-error { border-color: var(--danger); }
+.edit-auth .action-btn { flex: 0 0 auto; width: auto; min-width: 60px; }
 
 /* ── Responsive breakpoints ── */
 
