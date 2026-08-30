@@ -809,3 +809,61 @@ class TestMissingEnvVars:
             sync = _import_sync()
             _run(sync())
         assert exc_info.value.code == 1
+
+
+# ---------------------------------------------------------------------------
+# Test 10 — staging games referencing prod playgrounds must be cleaned up
+# ---------------------------------------------------------------------------
+
+
+class TestCrossRefCleanup:
+    """Regression: ForeignKeyViolationError on playground.id=44 when
+    staging-created games (id >= 1M) reference prod-range playgrounds."""
+
+    def test_sync_deletes_cross_referencing_staging_games(
+        self,
+        staging_execute_log,
+    ):
+        prod_rows = {
+            "playground": [
+                _make_row("playground", 44, name="PG", pin_hash="x", share_code="abc"),
+            ],
+            "game": [_make_row("game", 1, playground_id=44)],
+            "round": [_make_row("round", 1, game_id=1)],
+        }
+        prod_conn = _make_prod_conn(prod_rows)
+
+        conn = AsyncMock()
+
+        async def recording_execute(sql, *args):
+            staging_execute_log.append((sql.strip(), args))
+            if sql.strip().upper().startswith("DELETE"):
+                return "DELETE 1"
+            return None
+
+        conn.execute.side_effect = recording_execute
+        txn_cm = AsyncMock()
+        txn_cm.__aenter__ = AsyncMock(return_value=None)
+        txn_cm.__aexit__ = AsyncMock(return_value=False)
+        conn.transaction = MagicMock(return_value=txn_cm)
+
+        with (
+            patch.dict(
+                "os.environ",
+                {
+                    "PROD_DATABASE_URL": "postgresql://prod/db",
+                    "STAGING_DATABASE_URL": "postgresql://staging/db",
+                },
+            ),
+            patch("asyncpg.connect", side_effect=[prod_conn, conn]),
+        ):
+            sync = _import_sync()
+            _run(sync())
+
+        delete_stmts = [s for s, _ in staging_execute_log if s.upper().startswith("DELETE")]
+        # Look for DELETEs targeting staging rows referencing prod playgrounds.
+        cross_ref_deletes = [s for s in delete_stmts if "playground_id" in s and ">=" in s]
+        assert len(cross_ref_deletes) >= 1, (
+            f"Expected cross-ref cleanup DELETEs for staging games "
+            f"referencing prod playgrounds, got: {delete_stmts}"
+        )
