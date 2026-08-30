@@ -92,9 +92,7 @@ def confirm_bids(page: Page):
     start_btn = page.locator('button:has-text("Start Round")')
     if start_btn.count() > 0:
         start_btn.click()
-        page.wait_for_function(
-            "() => location.hash.includes('play')", timeout=10000
-        )
+        page.wait_for_function("() => location.hash.includes('play')", timeout=10000)
 
 
 def enter_hands_won(page: Page, hands: list[int]):
@@ -102,9 +100,7 @@ def enter_hands_won(page: Page, hands: list[int]):
     end_round_btn = page.locator('button:has-text("End Round"), button:has-text("Enter Results")')
     if end_round_btn.count() > 0:
         end_round_btn.first.click()
-        page.wait_for_function(
-            "() => location.hash.includes('roundend')", timeout=10000
-        )
+        page.wait_for_function("() => location.hash.includes('roundend')", timeout=10000)
 
     for hand in hands:
         page.wait_for_selector(".keypad", timeout=5000)
@@ -114,16 +110,12 @@ def enter_hands_won(page: Page, hands: list[int]):
 def end_round(page: Page):
     """Finalize the round scoring."""
     selectors = (
-        'button:has-text("Score Round"), '
-        'button:has-text("Done"), '
-        'button:has-text("End Round")'
+        'button:has-text("Score Round"), button:has-text("Done"), button:has-text("End Round")'
     )
     done_btn = page.locator(selectors)
     if done_btn.count() > 0:
         done_btn.first.click()
-        page.wait_for_function(
-            "() => location.hash.includes('scoreboard')", timeout=10000
-        )
+        page.wait_for_function("() => location.hash.includes('scoreboard')", timeout=10000)
 
 
 def play_one_round(page: Page, bids: list[int], hands: list[int]):
