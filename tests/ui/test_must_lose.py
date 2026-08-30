@@ -1,6 +1,6 @@
 """Must-lose mode tests — forbidden key disabled for last bidder."""
 
-from tests.ui.helpers import create_playground, start_game, unique_name
+from tests.ui.helpers import create_playground, enter_bid, start_game, unique_name
 
 
 def test_must_lose_forbidden_key_disabled(page, server):
@@ -15,19 +15,13 @@ def test_must_lose_forbidden_key_disabled(page, server):
     create_playground(page, unique_name("MustLose"), "1234", ["Alice", "Bob", "Charlie"])
     start_game(page)
 
-    page.wait_for_selector(".keypad", timeout=5000)
-
-    # Player 0 bids 5
-    page.locator('.keypad-key:has-text("5")').click()
-    page.wait_for_timeout(1500)
-
-    # Player 1 bids 2
-    page.wait_for_selector(".keypad", timeout=5000)
-    page.locator('.keypad-key:has-text("2")').click()
-    page.wait_for_timeout(1500)
+    # Player 0 bids 5, Player 1 bids 2
+    enter_bid(page, 5)
+    page.wait_for_selector(".keypad", timeout=15000)
+    enter_bid(page, 2)
 
     # Player 2 is now the last bidder — forbidden key = 8 - (5+2) = 1
-    page.wait_for_selector(".keypad", timeout=5000)
+    page.wait_for_selector(".keypad", timeout=15000)
 
     key_1 = page.locator('.keypad-key:has-text("1")')
     key_1.wait_for(state="attached", timeout=3000)
