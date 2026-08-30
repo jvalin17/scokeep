@@ -770,8 +770,9 @@ class TestEmptyProdTable:
             _run(sync())
 
         delete_calls = [s for s, _ in staging_execute_log if s.upper().startswith("DELETE")]
-        assert len(delete_calls) == 3, (
-            f"Expected 3 DELETEs even for empty prod, got {len(delete_calls)}"
+        # 2 cross-ref cleanup DELETEs + 3 prod-range DELETEs = 5
+        assert len(delete_calls) == 5, (
+            f"Expected 5 DELETEs (2 cross-ref + 3 prod-range), got {len(delete_calls)}"
         )
 
         setval_calls = [s for s, _ in staging_execute_log if "setval" in s.lower()]

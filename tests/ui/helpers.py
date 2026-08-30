@@ -65,9 +65,19 @@ def start_game(page: Page, settings: dict | None = None):
 
 def enter_bid(page: Page, value: int):
     """Enter a bid via the keypad and wait for advance."""
+    # Capture current player name so we can detect screen advance
+    name_el = page.locator(".bid-player-name")
+    old_name = name_el.text_content() if name_el.count() > 0 else ""
     page.locator(f".keypad-key:has-text('{value}')").click()
-    # Wait for auto-advance (timer) or next player
-    page.wait_for_timeout(1500)
+    # Wait until player name changes (next player) or disappears (confirm)
+    escaped = old_name.replace("'", "\\'")
+    page.wait_for_function(
+        "() => {"
+        "  const el = document.querySelector('.bid-player-name');"
+        f"  return !el || el.textContent !== '{escaped}';"
+        "}",
+        timeout=10000,
+    )
 
 
 def enter_bids_for_all(page: Page, bids: list[int]):
@@ -82,7 +92,9 @@ def confirm_bids(page: Page):
     start_btn = page.locator('button:has-text("Start Round")')
     if start_btn.count() > 0:
         start_btn.click()
-        page.wait_for_timeout(500)
+        page.wait_for_function(
+            "() => location.hash.includes('play')", timeout=10000
+        )
 
 
 def enter_hands_won(page: Page, hands: list[int]):
@@ -90,20 +102,28 @@ def enter_hands_won(page: Page, hands: list[int]):
     end_round_btn = page.locator('button:has-text("End Round"), button:has-text("Enter Results")')
     if end_round_btn.count() > 0:
         end_round_btn.first.click()
-        page.wait_for_timeout(500)
+        page.wait_for_function(
+            "() => location.hash.includes('roundend')", timeout=10000
+        )
 
     for hand in hands:
         page.wait_for_selector(".keypad", timeout=5000)
         enter_bid(page, hand)
-    page.wait_for_timeout(500)
 
 
 def end_round(page: Page):
     """Finalize the round scoring."""
-    done_btn = page.locator('button:has-text("Done"), button:has-text("End Round")')
+    selectors = (
+        'button:has-text("Score Round"), '
+        'button:has-text("Done"), '
+        'button:has-text("End Round")'
+    )
+    done_btn = page.locator(selectors)
     if done_btn.count() > 0:
         done_btn.first.click()
-        page.wait_for_timeout(500)
+        page.wait_for_function(
+            "() => location.hash.includes('scoreboard')", timeout=10000
+        )
 
 
 def play_one_round(page: Page, bids: list[int], hands: list[int]):

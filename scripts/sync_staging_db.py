@@ -53,7 +53,23 @@ async def sync():
         total_errors = 0
 
         async with staging_conn.transaction():
-            # 1. Delete prod-range rows (child → parent order)
+            # 1a. Delete staging rows that cross-reference prod-range parents
+            # (staging games pointing at prod playgrounds would block FK delete)
+            result = await staging_conn.execute(
+                "DELETE FROM round WHERE game_id IN "
+                "(SELECT id FROM game WHERE playground_id < $1 AND id >= $1)",
+                STAGING_ID_OFFSET,
+            )
+            cross_rounds = int(result.split()[-1])
+            result = await staging_conn.execute(
+                "DELETE FROM game WHERE playground_id < $1 AND id >= $1",
+                STAGING_ID_OFFSET,
+            )
+            cross_games = int(result.split()[-1])
+            if cross_rounds or cross_games:
+                print(f"  cross-ref: {cross_games} staging games, {cross_rounds} rounds")
+
+            # 1b. Delete prod-range rows (child → parent order)
             for table in reversed(TABLES):
                 result = await staging_conn.execute(
                     f"DELETE FROM {table} WHERE id < $1",  # noqa: S608
