@@ -90,6 +90,39 @@ def test_edit_mode_toggle(stats_with_game):
     assert edit_mode.count() > 0, ".edit-mode class should be present"
 
 
+def test_edit_mode_scores_visible(stats_with_game):
+    """BUG: color:#fff on edit-mode made scores invisible on white cards.
+    Scores inside .stats-content must remain dark text in edit mode."""
+    page = stats_with_game
+    # Enter edit mode
+    page.click("#stats-gear")
+    page.wait_for_selector(".action-dialog", timeout=3000)
+    page.click("#toggle-edit")
+    page.wait_for_selector('input[type="password"]', timeout=3000)
+    page.fill('input[type="password"]', "test-admin-key")
+    page.click('button:has-text("Go")')
+    page.wait_for_timeout(500)
+    assert page.locator(".edit-mode").count() > 0
+
+    # Switch to Games tab to see scoresheets
+    games_tab = page.locator('.stats-tab:has-text("Games")')
+    if games_tab.count() > 0:
+        games_tab.click()
+        page.wait_for_timeout(500)
+
+    # Stats content card must have non-white background (readable)
+    content_bg = page.locator(".stats-content").evaluate(
+        "el => getComputedStyle(el).backgroundColor"
+    )
+    assert content_bg != "rgba(0, 0, 0, 0)", "stats-content must have a background in edit mode"
+
+    # Text inside stats-content must NOT be white
+    content_color = page.locator(".stats-content").evaluate("el => getComputedStyle(el).color")
+    assert content_color != "rgb(255, 255, 255)", (
+        f"Text in stats-content must not be white in edit mode, got: {content_color}"
+    )
+
+
 def test_edit_mode_wrong_password(stats_with_game):
     """Wrong admin password shows 'Wrong password', no edit mode."""
     page = stats_with_game
