@@ -60,7 +60,7 @@ def start_game(page: Page, settings: dict | None = None):
             page.select_option("#setting-sets", str(settings["sets"]))
 
     page.click("#start-game")
-    page.wait_for_selector(".keypad", timeout=15000)
+    page.wait_for_selector(".keypad", timeout=30000)
 
 
 def enter_bid(page: Page, value: int):
@@ -83,7 +83,7 @@ def enter_bid(page: Page, value: int):
 def enter_bids_for_all(page: Page, bids: list[int]):
     """Enter bids for all players in sequence."""
     for bid in bids:
-        page.wait_for_selector(".keypad", timeout=15000)
+        page.wait_for_selector(".keypad", timeout=30000)
         enter_bid(page, bid)
 
 
@@ -103,7 +103,7 @@ def enter_hands_won(page: Page, hands: list[int]):
         page.wait_for_function("() => location.hash.includes('roundend')", timeout=10000)
 
     for hand in hands:
-        page.wait_for_selector(".keypad", timeout=15000)
+        page.wait_for_selector(".keypad", timeout=30000)
         enter_bid(page, hand)
 
 

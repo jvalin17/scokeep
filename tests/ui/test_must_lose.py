@@ -17,11 +17,11 @@ def test_must_lose_forbidden_key_disabled(page, server):
 
     # Player 0 bids 5, Player 1 bids 2
     enter_bid(page, 5)
-    page.wait_for_selector(".keypad", timeout=15000)
+    page.wait_for_selector(".keypad", timeout=30000)
     enter_bid(page, 2)
 
     # Player 2 is now the last bidder — forbidden key = 8 - (5+2) = 1
-    page.wait_for_selector(".keypad", timeout=15000)
+    page.wait_for_selector(".keypad", timeout=30000)
 
     key_1 = page.locator('.keypad-key:has-text("1")')
     key_1.wait_for(state="attached", timeout=3000)

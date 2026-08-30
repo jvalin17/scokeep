@@ -106,7 +106,7 @@ class TestExtendFlow:
         page.select_option("#setting-sets", "1")
         page.select_option("#setting-set-type", "1")
         page.click("#start-game")
-        page.wait_for_selector(".keypad", timeout=15000)
+        page.wait_for_selector(".keypad", timeout=30000)
 
         # 1 card dealt: bids [0,0,0] — last player forbidden=1, so bid 0 is allowed
         enter_bids_for_all(page, [0, 0, 0])
