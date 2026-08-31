@@ -10,23 +10,23 @@ Centroid calibration: see architecture/player-insights.md for rationale.
 import math
 
 # EMA smoothing factor — lower = more stable, higher = more reactive
-EMA_ALPHA = 0.4
+EMA_ALPHA = 0.3
 
 # Minimum gap between top-2 centroid matches for confident assignment
 MIN_CONFIDENCE_GAP = 0.1
 
 # Pre-defined personality centroids (raw, normalized to unit length at load)
 _RAW_CENTROIDS = {
-    "sniper": [1.0, 0.0, 0.0, 0.2, 0.6, 0.9, 0.9, 0.6, 0.6, 0.2],     # High accuracy everywhere
-    "gambler": [0.3, 1.0, 0.0, 0.9, 0.1, 0.4, 0.2, 0.7, 0.3, 0.3],  # Overbids, high variance
-    "phoenix": [0.5, 0.2, 0.2, 0.6, 0.4, 0.5, 0.5, 0.1, 1.0, 0.8],     # Weak start, strong finish
-    "rock": [0.7, 0.1, 0.1, 0.0, 0.6, 0.6, 0.6, 0.5, 0.5, 0.2],  # Low variance, consistent
-    "sprinter": [0.5, 0.2, 0.2, 0.6, 0.4, 0.5, 0.5, 1.0, 0.1, 0.1],    # Strong start, fades
-    "ghost": [0.5, 0.0, 0.2, 0.2, 1.0, 0.3, 0.6, 0.5, 0.5, 0.2],       # Zero-bid specialist
-    "architect": [0.7, 0.2, 0.1, 0.3, 0.2, 1.0, 0.2, 0.5, 0.5, 0.3],   # Dominates high-card rounds
-    "minimalist": [0.7, 0.1, 0.2, 0.3, 0.4, 0.2, 1.0, 0.5, 0.5, 0.3],  # Dominates low-card rounds
-    "comeback_kid": [0.4, 0.3, 0.3, 0.7, 0.3, 0.4, 0.4, 0.1, 0.8, 1.0],# Comebacks + late game
-    "wildcard": [0.4, 0.6, 0.6, 1.0, 0.3, 0.4, 0.4, 0.5, 0.5, 0.5],    # High variance both ways
+    "sniper": [1.0, 0.0, 0.0, 0.3, 0.5, 0.8, 0.8, 0.5, 0.5, 0.3],
+    "gambler": [0.3, 1.0, 0.0, 0.7, 0.1, 0.4, 0.2, 0.6, 0.4, 0.3],
+    "phoenix": [0.5, 0.3, 0.3, 0.5, 0.4, 0.5, 0.5, 0.2, 0.9, 0.6],
+    "rock": [0.6, 0.3, 0.3, 0.0, 0.5, 0.5, 0.5, 0.5, 0.5, 0.3],
+    "sprinter": [0.5, 0.3, 0.3, 0.5, 0.4, 0.5, 0.5, 0.9, 0.2, 0.2],
+    "ghost": [0.5, 0.0, 0.3, 0.3, 1.0, 0.4, 0.5, 0.5, 0.5, 0.3],
+    "architect": [0.6, 0.3, 0.2, 0.4, 0.3, 1.0, 0.2, 0.5, 0.5, 0.3],
+    "minimalist": [0.6, 0.2, 0.3, 0.4, 0.5, 0.2, 1.0, 0.5, 0.5, 0.3],
+    "comeback_kid": [0.4, 0.3, 0.3, 0.6, 0.3, 0.5, 0.5, 0.2, 0.7, 1.0],
+    "wildcard": [0.4, 0.5, 0.5, 1.0, 0.3, 0.4, 0.4, 0.5, 0.5, 0.4],
 }
 
 
@@ -131,63 +131,54 @@ GROWTH_TEMPLATES = [
 ]
 
 
-# Global priors for z-score normalization (from domain knowledge + staging data)
-# Each tuple is (mean, std_dev) for that feature dimension
-GLOBAL_PRIORS = [
-    (0.50, 0.20),  # 0: bid_accuracy
-    (0.35, 0.15),  # 1: overbid_ratio
-    (0.40, 0.20),  # 2: underbid_ratio
-    (0.50, 0.25),  # 3: score_variance
-    (0.60, 0.20),  # 4: zero_bid_success
-    (0.50, 0.20),  # 5: high_card_accuracy
-    (0.50, 0.20),  # 6: low_card_accuracy
-    (0.50, 0.20),  # 7: tempo_first_half
-    (0.50, 0.20),  # 8: tempo_second_half
-    (0.30, 0.20),  # 9: comeback_rate
-]
-
-
-def global_z_normalize(vectors: dict[str, list[float]]) -> dict[str, list[float]]:
-    """Normalize each dimension against fixed global priors, not other players."""
-    if not vectors:
+def min_max_normalize(vectors: dict[str, list[float]]) -> dict[str, list[float]]:
+    """Min-max normalize feature vectors across all players in a room."""
+    players = list(vectors.keys())
+    if not players:
         return {}
-    num_dims = len(GLOBAL_PRIORS)
+
+    num_dims = len(next(iter(vectors.values())))
+
+    if len(players) == 1:
+        return {players[0]: [0.5] * num_dims}
+
+    dim_mins = [float("inf")] * num_dims
+    dim_maxs = [float("-inf")] * num_dims
+    for vec in vectors.values():
+        for i in range(num_dims):
+            if vec[i] < dim_mins[i]:
+                dim_mins[i] = vec[i]
+            if vec[i] > dim_maxs[i]:
+                dim_maxs[i] = vec[i]
+
     result = {}
-    for player, vec in vectors.items():
+    for name, vec in vectors.items():
         normalized = []
-        for i in range(min(len(vec), num_dims)):
-            mean, sd = GLOBAL_PRIORS[i]
-            if sd > 0:
-                z = (vec[i] - mean) / sd
-                # Sigmoid squash to [0, 1] range
-                val = 1.0 / (1.0 + math.exp(-z))
-            else:
-                val = 0.5
-            normalized.append(round(val, 6))
-        result[player] = normalized
+        for i in range(num_dims):
+            span = dim_maxs[i] - dim_mins[i]
+            normalized.append((vec[i] - dim_mins[i]) / span if span > 0 else 0.5)
+        result[name] = normalized
     return result
 
 
-# Prior weight for Bayesian shrinkage (equivalent to k games of prior data)
-PRIOR_WEIGHT = 5
-
-
-def bayesian_shrink(
+def james_stein_shrink(
     player_vector: list[float],
+    population_mean: list[float],
     games_played: int,
 ) -> list[float]:
-    """Shrink toward fixed prior using empirical Bayes.
+    """Apply James-Stein shrinkage toward population mean."""
+    num_dims = len(player_vector)
+    diff_squared_sum = sum((player_vector[i] - population_mean[i]) ** 2 for i in range(num_dims))
 
-    At games_played=3: 37.5% observation, 62.5% prior.
-    At games_played=5: 50/50.
-    At games_played=10: 67% observation, 33% prior.
-    At games_played=20: 80% observation.
-    """
-    weight = games_played / (games_played + PRIOR_WEIGHT)
-    prior_value = 0.5  # sigmoid midpoint = global average
+    if diff_squared_sum < 1e-10 or games_played == 0:
+        return player_vector[:]
+
+    raw_shrinkage = 1.0 - (num_dims - 2) / (games_played * diff_squared_sum)
+    shrinkage_factor = max(0.0, min(1.0, raw_shrinkage))
+
     return [
-        round(prior_value + weight * (v - prior_value), 6)
-        for v in player_vector
+        population_mean[i] + shrinkage_factor * (player_vector[i] - population_mean[i])
+        for i in range(num_dims)
     ]
 
 
