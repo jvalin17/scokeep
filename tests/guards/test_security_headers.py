@@ -49,11 +49,16 @@ class TestContentSecurityPolicy:
 
 class TestHSTSHeader:
     async def test_hsts_absent_in_debug_mode(self, client):
-        """In debug mode (default for tests), HSTS must NOT be set."""
-        response = await client.get("/api/health")
-        assert "Strict-Transport-Security" not in response.headers, (
-            "HSTS must not be set in debug mode"
-        )
+        """In debug mode, HSTS must NOT be set."""
+        original = main_module.settings.debug
+        try:
+            main_module.settings.debug = True
+            response = await client.get("/api/health")
+            assert "Strict-Transport-Security" not in response.headers, (
+                "HSTS must not be set in debug mode"
+            )
+        finally:
+            main_module.settings.debug = original
 
     async def test_hsts_present_in_prod_mode(self, client):
         """When debug=False, HSTS must be set."""
