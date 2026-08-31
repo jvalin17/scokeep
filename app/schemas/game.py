@@ -7,7 +7,7 @@ class GameSettings(BaseModel):
     game_type: str = Field(default="kachuful", pattern=r"^kachuful$")
     mode: str = Field(default="expert", pattern=r"^(expert|rookie|friendly)$")
     appearance: str = Field(default="standard", pattern=r"^(standard|interactive)$")
-    timer_seconds: int = Field(default=3, ge=1, le=30)
+    timer_seconds: int = Field(default=0, ge=0, le=30)
     scoring_formula: str = Field(default="kachuful_standard")
     num_sets: int = Field(default=3, ge=1, le=10)
     rounds_per_set: int = Field(default=8, ge=1, le=26)

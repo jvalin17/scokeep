@@ -106,7 +106,9 @@ async def auth_playground(
 
 
 @router.post("/join/{share_code}", response_model=PlaygroundResponse)
+@limiter.limit(AUTH_RATE_LIMIT)
 async def join_live_game(
+    request: Request,
     share_code: str,
     response: Response,
     db: AsyncSession = Depends(get_db),

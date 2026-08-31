@@ -1,8 +1,10 @@
 // Stats screen — insights (personality cards), awards, game history
 
 import { getPlaygroundStats, clearPlaygroundStats, getScoreboard } from '../api.js';
-import { getTrump, escapeHtml } from '../components/game-utils.js';
+import { escapeHtml } from '../components/game-utils.js';
 import { renderPersonalityCards } from '../components/personality-card.js';
+import { renderCareerTable, renderLastGameAwards } from '../components/stats-awards.js';
+import { renderGameDetail } from '../components/stats-charts.js';
 
 async function patchScore(gameId, roundNum, playerIndex, score, adminKey) {
     const resp = await fetch(`/api/game/${gameId}/round/${roundNum}/score`, {
@@ -26,7 +28,6 @@ export const statsScreen = {
         const shareCode = params[0];
         let stats;
         let editMode = false;
-        let clearMode = false;
         const adminStorageKey = `scokeep_admin_key_${shareCode}`;
         const storedKey = sessionStorage.getItem(adminStorageKey);
         if (storedKey) {
@@ -112,109 +113,102 @@ export const statsScreen = {
                 </div>
             `;
 
-            bindTabListeners();
-            bindActionListeners();
-            if (activeTab === 'insights') {
-                bindCardFlipListeners();
-            }
+            bindListeners();
+        }
+
+        function bindListeners() {
+            // Tab switching
+            container.querySelectorAll('.stats-tab').forEach(tab => {
+                tab.addEventListener('click', () => { activeTab = tab.dataset.tab; render(); });
+            });
+
+            // Back buttons
             container.querySelectorAll('.btn-back').forEach(b => {
                 b.addEventListener('click', () => history.back());
             });
-        }
 
-        function bindTabListeners() {
-            container.querySelectorAll('.stats-tab').forEach(tab => {
-                tab.addEventListener('click', () => {
-                    activeTab = tab.dataset.tab;
-                    render();
+            // Card flip (insights tab)
+            if (activeTab === 'insights') {
+                container.querySelectorAll('.personality-card:not(.personality-card-locked)').forEach(card => {
+                    let flipping = false;
+                    card.addEventListener('click', () => {
+                        if (flipping) return;
+                        flipping = true;
+                        card.classList.toggle('flipped');
+                        setTimeout(() => { flipping = false; }, 600);
+                    });
                 });
-            });
+            }
+
+            bindSettingsListeners();
+            bindHistoryListeners();
+            if (editMode) bindEditListeners();
         }
 
-        function bindActionListeners() {
+        function bindSettingsListeners() {
             const overlay = container.querySelector('.action-overlay');
             const closeDialog = () => overlay.classList.add('hidden');
 
-            const gearBtn = container.querySelector('#stats-gear');
-            if (gearBtn) {
-                gearBtn.addEventListener('click', () => overlay.classList.remove('hidden'));
-            }
+            container.querySelector('#stats-gear')?.addEventListener('click', () => overlay.classList.remove('hidden'));
+            container.querySelector('.action-dialog-close')?.addEventListener('click', closeDialog);
+            overlay.addEventListener('click', (event) => { if (event.target === overlay) closeDialog(); });
 
-            const closeBtn = container.querySelector('.action-dialog-close');
-            if (closeBtn) closeBtn.addEventListener('click', closeDialog);
-
-            overlay.addEventListener('click', (event) => {
-                if (event.target === overlay) closeDialog();
+            container.querySelector('#toggle-edit')?.addEventListener('click', () => {
+                if (editMode) {
+                    sessionStorage.removeItem(adminStorageKey);
+                    editMode = false;
+                    closeDialog();
+                    render();
+                } else {
+                    const slot = container.querySelector('#edit-auth-slot');
+                    if (slot.children.length) return;
+                    const wrap = document.createElement('div');
+                    wrap.className = 'edit-auth';
+                    const input = document.createElement('input');
+                    input.type = 'password';
+                    input.placeholder = 'Admin password';
+                    const go = document.createElement('button');
+                    go.textContent = 'Go';
+                    go.className = 'action-btn action-btn-warning';
+                    const submit = async () => {
+                        if (!input.value) return;
+                        try {
+                            const resp = await fetch('/api/game/admin/verify', {
+                                method: 'POST',
+                                headers: { 'X-Admin-Key': input.value },
+                                credentials: 'same-origin',
+                            });
+                            if (!resp.ok) {
+                                input.value = '';
+                                input.placeholder = 'Wrong password';
+                                input.classList.add('auth-error');
+                                return;
+                            }
+                            sessionStorage.setItem(adminStorageKey, input.value);
+                            editMode = true;
+                            closeDialog();
+                            render();
+                        } catch {
+                            input.placeholder = 'Error — try again';
+                        }
+                    };
+                    go.addEventListener('click', submit);
+                    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
+                    wrap.appendChild(input);
+                    wrap.appendChild(go);
+                    slot.appendChild(wrap);
+                    input.focus();
+                }
             });
 
-            const editBtn = container.querySelector('#toggle-edit');
-            if (editBtn) {
-                editBtn.addEventListener('click', () => {
-                    if (editMode) {
-                        sessionStorage.removeItem(adminStorageKey);
-                        editMode = false;
-                        closeDialog();
-                        render();
-                    } else {
-                        const slot = container.querySelector('#edit-auth-slot');
-                        if (slot.children.length) return;
-                        const wrap = document.createElement('div');
-                        wrap.className = 'edit-auth';
-                        const input = document.createElement('input');
-                        input.type = 'password';
-                        input.placeholder = 'Admin password';
-                        const go = document.createElement('button');
-                        go.textContent = 'Go';
-                        go.className = 'action-btn action-btn-warning';
-                        const submit = async () => {
-                            if (!input.value) return;
-                            try {
-                                const resp = await fetch('/api/game/admin/verify', {
-                                    method: 'POST',
-                                    headers: { 'X-Admin-Key': input.value },
-                                    credentials: 'same-origin',
-                                });
-                                if (!resp.ok) {
-                                    input.value = '';
-                                    input.placeholder = 'Wrong password';
-                                    input.classList.add('auth-error');
-                                    return;
-                                }
-                                sessionStorage.setItem(adminStorageKey, input.value);
-                                editMode = true;
-                                closeDialog();
-                                render();
-                            } catch {
-                                input.placeholder = 'Error — try again';
-                            }
-                        };
-                        go.addEventListener('click', submit);
-                        input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
-                        wrap.appendChild(input);
-                        wrap.appendChild(go);
-                        slot.appendChild(wrap);
-                        input.focus();
-                    }
-                });
-            }
-
-            const clearBtn = container.querySelector('#clear-stats');
             const clearWarning = container.querySelector('.clear-warning');
-            if (clearBtn) {
-                clearBtn.addEventListener('click', () => clearWarning.classList.remove('hidden'));
-            }
-
-            const cancelBtn = container.querySelector('#clear-cancel');
-            if (cancelBtn) {
-                cancelBtn.addEventListener('click', () => clearWarning.classList.add('hidden'));
-            }
+            container.querySelector('#clear-stats')?.addEventListener('click', () => clearWarning.classList.remove('hidden'));
+            container.querySelector('#clear-cancel')?.addEventListener('click', () => clearWarning.classList.add('hidden'));
 
             const confirmInput = container.querySelector('#clear-confirm-input');
             const proceedBtn = container.querySelector('#clear-proceed');
             if (confirmInput && proceedBtn) {
-                confirmInput.addEventListener('input', () => {
-                    proceedBtn.disabled = confirmInput.value !== 'DELETE';
-                });
+                confirmInput.addEventListener('input', () => { proceedBtn.disabled = confirmInput.value !== 'DELETE'; });
                 proceedBtn.addEventListener('click', async () => {
                     if (confirmInput.value !== 'DELETE') return;
                     try {
@@ -227,8 +221,9 @@ export const statsScreen = {
                     }
                 });
             }
+        }
 
-            // Expand game detail in history tab
+        function bindHistoryListeners() {
             container.querySelectorAll('.expand-game-btn').forEach(btn => {
                 btn.addEventListener('click', async () => {
                     const gameId = Number(btn.dataset.gameId);
@@ -248,52 +243,39 @@ export const statsScreen = {
                     render();
                 });
             });
-
-            // Tap score cell to edit (only in edit mode)
-            if (editMode) {
-                container.querySelectorAll('.score-cell').forEach(cell => {
-                    cell.style.cursor = 'pointer';
-                    cell.addEventListener('click', async () => {
-                        const gameId = Number(cell.dataset.gameId);
-                        const roundNum = Number(cell.dataset.round);
-                        const playerIdx = Number(cell.dataset.player);
-                        const current = Number(cell.dataset.score);
-                        const newVal = prompt(`Edit score (round ${roundNum}):`, current);
-                        if (newVal === null) return;
-                        const parsed = parseInt(newVal, 10);
-                        if (isNaN(parsed)) return;
-                        const adminKey = sessionStorage.getItem(adminStorageKey);
-                        try {
-                            await patchScore(gameId, roundNum, playerIdx, parsed, adminKey);
-                            expandedData = await getScoreboard(gameId);
-                            stats = await getPlaygroundStats(shareCode);
-                            render();
-                        } catch (err) {
-                            if (err.message.includes('Admin')) {
-                                sessionStorage.removeItem(adminStorageKey);
-                                editMode = false;
-                                render();
-                            }
-                            alert(err.message);
-                        }
-                    });
-                });
-            }
         }
 
-        function bindCardFlipListeners() {
-            container.querySelectorAll('.personality-card:not(.personality-card-locked)').forEach(card => {
-                let flipping = false;
-                card.addEventListener('click', () => {
-                    if (flipping) return;
-                    flipping = true;
-                    card.classList.toggle('flipped');
-                    setTimeout(() => { flipping = false; }, 600);
+        function bindEditListeners() {
+            container.querySelectorAll('.score-cell').forEach(cell => {
+                cell.style.cursor = 'pointer';
+                cell.addEventListener('click', async () => {
+                    const gameId = Number(cell.dataset.gameId);
+                    const roundNum = Number(cell.dataset.round);
+                    const playerIdx = Number(cell.dataset.player);
+                    const current = Number(cell.dataset.score);
+                    const newVal = prompt(`Edit score (round ${roundNum}):`, current);
+                    if (newVal === null) return;
+                    const parsed = parseInt(newVal, 10);
+                    if (isNaN(parsed)) return;
+                    const adminKey = sessionStorage.getItem(adminStorageKey);
+                    try {
+                        await patchScore(gameId, roundNum, playerIdx, parsed, adminKey);
+                        expandedData = await getScoreboard(gameId);
+                        stats = await getPlaygroundStats(shareCode);
+                        render();
+                    } catch (err) {
+                        if (err.message.includes('Admin')) {
+                            sessionStorage.removeItem(adminStorageKey);
+                            editMode = false;
+                            render();
+                        }
+                        alert(err.message);
+                    }
                 });
             });
         }
 
-        // ── Insights tab ──
+        // ── Tab content renderers ──
 
         function renderInsights() {
             const insights = stats.insights;
@@ -303,18 +285,13 @@ export const statsScreen = {
             return renderPersonalityCards(insights.players);
         }
 
-        // ── Awards tab ──
-
         function renderHighlights() {
             const highlights = stats.highlights;
             if (!highlights) return '<p class="stats-empty">No highlights yet.</p>';
-
             const { career } = highlights;
-
             return `
                 <div class="stats-section">
                     ${renderLastGameAwards(highlights.last_game)}
-
                     <h3 style="margin:20px 0 12px;">Career Records</h3>
                     ${renderCareerTable('Sniper', '🎯', 'Bid exactly 1 and made it', career.sniper)}
                     ${renderCareerTable('Zero Master', '🥷', 'Bid 0 and won no tricks', career.zero_master)}
@@ -322,95 +299,12 @@ export const statsScreen = {
                     ${renderCareerTable('All-in', '💎', 'Bid all cards dealt and made it', career.all_in)}
                     ${renderCareerTable('Jinxed', '😵', 'Longest streak of missed bids', career.jinxed, 'longest')}
                     ${renderCareerTable('Perfect Set', '⭐', 'Made every bid in a full set', career.perfect_set)}
-
                     ${!career.sniper?.some(p => p.count > 0)
                         ? '<p class="stats-muted">Play more games to unlock awards!</p>'
                         : ''}
                 </div>
             `;
         }
-
-        function renderCareerTable(title, emoji, description, data, valueKey = 'count') {
-            if (!data || !data.length) return '';
-            const filtered = data.filter(p => p[valueKey] > 0);
-            if (!filtered.length) return '';
-            return `
-                <div class="stats-card" style="margin-bottom:16px;padding:12px;">
-                    <h4 style="margin:0 0 4px;">${emoji} ${title}</h4>
-                    <p class="stats-muted" style="font-size:0.75rem;margin-bottom:8px;">${description}</p>
-                    <table class="awards-table">
-                        <thead>
-                            <tr><th>#</th><th>Player</th><th>Count</th></tr>
-                        </thead>
-                        <tbody>
-                            ${filtered.map((p, i) => `
-                                <tr>
-                                    <td>${i + 1}</td>
-                                    <td>${escapeHtml(p.name)}</td>
-                                    <td><strong>${p[valueKey]}</strong></td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </div>
-            `;
-        }
-
-        function renderLastGameAwards(lastGame) {
-            if (!lastGame) return '';
-            // New titles array format
-            if (lastGame.titles && Array.isArray(lastGame.titles)) {
-                const cards = lastGame.titles.map(t => `
-                    <div class="stats-card" style="margin-bottom:8px;padding:10px 12px;">
-                        <div style="display:flex;justify-content:space-between;align-items:center;">
-                            <span>${"${t.emoji}"} ${"${escapeHtml(t.title)}"}</span>
-                            <strong style="margin-left:8px;">${"${escapeHtml(t.player)}"}</strong>
-                        </div>
-                        <div class="stats-muted" style="margin-top:2px;font-size:0.7rem;">${"${escapeHtml(t.desc)}"}</div>
-                        <div class="stats-muted" style="margin-top:2px;font-size:0.8rem;">
-                            ${"${escapeHtml(t.detail)}"}
-                        </div>
-                    </div>
-                `).join('');
-                return `
-                    <h3 style="margin-bottom:12px;">Last Game</h3>
-                    ${"${cards}"}
-                `;
-            }
-            // Legacy format fallback (cached data)
-            const awards = [
-                { key: 'mvp', emoji: '🏆', title: 'MVP', desc: 'Highest total score', detail: lg => `${lg.score} points` },
-                { key: 'sharpshooter', emoji: '🎯', title: 'Sharpshooter', desc: 'Best bid accuracy', detail: lg => `${lg.accuracy}% accuracy` },
-                { key: 'brick_wall', emoji: '🧱', title: 'Brick Wall', desc: 'Most successful zero bids', detail: lg => `${lg.count} zero-bids made` },
-                { key: 'bold_move', emoji: '🎲', title: 'Bold Move', desc: 'Highest bid that was made', detail: lg => `bid ${lg.bid} and made it` },
-                { key: 'sandbagger', emoji: '🏖️', title: 'Sandbagger', desc: 'Most underbids — bid low, won more', detail: lg => `${lg.count} underbids` },
-                { key: 'gambler', emoji: '🎰', title: 'Gambler', desc: 'Most overbids — bid high, fell short', detail: lg => `${lg.count} overbids` },
-                { key: 'cursed', emoji: '😵', title: 'Cursed', desc: 'Longest streak of missed bids', detail: lg => `${lg.streak} misses in a row` },
-            ];
-            const cards = awards
-                .filter(a => lastGame[a.key])
-                .map(a => {
-                    const data = lastGame[a.key];
-                    return `
-                        <div class="stats-card" style="margin-bottom:8px;padding:10px 12px;">
-                            <div style="display:flex;justify-content:space-between;align-items:center;">
-                                <span>${a.emoji} ${a.title}</span>
-                                <strong style="margin-left:8px;">${escapeHtml(data.name)}</strong>
-                            </div>
-                            <div class="stats-muted" style="margin-top:2px;font-size:0.7rem;">${a.desc}</div>
-                            <div class="stats-muted" style="margin-top:2px;font-size:0.8rem;">
-                                ${a.detail(data)}
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            return `
-                <h3 style="margin-bottom:12px;">Last Game</h3>
-                ${cards}
-            `;
-        }
-
-        // ── Games tab ──
 
         function renderHistory() {
             return `
@@ -435,147 +329,10 @@ export const statsScreen = {
                             ${expandedGameId === g.game_id ? (
                                 expandedData === 'loading' ? '<p class="stats-muted" style="padding:8px;text-align:center;">Loading...</p>' :
                                 expandedData === 'error' ? '<p class="stats-muted" style="padding:8px;text-align:center;">Could not load game details</p>' :
-                                expandedData ? renderGameDetail(g, expandedData) : ''
+                                expandedData ? renderGameDetail(g, expandedData, editMode) : ''
                             ) : ''}
                         </div>
                     `).join('')}
-                </div>
-            `;
-        }
-
-        const CHART_COLORS = ['#E53935', '#1E88E5', '#43A047', '#FB8C00', '#8E24AA', '#00ACC1'];
-
-        function buildCumulativeTotals(players, rounds) {
-            const cumulative = players.map(() => [0]);
-            for (const round of rounds) {
-                players.forEach((_, idx) => {
-                    const prev = cumulative[idx][cumulative[idx].length - 1];
-                    cumulative[idx].push(prev + (round.scores[String(idx)] || 0));
-                });
-            }
-            return cumulative;
-        }
-
-        function renderScoreChart(players, rounds) {
-            const cumulative = buildCumulativeTotals(players, rounds);
-            const allValues = cumulative.flat();
-            const minVal = Math.min(...allValues);
-            const maxVal = Math.max(...allValues);
-            const range = maxVal - minVal || 1;
-
-            const W = 300, H = 180, PAD_L = 35, PAD_R = 10, PAD_T = 15, PAD_B = 25;
-            const plotW = W - PAD_L - PAD_R;
-            const plotH = H - PAD_T - PAD_B;
-            const totalPts = rounds.length + 1;
-
-            const x = i => PAD_L + (i / (totalPts - 1)) * plotW;
-            const y = v => PAD_T + plotH - ((v - minVal) / range) * plotH;
-
-            // Y-axis gridlines
-            const gridCount = 4;
-            const gridStep = range / gridCount;
-            let gridLines = '';
-            for (let i = 0; i <= gridCount; i++) {
-                const val = minVal + gridStep * i;
-                const yy = y(val);
-                gridLines += `<line x1="${PAD_L}" y1="${yy}" x2="${W - PAD_R}" y2="${yy}" stroke="#e0e0e0" stroke-width="0.5"/>`;
-                gridLines += `<text x="${PAD_L - 4}" y="${yy + 3}" text-anchor="end" fill="#999" font-size="8">${Math.round(val)}</text>`;
-            }
-
-            // X-axis labels (every 8 rounds for set boundaries)
-            let xLabels = '';
-            for (let i = 0; i < totalPts; i++) {
-                if (i === 0 || i % 8 === 0 || i === totalPts - 1) {
-                    xLabels += `<text x="${x(i)}" y="${H - 4}" text-anchor="middle" fill="#999" font-size="8">${i}</text>`;
-                }
-            }
-
-            // Zero line
-            let zeroLine = '';
-            if (minVal < 0 && maxVal > 0) {
-                zeroLine = `<line x1="${PAD_L}" y1="${y(0)}" x2="${W - PAD_R}" y2="${y(0)}" stroke="#bbb" stroke-width="0.8" stroke-dasharray="3,2"/>`;
-            }
-
-            // Player lines + end dots
-            let lines = '';
-            let dots = '';
-            cumulative.forEach((data, idx) => {
-                const color = CHART_COLORS[idx % CHART_COLORS.length];
-                const points = data.map((v, i) => `${x(i)},${y(v)}`).join(' ');
-                lines += `<polyline points="${points}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round"/>`;
-                const lastX = x(data.length - 1), lastY = y(data[data.length - 1]);
-                dots += `<circle cx="${lastX}" cy="${lastY}" r="3" fill="${color}"/>`;
-            });
-
-            // Legend
-            const legend = players.map((name, idx) => {
-                const color = CHART_COLORS[idx % CHART_COLORS.length];
-                return `<span style="display:inline-flex;align-items:center;gap:3px;margin-right:8px;font-size:11px;">
-                    <span style="width:10px;height:3px;background:${color};display:inline-block;border-radius:1px;"></span>${escapeHtml(name)}
-                </span>`;
-            }).join('');
-
-            return `
-                <div class="score-chart" style="margin:8px 0;">
-                    <div style="text-align:center;margin-bottom:4px;">${legend}</div>
-                    <svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:500px;display:block;margin:0 auto;">
-                        ${gridLines}${zeroLine}${xLabels}${lines}${dots}
-                    </svg>
-                </div>
-            `;
-        }
-
-        function renderGameDetail(game, scoreboard) {
-            const players = game.players;
-            const rounds = scoreboard.rounds;
-            const totals = scoreboard.totals;
-            if (!rounds.length) return '<p class="stats-muted" style="padding:8px;">No round data</p>';
-
-            return `
-                <div class="game-detail">
-                    ${renderScoreChart(players, rounds)}
-                    <div class="game-detail-legend">
-                        <span class="legend-item"><span class="legend-swatch legend-overbid"></span> Overbid</span>
-                        <span class="legend-item"><span class="legend-swatch legend-underbid"></span> Underbid</span>
-                    </div>
-                    <div class="score-table-full" style="margin-top:8px;">
-                        <table class="scoresheet">
-                            <thead>
-                                <tr>
-                                    <th>R#</th>
-                                    ${players.map(name => `<th>${escapeHtml(name)}</th>`).join('')}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${rounds.map(round => {
-                                    const trump = getTrump(round.round_num);
-                                    return `<tr>
-                                        <td>${round.round_num}<span class="${trump.isRed ? 'trump-red' : ''}" style="font-size:0.7em;">${trump.symbol}</span></td>
-                                        ${players.map((_, idx) => {
-                                            const key = String(idx);
-                                            const score = round.scores[key] || 0;
-                                            const bid = round.bids ? round.bids[key] : null;
-                                            const hand = round.hands_won ? round.hands_won[key] : null;
-                                            let cellClass = '';
-                                            if (bid !== null && hand !== null && bid !== hand) {
-                                                cellClass = bid > hand ? 'cell-overbid' : 'cell-underbid';
-                                            }
-                                            return `<td class="score-cell ${cellClass} ${score < 0 ? 'score-negative' : ''}"
-                                                data-game-id="${game.game_id}" data-round="${round.round_num}" data-player="${idx}" data-score="${score}">
-                                                ${score > 0 ? '+' : ''}${score}
-                                            </td>`;
-                                        }).join('')}
-                                    </tr>`;
-                                }).join('')}
-                            </tbody>
-                            <tfoot>
-                                <tr class="totals-row">
-                                    <td><strong>Tot</strong></td>
-                                    ${players.map((_, idx) => `<td><strong>${totals[String(idx)] || 0}</strong></td>`).join('')}
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
                 </div>
             `;
         }

@@ -6,6 +6,7 @@ import { getRoundCards, escapeHtml } from '../components/game-utils.js';
 import { getEntryOrder } from '../components/entry-utils.js';
 import { renderGameIsland, renderRoundInfoBar, renderTrumpDisplay, attachEndGameHandler, showError, setScreenContext } from '../components/screen-parts.js';
 import { soundScoreRound, soundNextRound } from '../components/sounds.js';
+import { showReviewTimer } from '../components/review-timer.js';
 
 export const roundendScreen = {
     async mount(container, state, { navigate, params }) {
@@ -17,6 +18,7 @@ export const roundendScreen = {
         const players = game.players;
         const rps = game.settings.rounds_per_set || 8;
         const mode = game.settings.mode || 'expert';
+        const reviewTimerMs = (game.settings.timer_seconds ?? 10) * 1000;
         const entryOrder = getEntryOrder(game.dealer_index, players.length);
         let entryPosition = 0;
         let handsCollected = {};
@@ -84,7 +86,12 @@ export const roundendScreen = {
             const keypad = Keypad({
                 max: getRemainingCards(),
                 disabled: getLastPlayerDisabledKeys(),
-                onSelect: (value) => handleHandsSelect(value),
+                onSelect: (value) => {
+                    showReviewTimer(container, value, reviewTimerMs,
+                        (confirmed) => handleHandsSelect(confirmed),
+                        () => renderCollecting(),
+                    );
+                },
             });
             container.querySelector('#keypad-container').appendChild(keypad);
 

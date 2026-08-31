@@ -150,3 +150,17 @@ class TestBug005AuthRateLimiting:
         assert resp.status_code == 429, (
             f"6th create must be rate-limited (429), got {resp.status_code}"
         )
+
+    async def test_join_endpoint_blocks_on_sixth_request(self, rate_limit_client):
+        """POST /api/playground/join/{code} must 429 on the 6th call."""
+        client = rate_limit_client
+        await _create_playground(client, "RateJoinTest")
+
+        for attempt in range(1, 6):
+            resp = await client.post("/api/playground/join/INVALID")
+            assert resp.status_code != 429, f"Join #{attempt} should not be rate-limited, got 429"
+
+        resp = await client.post("/api/playground/join/INVALID")
+        assert resp.status_code == 429, (
+            f"6th join must be rate-limited (429), got {resp.status_code}"
+        )

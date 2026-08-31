@@ -51,6 +51,9 @@ def start_game(page: Page, settings: dict | None = None):
     """Click start game from lobby. Settings use <select> elements."""
     page.wait_for_selector("#start-game", timeout=5000)
 
+    # Always set timer to instant in tests (default lobby is 10s)
+    page.select_option("#setting-timer", "0")
+
     if settings:
         if "mode" in settings:
             page.select_option("#setting-mode", settings["mode"].lower())
