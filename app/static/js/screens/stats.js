@@ -299,6 +299,16 @@ export const statsScreen = {
                     ${renderCareerTable('All-in', '💎', 'Bid all cards dealt and made it', career.all_in)}
                     ${renderCareerTable('Jinxed', '😵', 'Longest streak of missed bids', career.jinxed, 'longest')}
                     ${renderCareerTable('Perfect Set', '⭐', 'Made every bid in a full set', career.perfect_set)}
+                    ${renderCareerTable('Hot Hand', '🔥', 'Longest streak of positive rounds', career.hot_hand, 'longest')}
+                    ${renderCareerTable('Biggest Bid', '🎯', 'Highest bid successfully made', career.biggest_bid, 'highest')}
+                    ${renderCareerTable('Set Champion', '👑', 'Most points scored in a single set', career.set_champion, 'highest')}
+                    ${renderCareerTable('Set Disaster', '💀', 'Most negative points in a single set', career.set_disaster, 'worst')}
+                    ${renderCareerTable('Comeback King', '🦅', 'Largest score deficit recovered in a game', career.comeback_king, 'highest')}
+                    ${renderCareerTable('Sweep', '🧹', 'Games won (highest score)', career.sweep)}
+                    ${renderCareerTable('Iron Wall', '🛡️', 'Longest streak of successful zero bids', career.iron_wall, 'longest')}
+                    ${renderCareerTable('Heartbreaker', '💔', 'Rounds where bid was off by exactly 1', career.heartbreaker)}
+                    ${renderCareerTable('Endurance', '🏃', 'Total rounds played', career.endurance)}
+                    ${renderCareerTable('Triple Crown', '👑', 'Games with best accuracy AND highest score', career.triple_crown)}
                     ${!career.sniper?.some(p => p.count > 0)
                         ? '<p class="stats-muted">Play more games to unlock awards!</p>'
                         : ''}

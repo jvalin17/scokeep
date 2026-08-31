@@ -31,6 +31,16 @@ class AnalyticsService:
                 "all_in": [],
                 "jinxed": [],
                 "perfect_set": [],
+                "hot_hand": [],
+                "biggest_bid": [],
+                "set_champion": [],
+                "set_disaster": [],
+                "comeback_king": [],
+                "sweep": [],
+                "iron_wall": [],
+                "heartbreaker": [],
+                "triple_crown": [],
+                "endurance": [],
             },
             "last_game": None,
         }
@@ -205,12 +215,31 @@ def _process_game_for_career(game, rounds_by_game, career):
 
     rounds_per_set = game.settings.get("rounds_per_set", 8)
     set_results: dict[str, list[bool]] = {n: [] for n in players}
+    set_scores: dict[str, int] = dict.fromkeys(players, 0)
+
+    # Accumulators for post-game career stats
+    game_totals: dict[str, int] = dict.fromkeys(players, 0)
+    game_bids_made: dict[str, int] = dict.fromkeys(players, 0)
+    game_bids_total: dict[str, int] = dict.fromkeys(players, 0)
+    cumulative: dict[str, list[int]] = {n: [] for n in players}
+    running: dict[str, int] = dict.fromkeys(players, 0)
 
     for round_idx, rnd in enumerate(game_rounds):
-        for name, bid, hand, _score, cur_rnd in _iter_round_bids(players, [rnd]):
+        for name, bid, hand, score, cur_rnd in _iter_round_bids(players, [rnd]):
             made = bid == hand
             _apply_career_rules(career[name], bid, hand, made, cur_rnd.cards_dealt)
             set_results[name].append(made)
+            set_scores[name] += score
+            # Update per-game accumulators
+            game_totals[name] += score
+            game_bids_total[name] += 1
+            if made:
+                game_bids_made[name] += 1
+
+        # Record cumulative score snapshot after each round
+        for name in players:
+            running[name] = game_totals[name]
+            cumulative[name].append(running[name])
 
         _check_perfect_sets(
             round_idx,
@@ -220,7 +249,42 @@ def _process_game_for_career(game, rounds_by_game, career):
             career,
         )
         if rounds_per_set > 0 and (round_idx + 1) % rounds_per_set == 0:
+            _check_set_scores(players, set_scores, career)
             set_results = {n: [] for n in players}
+            set_scores = dict.fromkeys(players, 0)
+
+    # POST-GAME: sweep (games_won)
+    if game_totals:
+        top_score = max(game_totals.values())
+        winners = [n for n, s in game_totals.items() if s == top_score]
+        if len(winners) == 1:
+            career[winners[0]]["games_won"] += 1
+
+    # POST-GAME: comeback_king
+    for name in players:
+        scores = cumulative.get(name, [])
+        if scores:
+            final = scores[-1]
+            min_score = min(scores)
+            recovery = final - min_score
+            if recovery > career[name]["biggest_comeback"]:
+                career[name]["biggest_comeback"] = recovery
+
+    # POST-GAME: triple_crown (best accuracy AND highest score in same game)
+    if game_totals and any(game_bids_total.values()):
+        top_score = max(game_totals.values())
+        score_leaders = [n for n, s in game_totals.items() if s == top_score]
+        accuracies = {
+            n: game_bids_made[n] / game_bids_total[n]
+            for n in players
+            if game_bids_total[n] > 0
+        }
+        if accuracies:
+            best_acc = max(accuracies.values())
+            acc_leaders = [n for n, a in accuracies.items() if a == best_acc]
+            same_leader = score_leaders[0] == acc_leaders[0]
+            if len(score_leaders) == 1 and len(acc_leaders) == 1 and same_leader:
+                career[score_leaders[0]]["triple_crowns"] += 1
 
 
 def _apply_career_rules(player_career, bid, hand, made, cards_dealt):
@@ -228,13 +292,35 @@ def _apply_career_rules(player_career, bid, hand, made, cards_dealt):
     for rule_name, check in CAREER_RULES.items():
         if check(bid, hand, cards_dealt):
             player_career[rule_name] += 1
+    # endurance: total rounds played
+    player_career["total_rounds_played"] += 1
+    # heartbreaker: off by exactly 1
+    if abs(bid - hand) == 1:
+        player_career["off_by_one_total"] += 1
     if not made:
         player_career["current_miss_streak"] += 1
         current = player_career["current_miss_streak"]
         if current > player_career["longest_miss_streak"]:
             player_career["longest_miss_streak"] = current
+        player_career["current_positive_streak"] = 0
+        # iron_wall: reset zero streak on any miss
+        if bid == 0:
+            player_career["current_zero_streak"] = 0
     else:
         player_career["current_miss_streak"] = 0
+        if bid > player_career["biggest_bid_made"]:
+            player_career["biggest_bid_made"] = bid
+        player_career["current_positive_streak"] += 1
+        current_pos = player_career["current_positive_streak"]
+        if current_pos > player_career["longest_positive_streak"]:
+            player_career["longest_positive_streak"] = current_pos
+        # iron_wall: successful zero bid streak
+        if bid == 0:
+            player_career["current_zero_streak"] += 1
+            if player_career["current_zero_streak"] > player_career["longest_zero_streak"]:
+                player_career["longest_zero_streak"] = player_career["current_zero_streak"]
+        else:
+            player_career["current_zero_streak"] = 0
 
 
 def _game_to_history(game, game_rounds):
@@ -267,7 +353,23 @@ def _init_career(all_players):
     """Initialize career counters for all players."""
     return {
         name: dict.fromkeys(CAREER_RULES, 0)
-        | {"current_miss_streak": 0, "longest_miss_streak": 0, "perfect_sets": 0}
+        | {
+            "current_miss_streak": 0,
+            "longest_miss_streak": 0,
+            "perfect_sets": 0,
+            "longest_positive_streak": 0,
+            "current_positive_streak": 0,
+            "biggest_bid_made": 0,
+            "best_set_score": 0,
+            "worst_set_score": 0,
+            "biggest_comeback": 0,
+            "games_won": 0,
+            "longest_zero_streak": 0,
+            "current_zero_streak": 0,
+            "off_by_one_total": 0,
+            "triple_crowns": 0,
+            "total_rounds_played": 0,
+        }
         for name in all_players
     }
 
@@ -281,6 +383,16 @@ def _career_tables(career):
         "all_in": _career_table(career, "all_in"),
         "jinxed": _career_table(career, "longest_miss_streak", "longest"),
         "perfect_set": _career_table(career, "perfect_sets"),
+        "hot_hand": _career_table(career, "longest_positive_streak", "longest"),
+        "biggest_bid": _career_table(career, "biggest_bid_made", "highest"),
+        "set_champion": _career_table(career, "best_set_score", "highest"),
+        "set_disaster": _career_table(career, "worst_set_score", "worst"),
+        "comeback_king": _career_table(career, "biggest_comeback", "highest"),
+        "sweep": _career_table(career, "games_won"),
+        "iron_wall": _career_table(career, "longest_zero_streak", "longest"),
+        "heartbreaker": _career_table(career, "off_by_one_total"),
+        "triple_crown": _career_table(career, "triple_crowns"),
+        "endurance": _career_table(career, "total_rounds_played"),
     }
 
 
@@ -294,11 +406,33 @@ def _check_perfect_sets(round_idx, rounds_per_set, players, set_results, career)
             career[name]["perfect_sets"] += 1
 
 
+def _check_set_scores(players, set_scores, career):
+    """Update best/worst set scores at set boundaries."""
+    for name in players:
+        total = set_scores.get(name, 0)
+        if total > career[name]["best_set_score"]:
+            career[name]["best_set_score"] = total
+        if total < 0 and total < career[name]["worst_set_score"]:
+            career[name]["worst_set_score"] = total
+
+
 def _career_table(career, key, count_key="count"):
     """Build sorted table from career counters."""
-    sort_key = "longest" if count_key == "longest" else "count"
+    if count_key == "longest":
+        sort_key = "longest"
+    elif count_key == "highest":
+        sort_key = "highest"
+    elif count_key == "worst":
+        sort_key = "worst"
+    else:
+        sort_key = "count"
     table = [{"name": name, sort_key: data[key]} for name, data in career.items()]
-    table.sort(key=lambda x: -x[sort_key])
+    if sort_key == "worst":
+        # Sort ascending (most negative first) — filter to only negative
+        table = [r for r in table if r[sort_key] < 0]
+        table.sort(key=lambda x: x[sort_key])
+    else:
+        table.sort(key=lambda x: -x[sort_key])
     return table
 
 

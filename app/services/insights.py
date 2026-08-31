@@ -28,11 +28,11 @@ from app.services.personality_engine import (
     STRENGTH_TEMPLATES,
     assign_personalities_unique,
     assign_personality,
+    bayesian_shrink,
     cosine_similarity,
     ema_update,
     generate_insights,
-    james_stein_shrink,
-    min_max_normalize,
+    global_z_normalize,
 )
 
 # Minimum games before personality is assigned
@@ -59,8 +59,8 @@ __all__ = [
     "cosine_similarity",
     "ema_update",
     "generate_insights",
-    "james_stein_shrink",
-    "min_max_normalize",
+    "bayesian_shrink",
+    "global_z_normalize",
 ]
 
 
@@ -218,22 +218,13 @@ def _normalize_shrink_smooth(
     player_game_counts: dict[str, int],
     existing_players: dict,
 ) -> dict[str, list[float]]:
-    """Pipeline: min-max normalize → James-Stein shrink → EMA smooth."""
-    normalized = min_max_normalize(raw_vectors)
-
-    num_dims = len(FEATURE_DIMENSIONS)
-    population_mean = [0.0] * num_dims
-    for vec in normalized.values():
-        for i in range(num_dims):
-            population_mean[i] += vec[i]
-    for i in range(num_dims):
-        population_mean[i] /= len(normalized)
+    """Pipeline: global z-normalize → Bayesian shrink → EMA smooth."""
+    normalized = global_z_normalize(raw_vectors)
 
     smoothed = {}
     for name, norm_vec in normalized.items():
-        shrunk = james_stein_shrink(
+        shrunk = bayesian_shrink(
             norm_vec,
-            population_mean,
             player_game_counts[name],
         )
         stored = None

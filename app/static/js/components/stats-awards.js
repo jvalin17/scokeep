@@ -4,7 +4,11 @@ import { escapeHtml } from './game-utils.js';
 
 export function renderCareerTable(title, emoji, description, data, valueKey = 'count') {
     if (!data || !data.length) return '';
-    const filtered = data.filter(p => p[valueKey] > 0);
+    const filtered = data.filter(p => {
+        const v = p[valueKey];
+        if (valueKey === 'worst') return v !== undefined && v < 0;
+        return v !== undefined && v > 0;
+    });
     if (!filtered.length) return '';
     return `
         <div class="stats-card" style="margin-bottom:16px;padding:12px;">
