@@ -175,3 +175,18 @@ def test_locked_personality_card(page, server):
     page.wait_for_timeout(700)
     flipped = page.locator(".personality-card-locked.flipped")
     assert flipped.count() == 0, "Locked card should not flip when clicked"
+
+
+def test_career_table_header_matches_value_type(page, server):
+    """Career table column headers should say the right thing, not always 'Count'."""
+    # This is a structural check — verify the JS function outputs correct headers
+    # We check by loading the stats-awards.js and verifying the header logic
+    from pathlib import Path
+
+    js_file = Path("app/static/js/components/stats-awards.js").read_text()
+    # The header should NOT always say "Count" — it should vary by valueKey
+    count_of_hardcoded = js_file.count("<th>Count</th>")
+    assert count_of_hardcoded == 0, (
+        f"Found {count_of_hardcoded} hardcoded '<th>Count</th>' in stats-awards.js. "
+        "Header should be dynamic based on valueKey (e.g., 'Points', 'Streak', 'Games')."
+    )

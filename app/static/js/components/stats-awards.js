@@ -4,22 +4,29 @@ import { escapeHtml } from './game-utils.js';
 
 export function renderCareerTable(title, emoji, description, data, valueKey = 'count') {
     if (!data || !data.length) return '';
-    const filtered = data.filter(p => p[valueKey] > 0);
+    const headerLabels = {
+        count: 'Count', longest: 'Streak', highest: 'Best', worst: 'Worst',
+    };
+    const header = headerLabels[valueKey] || 'Value';
+    const filtered = valueKey === 'worst'
+        ? data.filter(p => p[valueKey] < 0)
+        : data.filter(p => p[valueKey] > 0);
     if (!filtered.length) return '';
+    const displayVal = (v) => valueKey === 'worst' ? v : v;
     return `
         <div class="stats-card" style="margin-bottom:16px;padding:12px;">
             <h4 style="margin:0 0 4px;">${emoji} ${title}</h4>
             <p class="stats-muted" style="font-size:0.75rem;margin-bottom:8px;">${description}</p>
             <table class="awards-table">
                 <thead>
-                    <tr><th>#</th><th>Player</th><th>Count</th></tr>
+                    <tr><th>#</th><th>Player</th><th>${header}</th></tr>
                 </thead>
                 <tbody>
                     ${filtered.map((p, i) => `
                         <tr>
                             <td>${i + 1}</td>
                             <td>${escapeHtml(p.name)}</td>
-                            <td><strong>${p[valueKey]}</strong></td>
+                            <td><strong>${displayVal(p[valueKey])}</strong></td>
                         </tr>
                     `).join('')}
                 </tbody>
