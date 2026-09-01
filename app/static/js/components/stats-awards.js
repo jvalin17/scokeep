@@ -42,7 +42,7 @@ export function renderLastGameAwards(lastGame) {
         const cards = lastGame.titles.map(t => `
             <div class="stats-card" style="margin-bottom:8px;padding:10px 12px;">
                 <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <span>${t.emoji} ${escapeHtml(t.title)}</span>
+                    <span>${escapeHtml(t.emoji)} ${escapeHtml(t.title)}</span>
                     <strong style="margin-left:8px;">${escapeHtml(t.player)}</strong>
                 </div>
                 <div class="stats-muted" style="margin-top:2px;font-size:0.7rem;">${escapeHtml(t.desc)}</div>
@@ -78,7 +78,7 @@ export function renderLastGameAwards(lastGame) {
                     </div>
                     <div class="stats-muted" style="margin-top:2px;font-size:0.7rem;">${a.desc}</div>
                     <div class="stats-muted" style="margin-top:2px;font-size:0.8rem;">
-                        ${a.detail(data)}
+                        ${escapeHtml(a.detail(data))}
                     </div>
                 </div>
             `;

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import statistics
+from collections import Counter
 from dataclasses import dataclass
 
 from app.services.analytics import _iter_round_bids
@@ -627,8 +628,6 @@ def _scatterbrain(ctx: GameContext) -> list[dict]:
 def _one_trick(ctx: GameContext) -> list[dict]:
     out = []
     for p in ctx.players:
-        from collections import Counter
-
         bids = [b for b, _ in ctx.bid_sequence[p]]
         if not bids:
             continue
@@ -801,83 +800,68 @@ def _closer(ctx: GameContext) -> list[dict]:
     return out
 
 
-@title_pattern
-def _conservative(ctx: GameContext) -> list[dict]:
-    out = []
+def _avg_bid_pattern(ctx: GameContext, key, emoji, title, desc, highest=True) -> list[dict]:
+    """Return one candidate per player for avg bid; winner is highest or lowest."""
+    candidates = []
     for p in ctx.players:
         bids = [b for b, _ in ctx.bid_sequence[p]]
         if not bids:
             continue
         avg = sum(bids) / len(bids)
-        out.append(
-            _candidate(
-                "conservative",
-                "🛡️",
-                "Conservative",
-                "Lowest average bid",
-                p,
-                f"avg bid {avg:.1f}",
-                25,
-            )
+        # Score must be > 0 per contract; negate avg for lowest-wins ranking
+        score = avg if highest else max(0.01, 1.0 / (avg + 0.01))
+        candidates.append(
+            _candidate(key, emoji, title, desc, p, f"avg bid {avg:.1f}", score)
         )
-    return out
+    return candidates
+
+
+@title_pattern
+def _conservative(ctx: GameContext) -> list[dict]:
+    return _avg_bid_pattern(
+        ctx, "conservative", "🛡️", "Conservative", "Lowest average bid", highest=False
+    )
 
 
 @title_pattern
 def _daredevil(ctx: GameContext) -> list[dict]:
-    out = []
-    for p in ctx.players:
-        bids = [b for b, _ in ctx.bid_sequence[p]]
-        if not bids:
-            continue
-        avg = sum(bids) / len(bids)
-        out.append(
-            _candidate(
-                "daredevil", "🤸", "Daredevil", "Highest average bid", p, f"avg bid {avg:.1f}", 25
-            )
-        )
-    return out
+    return _avg_bid_pattern(
+        ctx, "daredevil", "🤸", "Daredevil", "Highest average bid", highest=True
+    )
 
 
-@title_pattern
-def _rollercoaster(ctx: GameContext) -> list[dict]:
-    out = []
+def _variance_pattern(ctx: GameContext, key, emoji, title, desc, highest=True) -> list[dict]:
+    """Return one candidate per player for score variance; winner is highest or lowest."""
+    candidates = []
     for p in ctx.players:
         scores = ctx.round_scores[p]
         if len(scores) < 2:
             continue
         var = statistics.variance(scores)
-        if var > 0:
-            out.append(
-                _candidate(
-                    "rollercoaster",
-                    "🎢",
-                    "Rollercoaster",
-                    "Highest score variance",
-                    p,
-                    f"variance {var:.1f}",
-                    35,
-                )
-            )
-    return out
+        if highest and var <= 0:
+            continue
+        # Score must be > 0 per contract; negate variance for lowest-wins ranking
+        score = var if highest else max(0.01, 1.0 / (var + 0.01))
+        candidates.append(
+            _candidate(key, emoji, title, desc, p, f"variance {var:.1f}", score)
+        )
+    return candidates
+
+
+@title_pattern
+def _rollercoaster(ctx: GameContext) -> list[dict]:
+    return _variance_pattern(
+        ctx, "rollercoaster", "🎢", "Rollercoaster", "Highest score variance", highest=True
+    )
 
 
 @title_pattern
 def _metronome(ctx: GameContext) -> list[dict]:
     if ctx.round_count < 3:
         return []
-    out = []
-    for p in ctx.players:
-        scores = ctx.round_scores[p]
-        if len(scores) < 2:
-            continue
-        var = statistics.variance(scores)
-        out.append(
-            _candidate(
-                "metronome", "⏱️", "Metronome", "Lowest score variance", p, f"variance {var:.1f}", 35
-            )
-        )
-    return out
+    return _variance_pattern(
+        ctx, "metronome", "⏱️", "Metronome", "Lowest score variance", highest=False
+    )
 
 
 @title_pattern

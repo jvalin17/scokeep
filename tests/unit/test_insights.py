@@ -1397,7 +1397,7 @@ class TestPipelinePreservesDifferences:
 
     def test_four_different_vectors_stay_different_at_3_games(self):
         """With 3 games, normalization + shrinkage must preserve differences."""
-        from app.services.personality_engine import bayesian_shrink, global_z_normalize
+        from app.services.insights import bayesian_shrink, global_z_normalize
 
         vectors = {
             "Alice": [0.8, 0.1, 0.1, 0.3, 0.7, 0.9, 0.6, 0.6, 0.5, 0.2],
@@ -1417,7 +1417,7 @@ class TestPipelinePreservesDifferences:
 
     def test_global_z_normalize_independent_of_other_players(self):
         """Adding/removing players must not change any player's normalized vector."""
-        from app.services.personality_engine import global_z_normalize
+        from app.services.insights import global_z_normalize
 
         vec_alice = [0.8, 0.1, 0.1, 0.3, 0.7, 0.9, 0.6, 0.6, 0.5, 0.2]
         small = global_z_normalize({"Alice": vec_alice})
@@ -1429,7 +1429,7 @@ class TestPipelinePreservesDifferences:
 
     def test_bayesian_shrink_preserves_direction(self):
         """Shrinkage reduces magnitude but preserves which dimensions are high/low."""
-        from app.services.personality_engine import bayesian_shrink
+        from app.services.insights import bayesian_shrink
 
         vec = [0.9, 0.1, 0.8, 0.2, 0.7, 0.3, 0.6, 0.4, 0.5, 0.5]
         shrunk = bayesian_shrink(vec, games_played=3)
@@ -1439,7 +1439,7 @@ class TestPipelinePreservesDifferences:
 
     def test_bayesian_shrink_more_games_means_less_shrinkage(self):
         """At 20 games, vector should be closer to original than at 3 games."""
-        from app.services.personality_engine import bayesian_shrink
+        from app.services.insights import bayesian_shrink
 
         vec = [0.9, 0.1, 0.8, 0.2, 0.7, 0.3, 0.6, 0.4, 0.5, 0.5]
         shrunk_3 = bayesian_shrink(vec, games_played=3)

@@ -443,3 +443,116 @@ class TestCheckSetScores:
         career = {"A": {"best_set_score": 0, "worst_set_score": 0}}
         _check_set_scores(["A"], {"A": 20}, career)
         assert career["A"]["worst_set_score"] == 0
+
+
+class TestEmptyHighlightsSchema:
+    """empty_highlights must include all career table keys."""
+
+    def test_empty_highlights_has_all_career_keys(self):
+        from app.services.analytics import AnalyticsService, _career_tables, _init_career
+
+        # Get the actual career table keys
+        career = _init_career({"test"})
+        tables = _career_tables(career)
+        expected_keys = set(tables.keys())
+
+        # Get empty_highlights career keys (from the method's fallback)
+        # We need to check the hardcoded dict matches
+        import inspect
+        source = inspect.getsource(AnalyticsService.get_playground_stats)
+        for key in expected_keys:
+            assert f'"{key}"' in source, (
+                f"empty_highlights missing career key: {key}"
+            )
+
+
+class TestCareerAccumulatesAcrossGames:
+    """Career stats must accumulate correctly across multiple games."""
+
+    def _make_round(self, bids, hands, scores, cards=8):
+        class R:
+            def __init__(self, b, h, s, c):
+                self.bids = b
+                self.hands_won = h
+                self.scores = s
+                self.cards_dealt = c
+        return R(bids, hands, scores, cards)
+
+    def test_career_accumulates_across_games(self):
+        """Career stats must accumulate across multiple games."""
+        from app.services.analytics import _init_career, _process_game_for_career
+
+        class FakeGame:
+            def __init__(self, pid, players, settings):
+                self.id = pid
+                self.players = players
+                self.settings = settings
+
+        players = ["A", "B"]
+        career = _init_career(set(players))
+
+        # Game 1: A makes bid 3, B bids 0
+        rounds1 = [self._make_round({"0": 3, "1": 0}, {"0": 3, "1": 0}, {"0": 30, "1": 10})]
+        game1 = FakeGame(1, players, {"rounds_per_set": 8})
+        _process_game_for_career(game1, {1: rounds1}, career)
+
+        # Game 2: A makes bid 2, B bids 0
+        rounds2 = [self._make_round({"0": 2, "1": 0}, {"0": 2, "1": 0}, {"0": 20, "1": 10})]
+        game2 = FakeGame(2, players, {"rounds_per_set": 8})
+        _process_game_for_career(game2, {2: rounds2}, career)
+
+        # A should have accumulated: total_rounds=2, games_won=2, biggest_bid=3
+        assert career["A"]["total_rounds_played"] == 2
+        assert career["A"]["games_won"] == 2
+        assert career["A"]["biggest_bid_made"] == 3  # max across games, not sum
+
+        # B: total_rounds=2
+        assert career["B"]["total_rounds_played"] == 2
+
+
+class TestPostGameCareerSweeps:
+    """Test the extracted _post_game_career_sweeps helper."""
+
+    def test_sweep_awards_sole_winner(self):
+        from app.services.analytics import _init_career, _post_game_career_sweeps
+
+        career = _init_career({"A", "B"})
+        _post_game_career_sweeps(
+            ["A", "B"],
+            game_totals={"A": 50, "B": 30},
+            game_bids_made={"A": 2, "B": 1},
+            game_bids_total={"A": 2, "B": 2},
+            cumulative={"A": [20, 50], "B": [10, 30]},
+            career=career,
+        )
+        assert career["A"]["games_won"] == 1
+        assert career["B"]["games_won"] == 0
+
+    def test_comeback_tracks_deficit_recovery(self):
+        from app.services.analytics import _init_career, _post_game_career_sweeps
+
+        career = _init_career({"A"})
+        # Was at -30 after R1, recovered to +20 at R2. Recovery = 20 - (-30) = 50
+        _post_game_career_sweeps(
+            ["A"],
+            game_totals={"A": 20},
+            game_bids_made={"A": 1},
+            game_bids_total={"A": 2},
+            cumulative={"A": [-30, 20]},
+            career=career,
+        )
+        assert career["A"]["biggest_comeback"] == 50
+
+    def test_triple_crown_requires_sole_leader_both(self):
+        from app.services.analytics import _init_career, _post_game_career_sweeps
+
+        career = _init_career({"A", "B"})
+        _post_game_career_sweeps(
+            ["A", "B"],
+            game_totals={"A": 50, "B": 30},
+            game_bids_made={"A": 2, "B": 1},
+            game_bids_total={"A": 2, "B": 2},
+            cumulative={"A": [20, 50], "B": [10, 30]},
+            career=career,
+        )
+        assert career["A"]["triple_crowns"] == 1
