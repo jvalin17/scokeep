@@ -13,14 +13,14 @@ from app.services.insights import (
     assign_personalities_unique,
     assign_personality,
     backfill_meta,
+    bayesian_shrink,
     compute_accuracy_by_cards,
     compute_feature_vector,
     compute_player_extras,
     cosine_similarity,
     ema_update,
     generate_insights,
-    james_stein_shrink,
-    min_max_normalize,
+    global_z_normalize,
 )
 
 
@@ -532,103 +532,91 @@ class TestFeatureVectorEdgeCases:
             assert math.isfinite(value)
 
 
-class TestMinMaxNormalize:
-    """Test min-max normalization across players."""
+class TestGlobalZNormalize:
+    """Global z-score normalization against fixed priors."""
 
-    def test_two_players_opposite_extremes(self):
-        """One player max, one min → normalized to 1.0 and 0.0."""
-        vectors = {
-            "Alice": [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            "Bob": [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-        }
-        result = min_max_normalize(vectors)
-        assert result["Alice"][0] == pytest.approx(1.0)
-        assert result["Bob"][0] == pytest.approx(0.0)
-        assert result["Alice"][1] == pytest.approx(0.0)
-        assert result["Bob"][1] == pytest.approx(1.0)
+    def test_at_prior_mean_gives_half(self):
+        """A value exactly at the prior mean should normalize to ~0.5."""
+        # GLOBAL_PRIORS[0] = (0.50, 0.20) for bid_accuracy
+        vectors = {"Alice": [0.50, 0.35, 0.40, 0.50, 0.60, 0.50, 0.50, 0.50, 0.50, 0.30]}
+        result = global_z_normalize(vectors)
+        for v in result["Alice"]:
+            assert v == pytest.approx(0.5, abs=0.01)
 
-    def test_single_player_gets_centered(self):
-        """Single player → all dimensions = 0.5."""
-        vectors = {"Alice": [0.8, 0.3, 0.5, 10.0, 0.9, 0.7, 0.2, 5.0, -3.0, 0.5]}
-        result = min_max_normalize(vectors)
-        for dim_value in result["Alice"]:
-            assert dim_value == pytest.approx(0.5)
+    def test_above_mean_gives_above_half(self):
+        """Values above the prior mean should normalize > 0.5."""
+        vectors = {"Alice": [0.90, 0.35, 0.40, 0.50, 0.60, 0.50, 0.50, 0.50, 0.50, 0.30]}
+        result = global_z_normalize(vectors)
+        assert result["Alice"][0] > 0.5  # bid_accuracy 0.90 is above prior mean 0.50
 
-    def test_three_players_middle_value(self):
-        """Middle player gets proportional value."""
-        vectors = {
-            "Alice": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            "Bob": [0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            "Charlie": [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-        }
-        result = min_max_normalize(vectors)
-        assert result["Alice"][0] == pytest.approx(0.0)
-        assert result["Bob"][0] == pytest.approx(0.5)
-        assert result["Charlie"][0] == pytest.approx(1.0)
+    def test_below_mean_gives_below_half(self):
+        """Values below the prior mean should normalize < 0.5."""
+        vectors = {"Alice": [0.10, 0.35, 0.40, 0.50, 0.60, 0.50, 0.50, 0.50, 0.50, 0.30]}
+        result = global_z_normalize(vectors)
+        assert result["Alice"][0] < 0.5  # bid_accuracy 0.10 is below prior mean 0.50
 
-    def test_same_value_all_players_gets_centered(self):
-        """All players have same value for a dimension → 0.5."""
-        vectors = {
-            "Alice": [0.7, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            "Bob": [0.7, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-        }
-        result = min_max_normalize(vectors)
-        assert result["Alice"][0] == pytest.approx(0.5)
-        assert result["Bob"][0] == pytest.approx(0.5)
+    def test_independent_of_other_players(self):
+        """Adding more players must not change any existing player's vector."""
+        vec = [0.8, 0.1, 0.1, 0.3, 0.7, 0.9, 0.6, 0.6, 0.5, 0.2]
+        alone = global_z_normalize({"Alice": vec})
+        with_others = global_z_normalize({"Alice": vec, "Bob": [0.3] * 10})
+        assert alone["Alice"] == with_others["Alice"]
 
-    def test_preserves_all_dimensions(self):
-        """Output has same players and 10 dimensions each."""
-        vectors = {
-            "Alice": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
-            "Bob": [1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1],
-        }
-        result = min_max_normalize(vectors)
-        assert set(result.keys()) == {"Alice", "Bob"}
-        assert len(result["Alice"]) == 10
-        assert len(result["Bob"]) == 10
+    def test_empty_returns_empty(self):
+        assert global_z_normalize({}) == {}
+
+    def test_output_bounded_zero_to_one(self):
+        """Sigmoid squash keeps values in (0, 1)."""
+        vectors = {"Alice": [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}
+        result = global_z_normalize(vectors)
+        for v in result["Alice"]:
+            assert 0.0 < v < 1.0
 
 
-class TestJamesSteinShrinkage:
-    """Test James-Stein shrinkage toward population mean."""
+class TestBayesianShrink:
+    """Bayesian shrinkage toward fixed prior."""
 
-    def test_high_game_count_minimal_shrinkage(self):
-        """With many games, player vector stays close to raw value."""
-        player_vector = [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-        population_mean = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
-        result = james_stein_shrink(player_vector, population_mean, games_played=50)
-        # With 50 games, should be very close to raw vector
-        assert result[0] > 0.9
+    def test_three_games_weight(self):
+        """At 3 games: weight = 3/(3+5) = 0.375."""
+        vec = [0.9, 0.1, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
+        result = bayesian_shrink(vec, games_played=3)
+        # 0.5 + 0.375 * (0.9 - 0.5) = 0.5 + 0.15 = 0.65
+        assert result[0] == pytest.approx(0.65, abs=0.01)
 
-    def test_low_game_count_heavy_shrinkage(self):
-        """With few games, player vector shrinks heavily toward population mean."""
-        player_vector = [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-        population_mean = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
-        result_3 = james_stein_shrink(player_vector, population_mean, games_played=3)
-        result_50 = james_stein_shrink(player_vector, population_mean, games_played=50)
-        # With 3 games, should be much closer to mean than with 50
-        assert result_3[0] < result_50[0]
+    def test_five_games_fifty_fifty(self):
+        """At 5 games: weight = 5/(5+5) = 0.5."""
+        vec = [0.9, 0.1, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
+        result = bayesian_shrink(vec, games_played=5)
+        # 0.5 + 0.5 * (0.9 - 0.5) = 0.7
+        assert result[0] == pytest.approx(0.7, abs=0.01)
 
-    def test_shrinkage_preserves_dimensions(self):
-        """Output has exactly 10 dimensions."""
-        player_vector = [0.1] * 10
-        population_mean = [0.5] * 10
-        result = james_stein_shrink(player_vector, population_mean, games_played=5)
-        assert len(result) == 10
+    def test_twenty_games_mostly_observation(self):
+        """At 20 games: weight = 20/25 = 0.8."""
+        vec = [0.9, 0.1, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
+        result = bayesian_shrink(vec, games_played=20)
+        # 0.5 + 0.8 * (0.9 - 0.5) = 0.82
+        assert result[0] == pytest.approx(0.82, abs=0.01)
 
-    def test_player_at_mean_stays_at_mean(self):
-        """If player equals population mean, shrinkage has no effect."""
-        mean = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
-        result = james_stein_shrink(mean[:], mean, games_played=3)
-        for i in range(10):
-            assert result[i] == pytest.approx(0.5)
+    def test_preserves_ordering(self):
+        """High dims stay higher than low dims after shrinkage."""
+        vec = [0.9, 0.1, 0.8, 0.2, 0.7, 0.3, 0.6, 0.4, 0.5, 0.5]
+        result = bayesian_shrink(vec, games_played=3)
+        assert result[0] > result[1]
+        assert result[2] > result[3]
 
-    def test_all_finite_values(self):
-        """Result never contains NaN or Inf."""
-        player_vector = [0.0] * 10
-        population_mean = [0.0] * 10
-        result = james_stein_shrink(player_vector, population_mean, games_played=3)
-        for value in result:
-            assert math.isfinite(value)
+    def test_at_prior_stays_at_prior(self):
+        """A value at 0.5 (prior) should stay at 0.5 regardless of games."""
+        vec = [0.5] * 10
+        result = bayesian_shrink(vec, games_played=3)
+        for v in result:
+            assert v == pytest.approx(0.5, abs=0.001)
+
+    def test_more_games_less_shrinkage(self):
+        """20 games should be closer to original than 3 games."""
+        vec = [0.9, 0.1, 0.8, 0.2, 0.7, 0.3, 0.6, 0.4, 0.5, 0.5]
+        r3 = bayesian_shrink(vec, games_played=3)
+        r20 = bayesian_shrink(vec, games_played=20)
+        assert abs(r20[0] - 0.9) < abs(r3[0] - 0.9)
 
 
 class TestEmaUpdate:
@@ -646,10 +634,10 @@ class TestEmaUpdate:
         new_vector = [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         stored = [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         result = ema_update(new_vector, stored)
-        # alpha=0.3: result[0] = 0.3*1.0 + 0.7*0.0 = 0.3
-        assert result[0] == pytest.approx(0.3)
-        # result[1] = 0.3*0.0 + 0.7*1.0 = 0.7
-        assert result[1] == pytest.approx(0.7)
+        # alpha=0.4: result[0] = 0.4*1.0 + 0.6*0.0 = 0.4
+        assert result[0] == pytest.approx(0.4)
+        # result[1] = 0.4*0.0 + 0.6*1.0 = 0.6
+        assert result[1] == pytest.approx(0.6)
 
     def test_preserves_dimensions(self):
         """Output has 10 dimensions."""
@@ -1280,9 +1268,9 @@ class TestRealisticMultiRoundGames:
         """3 different playstyles → 3 unique personalities."""
         games = self._build_three_games()
         vectors = {name: compute_feature_vector(name, games) for name in ["Ravi", "Meera", "Kabir"]}
-        from app.services.insights import min_max_normalize
+        from app.services.insights import global_z_normalize
 
-        normalized = min_max_normalize(vectors)
+        normalized = global_z_normalize(vectors)
         results = assign_personalities_unique(normalized)
         personalities = [r["personality"] for r in results.values()]
         assert len(set(personalities)) == 3
@@ -1291,9 +1279,9 @@ class TestRealisticMultiRoundGames:
         """Different players get different insight text."""
         games = self._build_three_games()
         vectors = {name: compute_feature_vector(name, games) for name in ["Ravi", "Meera", "Kabir"]}
-        from app.services.insights import min_max_normalize
+        from app.services.insights import global_z_normalize
 
-        normalized = min_max_normalize(vectors)
+        normalized = global_z_normalize(vectors)
         results = assign_personalities_unique(normalized)
 
         insight_sets = set()
@@ -1321,17 +1309,16 @@ class TestRealisticMultiRoundGames:
                 assert math.isfinite(v), f"{name} has non-finite value"
 
         # Normalize
-        from app.services.insights import james_stein_shrink, min_max_normalize
+        from app.services.insights import bayesian_shrink, global_z_normalize
 
-        normalized = min_max_normalize(vectors)
+        normalized = global_z_normalize(vectors)
         for vec in normalized.values():
             for v in vec:
                 assert 0.0 <= v <= 1.0
 
         # Shrink
-        pop_mean = [sum(normalized[n][i] for n in players) / len(players) for i in range(10)]
         for name in players:
-            shrunk = james_stein_shrink(normalized[name], pop_mean, 3)
+            shrunk = bayesian_shrink(normalized[name], 3)
             assert len(shrunk) == 10
 
         # Assign unique
@@ -1403,3 +1390,188 @@ class TestEmptyGameWins:
         bob_extras = compute_player_extras("Bob", games)
         total_wins = alice_extras["wins"] + bob_extras["wins"]
         assert total_wins == 2  # 2 games, 2 wins total
+
+
+class TestPipelinePreservesDifferences:
+    """Regression: pipeline must NOT collapse different vectors to identical."""
+
+    def test_four_different_vectors_stay_different_at_3_games(self):
+        """With 3 games, normalization + shrinkage must preserve differences."""
+        from app.services.personality_engine import bayesian_shrink, global_z_normalize
+
+        vectors = {
+            "Alice": [0.8, 0.1, 0.1, 0.3, 0.7, 0.9, 0.6, 0.6, 0.5, 0.2],
+            "Bob": [0.3, 0.6, 0.4, 0.7, 0.4, 0.3, 0.8, 0.4, 0.7, 0.5],
+            "Carol": [0.5, 0.3, 0.7, 0.5, 0.5, 0.5, 0.5, 0.8, 0.3, 0.1],
+            "Dave": [0.6, 0.4, 0.2, 0.4, 0.6, 0.6, 0.4, 0.5, 0.5, 0.3],
+        }
+        normalized = global_z_normalize(vectors)
+        shrunk = {p: bayesian_shrink(v, 3) for p, v in normalized.items()}
+
+        values = list(shrunk.values())
+        for i in range(len(values)):
+            for j in range(i + 1, len(values)):
+                assert values[i] != values[j], (
+                    f"Players {i} and {j} collapsed to identical vectors"
+                )
+
+    def test_global_z_normalize_independent_of_other_players(self):
+        """Adding/removing players must not change any player's normalized vector."""
+        from app.services.personality_engine import global_z_normalize
+
+        vec_alice = [0.8, 0.1, 0.1, 0.3, 0.7, 0.9, 0.6, 0.6, 0.5, 0.2]
+        small = global_z_normalize({"Alice": vec_alice})
+        big = global_z_normalize({
+            "Alice": vec_alice,
+            "Bob": [0.3, 0.6, 0.4, 0.7, 0.4, 0.3, 0.8, 0.4, 0.7, 0.5],
+        })
+        assert small["Alice"] == big["Alice"], "Alice's vector changed when Bob was added"
+
+    def test_bayesian_shrink_preserves_direction(self):
+        """Shrinkage reduces magnitude but preserves which dimensions are high/low."""
+        from app.services.personality_engine import bayesian_shrink
+
+        vec = [0.9, 0.1, 0.8, 0.2, 0.7, 0.3, 0.6, 0.4, 0.5, 0.5]
+        shrunk = bayesian_shrink(vec, games_played=3)
+        # Dimension 0 (0.9) should still be > dimension 1 (0.1) after shrinkage
+        assert shrunk[0] > shrunk[1], "Shrinkage reversed high/low ordering"
+        assert shrunk[2] > shrunk[3], "Shrinkage reversed high/low ordering"
+
+    def test_bayesian_shrink_more_games_means_less_shrinkage(self):
+        """At 20 games, vector should be closer to original than at 3 games."""
+        from app.services.personality_engine import bayesian_shrink
+
+        vec = [0.9, 0.1, 0.8, 0.2, 0.7, 0.3, 0.6, 0.4, 0.5, 0.5]
+        shrunk_3 = bayesian_shrink(vec, games_played=3)
+        shrunk_20 = bayesian_shrink(vec, games_played=20)
+        # At 20 games, dim 0 should be closer to 0.9 than at 3 games
+        assert abs(shrunk_20[0] - 0.9) < abs(shrunk_3[0] - 0.9)
+
+
+class TestCentroidSeparation:
+    """Centroids must be well-separated for distinct personality assignment."""
+
+    def test_rock_centroid_not_generic_midpoint(self):
+        """Rock should NOT be all ~0.5 values — must have distinctive profile."""
+        from app.services.personality_engine import PERSONALITY_CENTROIDS
+
+        rock = PERSONALITY_CENTROIDS["rock"]
+        midpoint = [0.5] * len(rock)
+        from app.services.personality_engine import cosine_similarity
+
+        sim = cosine_similarity(rock, midpoint)
+        assert sim < 0.98, f"Rock centroid too close to midpoint: similarity={sim:.4f}"
+
+    def test_all_centroids_pairwise_distinct(self):
+        """No two centroids should have cosine similarity > 0.95."""
+        from app.services.personality_engine import PERSONALITY_CENTROIDS, cosine_similarity
+
+        names = list(PERSONALITY_CENTROIDS.keys())
+        for i in range(len(names)):
+            for j in range(i + 1, len(names)):
+                sim = cosine_similarity(
+                    PERSONALITY_CENTROIDS[names[i]],
+                    PERSONALITY_CENTROIDS[names[j]],
+                )
+                assert sim < 0.95, (
+                    f"{names[i]} and {names[j]} too similar: {sim:.4f}"
+                )
+
+    def test_ema_alpha_is_0_4(self):
+        """EMA alpha should be 0.4 for faster personality updates."""
+        from app.services.personality_engine import EMA_ALPHA
+
+        assert EMA_ALPHA == 0.4
+
+
+class TestInsightsStability:
+    """Regression: insights must not drift when recomputed with the same game data.
+
+    Bug: feature_vector is stored rounded to 4 decimal places (insights.py:306).
+    On recompute, ema_update blends the full-precision new vector with the
+    rounded stored vector, producing a slightly different result each cycle.
+    Over multiple recomputes (startup, score edits), this drift can cross
+    centroid boundaries and change personality assignments.
+    """
+
+    def test_recompute_with_rounded_stored_vector_does_not_drift(self):
+        """Simulates the store-then-reload cycle: first compute produces a vector,
+        it gets rounded to 4 decimals (as stored in DB), then a second compute
+        with the rounded vector as existing_players should produce the SAME
+        rounded result — no drift."""
+        from app.services.insights import _normalize_shrink_smooth
+
+        raw_vectors = {
+            "Alice": [0.8, 0.3, 0.5, 0.7, 0.2, 0.6, 0.4, 0.1, 0.9, 0.35],
+            "Bob": [0.2, 0.7, 0.4, 0.3, 0.8, 0.5, 0.6, 0.9, 0.15, 0.65],
+        }
+        game_counts = {"Alice": 5, "Bob": 4}
+
+        # First compute — no existing players
+        first_result = _normalize_shrink_smooth(raw_vectors, game_counts, {})
+
+        # Simulate DB storage: round to 4 decimal places (insights.py:306)
+        stored = {
+            name: {"feature_vector": [round(v, 4) for v in vec]}
+            for name, vec in first_result.items()
+        }
+
+        # Second compute — same raw data, stored (rounded) vectors as existing
+        second_result = _normalize_shrink_smooth(raw_vectors, game_counts, stored)
+
+        # Round the second result the same way (simulating another storage cycle)
+        second_rounded = {
+            name: [round(v, 4) for v in vec]
+            for name, vec in second_result.items()
+        }
+
+        # The rounded vectors must be identical across recomputes
+        for name in raw_vectors:
+            first_rounded = stored[name]["feature_vector"]
+            for i, (first_val, second_val) in enumerate(
+                zip(first_rounded, second_rounded[name], strict=True),
+            ):
+                assert first_val == pytest.approx(second_val, abs=1e-6), (
+                    f"{name} vector[{i}] drifted after round-trip: "
+                    f"{first_val} → {second_val}"
+                )
+
+    def test_personality_stable_across_recomputes(self):
+        """Personality assignment must not change when recomputed with
+        the same game data (simulating startup backfill or score edit)."""
+        from app.services.insights import _normalize_shrink_smooth
+        from app.services.personality_engine import assign_personalities_unique
+
+        raw_vectors = {
+            "Alice": [0.9, 0.1, 0.8, 0.3, 0.2, 0.7, 0.5, 0.4, 0.85, 0.25],
+            "Bob": [0.1, 0.9, 0.2, 0.8, 0.7, 0.3, 0.4, 0.6, 0.1, 0.75],
+            "Charlie": [0.5, 0.5, 0.3, 0.6, 0.4, 0.8, 0.2, 0.7, 0.55, 0.45],
+        }
+        game_counts = {"Alice": 5, "Bob": 4, "Charlie": 6}
+
+        # First compute
+        first_vectors = _normalize_shrink_smooth(raw_vectors, game_counts, {})
+        first_assignments = assign_personalities_unique(first_vectors)
+
+        # Simulate 5 recompute cycles (startup, score edits, etc.)
+        stored = {
+            name: {"feature_vector": [round(v, 4) for v in vec]}
+            for name, vec in first_vectors.items()
+        }
+        for _cycle in range(5):
+            vectors = _normalize_shrink_smooth(raw_vectors, game_counts, stored)
+            stored = {
+                name: {"feature_vector": [round(v, 4) for v in vec]}
+                for name, vec in vectors.items()
+            }
+
+        final_assignments = assign_personalities_unique(vectors)
+
+        for name in raw_vectors:
+            first = first_assignments[name]["personality"]
+            final = final_assignments[name]["personality"]
+            assert first == final, (
+                f"{name} personality changed after 5 recomputes: "
+                f"{first_assignments[name]['personality']} → "
+                f"{final_assignments[name]['personality']}"
+            )

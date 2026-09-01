@@ -10,23 +10,23 @@ Centroid calibration: see architecture/player-insights.md for rationale.
 import math
 
 # EMA smoothing factor — lower = more stable, higher = more reactive
-EMA_ALPHA = 0.3
+EMA_ALPHA = 0.4
 
 # Minimum gap between top-2 centroid matches for confident assignment
 MIN_CONFIDENCE_GAP = 0.1
 
 # Pre-defined personality centroids (raw, normalized to unit length at load)
 _RAW_CENTROIDS = {
-    "sniper": [1.0, 0.0, 0.0, 0.3, 0.5, 0.8, 0.8, 0.5, 0.5, 0.3],
-    "gambler": [0.3, 1.0, 0.0, 0.7, 0.1, 0.4, 0.2, 0.6, 0.4, 0.3],
-    "phoenix": [0.5, 0.3, 0.3, 0.5, 0.4, 0.5, 0.5, 0.2, 0.9, 0.6],
-    "rock": [0.6, 0.3, 0.3, 0.0, 0.5, 0.5, 0.5, 0.5, 0.5, 0.3],
-    "sprinter": [0.5, 0.3, 0.3, 0.5, 0.4, 0.5, 0.5, 0.9, 0.2, 0.2],
-    "ghost": [0.5, 0.0, 0.3, 0.3, 1.0, 0.4, 0.5, 0.5, 0.5, 0.3],
-    "architect": [0.6, 0.3, 0.2, 0.4, 0.3, 1.0, 0.2, 0.5, 0.5, 0.3],
-    "minimalist": [0.6, 0.2, 0.3, 0.4, 0.5, 0.2, 1.0, 0.5, 0.5, 0.3],
-    "comeback_kid": [0.4, 0.3, 0.3, 0.6, 0.3, 0.5, 0.5, 0.2, 0.7, 1.0],
-    "wildcard": [0.4, 0.5, 0.5, 1.0, 0.3, 0.4, 0.4, 0.5, 0.5, 0.4],
+    "sniper": [1.0, 0.0, 0.0, 0.2, 0.6, 0.9, 0.9, 0.6, 0.6, 0.2],
+    "gambler": [0.3, 1.0, 0.0, 0.9, 0.1, 0.4, 0.2, 0.7, 0.3, 0.3],
+    "phoenix": [0.5, 0.2, 0.2, 0.6, 0.4, 0.5, 0.5, 0.1, 1.0, 0.8],
+    "rock": [0.5, 0.1, 0.1, 0.0, 0.7, 0.5, 0.5, 0.5, 0.5, 0.2],
+    "sprinter": [0.5, 0.2, 0.2, 0.6, 0.4, 0.5, 0.5, 1.0, 0.1, 0.1],
+    "ghost": [0.4, 0.0, 0.3, 0.1, 1.0, 0.2, 0.7, 0.5, 0.5, 0.1],
+    "architect": [0.7, 0.2, 0.1, 0.3, 0.2, 1.0, 0.2, 0.5, 0.5, 0.3],
+    "minimalist": [0.7, 0.1, 0.2, 0.3, 0.4, 0.2, 1.0, 0.5, 0.5, 0.3],
+    "comeback_kid": [0.3, 0.4, 0.4, 0.9, 0.2, 0.3, 0.3, 0.2, 0.5, 1.0],
+    "wildcard": [0.4, 0.6, 0.6, 1.0, 0.3, 0.4, 0.4, 0.5, 0.5, 0.5],
 }
 
 
@@ -38,6 +38,61 @@ def _normalize_to_unit(vec: list[float]) -> list[float]:
 
 
 PERSONALITY_CENTROIDS = {name: _normalize_to_unit(vec) for name, vec in _RAW_CENTROIDS.items()}
+
+# Global priors for z-score normalization (domain knowledge + staging data)
+GLOBAL_PRIORS = [
+    (0.50, 0.20),  # 0: bid_accuracy
+    (0.35, 0.15),  # 1: overbid_ratio
+    (0.40, 0.20),  # 2: underbid_ratio
+    (0.50, 0.25),  # 3: score_variance
+    (0.60, 0.20),  # 4: zero_bid_success
+    (0.50, 0.20),  # 5: high_card_accuracy
+    (0.50, 0.20),  # 6: low_card_accuracy
+    (0.50, 0.20),  # 7: tempo_first_half
+    (0.50, 0.20),  # 8: tempo_second_half
+    (0.30, 0.20),  # 9: comeback_rate
+]
+
+PRIOR_WEIGHT = 5
+
+
+def global_z_normalize(vectors: dict[str, list[float]]) -> dict[str, list[float]]:
+    """Normalize each dimension against fixed global priors, not other players."""
+    if not vectors:
+        return {}
+    num_dims = len(GLOBAL_PRIORS)
+    result = {}
+    for player, vec in vectors.items():
+        normalized = []
+        for i in range(min(len(vec), num_dims)):
+            mean, sd = GLOBAL_PRIORS[i]
+            if sd > 0:
+                z = (vec[i] - mean) / sd
+                val = 1.0 / (1.0 + math.exp(-z))
+            else:
+                val = 0.5
+            normalized.append(round(val, 6))
+        result[player] = normalized
+    return result
+
+
+def bayesian_shrink(
+    player_vector: list[float],
+    games_played: int,
+) -> list[float]:
+    """Shrink toward fixed prior using empirical Bayes.
+
+    At games_played=3: 37.5% observation, 62.5% prior.
+    At games_played=5: 50/50.
+    At games_played=10: 67% observation, 33% prior.
+    """
+    weight = games_played / (games_played + PRIOR_WEIGHT)
+    prior_value = 0.5
+    return [
+        round(prior_value + weight * (v - prior_value), 6)
+        for v in player_vector
+    ]
+
 
 # Single source of truth for personality display — served via API to frontend
 PERSONALITY_META = {

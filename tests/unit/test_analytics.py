@@ -271,3 +271,175 @@ class TestBuildAwards:
             "gambler",
         }
         assert set(awards.keys()) == expected_keys
+
+
+class TestNewCareerAwards:
+    """TDD: failing tests for 10 new career award categories."""
+
+    def _make_round(self, bids, hands, scores, cards=8):
+        class R:
+            def __init__(self, b, h, s, c):
+                self.bids = b
+                self.hands_won = h
+                self.scores = s
+                self.cards_dealt = c
+        return R(bids, hands, scores, cards)
+
+    def _run_career(self, players, game_rounds, settings=None):
+        """Run career tracking on one game, return career dict."""
+        from app.services.analytics import (
+            _init_career,
+            _process_game_for_career,
+        )
+
+        class FakeGame:
+            def __init__(self, p, s):
+                self.players = p
+                self.settings = s or {"rounds_per_set": 8}
+                self.id = 1
+        career = _init_career(set(players))
+        game = FakeGame(players, settings)
+        _process_game_for_career(game, {1: game_rounds}, career)
+        return career
+
+    def test_hot_hand_tracks_positive_streak(self):
+        """Longest streak of consecutive made bids."""
+        rounds = [
+            self._make_round({"0": 1}, {"0": 1}, {"0": 11}),
+            self._make_round({"0": 2}, {"0": 2}, {"0": 20}),
+            self._make_round({"0": 0}, {"0": 0}, {"0": 10}),
+            self._make_round({"0": 1}, {"0": 0}, {"0": -11}),  # miss
+        ]
+        career = self._run_career(["A"], rounds)
+        assert career["A"]["longest_positive_streak"] == 3
+
+    def test_biggest_bid_made(self):
+        """Track highest bid successfully made."""
+        rounds = [
+            self._make_round({"0": 5}, {"0": 5}, {"0": 50}),
+            self._make_round({"0": 2}, {"0": 2}, {"0": 20}),
+        ]
+        career = self._run_career(["A"], rounds)
+        assert career["A"]["biggest_bid_made"] == 5
+
+    def test_set_champion_tracks_best_set(self):
+        """Best set score across all sets."""
+        # 2-round set, player scores 30 + 11 = 41 in set 1
+        rounds = [
+            self._make_round({"0": 3}, {"0": 3}, {"0": 30}),
+            self._make_round({"0": 1}, {"0": 1}, {"0": 11}),
+        ]
+        career = self._run_career(["A"], rounds, {"rounds_per_set": 2})
+        assert career["A"]["best_set_score"] == 41
+
+    def test_set_disaster_tracks_worst_set(self):
+        """Worst negative set score."""
+        rounds = [
+            self._make_round({"0": 3}, {"0": 0}, {"0": -30}),
+            self._make_round({"0": 2}, {"0": 0}, {"0": -20}),
+        ]
+        career = self._run_career(["A"], rounds, {"rounds_per_set": 2})
+        assert career["A"]["worst_set_score"] == -50
+
+    def test_comeback_king_tracks_deficit_recovery(self):
+        """Largest recovery = final_score - min_cumulative."""
+        # Round 1: -30, Round 2: +50 → cumulative: -30, +20
+        # Recovery = 20 - (-30) = 50
+        rounds = [
+            self._make_round({"0": 3}, {"0": 0}, {"0": -30}),
+            self._make_round({"0": 5}, {"0": 5}, {"0": 50}),
+        ]
+        career = self._run_career(["A"], rounds)
+        assert career["A"]["biggest_comeback"] == 50
+
+    def test_sweep_tracks_games_won(self):
+        """Winner of the game gets games_won incremented."""
+        rounds = [
+            self._make_round({"0": 3, "1": 0}, {"0": 3, "1": 0},
+                             {"0": 30, "1": 10}),
+        ]
+        career = self._run_career(["A", "B"], rounds)
+        assert career["A"]["games_won"] == 1
+        assert career["B"]["games_won"] == 0
+
+    def test_iron_wall_tracks_zero_bid_streak(self):
+        """Longest streak of successful zero bids."""
+        rounds = [
+            self._make_round({"0": 0}, {"0": 0}, {"0": 10}),
+            self._make_round({"0": 0}, {"0": 0}, {"0": 10}),
+            self._make_round({"0": 0}, {"0": 0}, {"0": 10}),
+            self._make_round({"0": 1}, {"0": 1}, {"0": 11}),  # non-zero bid
+        ]
+        career = self._run_career(["A"], rounds)
+        assert career["A"]["longest_zero_streak"] == 3
+
+    def test_heartbreaker_counts_off_by_one(self):
+        """Count rounds where |bid - hand| == 1."""
+        rounds = [
+            self._make_round({"0": 2}, {"0": 3}, {"0": -20}),  # off by 1
+            self._make_round({"0": 1}, {"0": 0}, {"0": -11}),  # off by 1
+            self._make_round({"0": 3}, {"0": 1}, {"0": -30}),  # off by 2
+        ]
+        career = self._run_career(["A"], rounds)
+        assert career["A"]["off_by_one_total"] == 2
+
+    def test_endurance_counts_rounds_played(self):
+        """Total rounds participated in."""
+        rounds = [
+            self._make_round({"0": 1}, {"0": 1}, {"0": 11}),
+            self._make_round({"0": 0}, {"0": 0}, {"0": 10}),
+            self._make_round({"0": 2}, {"0": 2}, {"0": 20}),
+        ]
+        career = self._run_career(["A"], rounds)
+        assert career["A"]["total_rounds_played"] == 3
+
+    def test_triple_crown_same_best_accuracy_and_score(self):
+        """Player with both best accuracy AND highest score gets triple crown."""
+        rounds = [
+            self._make_round({"0": 3, "1": 0}, {"0": 3, "1": 2},
+                             {"0": 30, "1": -10}),
+            self._make_round({"0": 2, "1": 1}, {"0": 2, "1": 0},
+                             {"0": 20, "1": -11}),
+        ]
+        career = self._run_career(["A", "B"], rounds)
+        assert career["A"]["triple_crowns"] == 1
+        assert career["B"]["triple_crowns"] == 0
+
+    def test_career_tables_include_new_awards(self):
+        """_career_tables must include all 10 new award keys."""
+        from app.services.analytics import _career_tables, _init_career
+
+        career = _init_career({"A"})
+        tables = _career_tables(career)
+        new_keys = [
+            "hot_hand", "biggest_bid", "set_champion", "set_disaster",
+            "comeback_king", "sweep", "iron_wall", "heartbreaker",
+            "triple_crown", "endurance",
+        ]
+        for key in new_keys:
+            assert key in tables, f"Missing career table: {key}"
+
+
+class TestCheckSetScores:
+    """Test _check_set_scores helper."""
+
+    def test_updates_best_set_score(self):
+        from app.services.analytics import _check_set_scores
+
+        career = {"A": {"best_set_score": 0, "worst_set_score": 0}}
+        _check_set_scores(["A"], {"A": 41}, career)
+        assert career["A"]["best_set_score"] == 41
+
+    def test_updates_worst_set_score_only_if_negative(self):
+        from app.services.analytics import _check_set_scores
+
+        career = {"A": {"best_set_score": 0, "worst_set_score": 0}}
+        _check_set_scores(["A"], {"A": -30}, career)
+        assert career["A"]["worst_set_score"] == -30
+
+    def test_positive_score_does_not_set_worst(self):
+        from app.services.analytics import _check_set_scores
+
+        career = {"A": {"best_set_score": 0, "worst_set_score": 0}}
+        _check_set_scores(["A"], {"A": 20}, career)
+        assert career["A"]["worst_set_score"] == 0
