@@ -31,7 +31,6 @@ class AnalyticsService:
                 "hot_hand": [], "biggest_bid": [], "set_champion": [],
                 "set_disaster": [], "comeback_king": [], "sweep": [],
                 "iron_wall": [], "heartbreaker": [], "triple_crown": [],
-                "endurance": [],
             },
             "last_game": None,
         }
@@ -373,7 +372,6 @@ def _career_tables(career):
         "iron_wall": _career_table(career, "longest_zero_streak", "longest"),
         "heartbreaker": _career_table(career, "off_by_one_total"),
         "triple_crown": _career_table(career, "triple_crowns"),
-        "endurance": _career_table(career, "total_rounds_played"),
     }
 
 

@@ -307,7 +307,6 @@ export const statsScreen = {
                     ${renderCareerTable('Sweep', '🧹', 'Games won (highest score)', career.sweep)}
                     ${renderCareerTable('Iron Wall', '🛡️', 'Longest streak of successful zero bids', career.iron_wall, 'longest')}
                     ${renderCareerTable('Heartbreaker', '💔', 'Rounds where bid was off by exactly 1', career.heartbreaker)}
-                    ${renderCareerTable('Endurance', '🏃', 'Total rounds played', career.endurance)}
                     ${renderCareerTable('Triple Crown', '👑', 'Games with best accuracy AND highest score', career.triple_crown)}
                     ${!career.sniper?.some(p => p.count > 0)
                         ? '<p class="stats-muted">Play more games to unlock awards!</p>'

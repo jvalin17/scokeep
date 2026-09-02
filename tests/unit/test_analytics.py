@@ -387,16 +387,6 @@ class TestNewCareerAwards:
         career = self._run_career(["A"], rounds)
         assert career["A"]["off_by_one_total"] == 2
 
-    def test_endurance_counts_rounds_played(self):
-        """Total rounds participated in."""
-        rounds = [
-            self._make_round({"0": 1}, {"0": 1}, {"0": 11}),
-            self._make_round({"0": 0}, {"0": 0}, {"0": 10}),
-            self._make_round({"0": 2}, {"0": 2}, {"0": 20}),
-        ]
-        career = self._run_career(["A"], rounds)
-        assert career["A"]["total_rounds_played"] == 3
-
     def test_triple_crown_same_best_accuracy_and_score(self):
         """Player with both best accuracy AND highest score gets triple crown."""
         rounds = [
@@ -423,8 +413,7 @@ class TestNewCareerAwards:
             "iron_wall",
             "heartbreaker",
             "triple_crown",
-            "endurance",
-        ]
+                    ]
         for key in new_keys:
             assert key in tables, f"Missing career table: {key}"
 
