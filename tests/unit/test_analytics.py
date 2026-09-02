@@ -6,6 +6,9 @@ from app.services.analytics import (
     _best_player,
     _build_awards,
     _career_table,
+    _init_career,
+    _post_game_career_sweeps,
+    _process_game_for_career,
 )
 from app.services.round_utils import _iter_round_bids
 
@@ -283,6 +286,7 @@ class TestNewCareerAwards:
                 self.hands_won = h
                 self.scores = s
                 self.cards_dealt = c
+
         return R(bids, hands, scores, cards)
 
     def _run_career(self, players, game_rounds, settings=None):
@@ -297,6 +301,7 @@ class TestNewCareerAwards:
                 self.players = p
                 self.settings = s or {"rounds_per_set": 8}
                 self.id = 1
+
         career = _init_career(set(players))
         game = FakeGame(players, settings)
         _process_game_for_career(game, {1: game_rounds}, career)
@@ -355,8 +360,7 @@ class TestNewCareerAwards:
     def test_sweep_tracks_games_won(self):
         """Winner of the game gets games_won incremented."""
         rounds = [
-            self._make_round({"0": 3, "1": 0}, {"0": 3, "1": 0},
-                             {"0": 30, "1": 10}),
+            self._make_round({"0": 3, "1": 0}, {"0": 3, "1": 0}, {"0": 30, "1": 10}),
         ]
         career = self._run_career(["A", "B"], rounds)
         assert career["A"]["games_won"] == 1
@@ -396,10 +400,8 @@ class TestNewCareerAwards:
     def test_triple_crown_same_best_accuracy_and_score(self):
         """Player with both best accuracy AND highest score gets triple crown."""
         rounds = [
-            self._make_round({"0": 3, "1": 0}, {"0": 3, "1": 2},
-                             {"0": 30, "1": -10}),
-            self._make_round({"0": 2, "1": 1}, {"0": 2, "1": 0},
-                             {"0": 20, "1": -11}),
+            self._make_round({"0": 3, "1": 0}, {"0": 3, "1": 2}, {"0": 30, "1": -10}),
+            self._make_round({"0": 2, "1": 1}, {"0": 2, "1": 0}, {"0": 20, "1": -11}),
         ]
         career = self._run_career(["A", "B"], rounds)
         assert career["A"]["triple_crowns"] == 1
@@ -412,9 +414,16 @@ class TestNewCareerAwards:
         career = _init_career({"A"})
         tables = _career_tables(career)
         new_keys = [
-            "hot_hand", "biggest_bid", "set_champion", "set_disaster",
-            "comeback_king", "sweep", "iron_wall", "heartbreaker",
-            "triple_crown", "endurance",
+            "hot_hand",
+            "biggest_bid",
+            "set_champion",
+            "set_disaster",
+            "comeback_king",
+            "sweep",
+            "iron_wall",
+            "heartbreaker",
+            "triple_crown",
+            "endurance",
         ]
         for key in new_keys:
             assert key in tables, f"Missing career table: {key}"
@@ -459,11 +468,10 @@ class TestEmptyHighlightsSchema:
         # Get empty_highlights career keys (from the method's fallback)
         # We need to check the hardcoded dict matches
         import inspect
+
         source = inspect.getsource(AnalyticsService.get_playground_stats)
         for key in expected_keys:
-            assert f'"{key}"' in source, (
-                f"empty_highlights missing career key: {key}"
-            )
+            assert f'"{key}"' in source, f"empty_highlights missing career key: {key}"
 
 
 class TestCareerAccumulatesAcrossGames:
@@ -476,11 +484,11 @@ class TestCareerAccumulatesAcrossGames:
                 self.hands_won = h
                 self.scores = s
                 self.cards_dealt = c
+
         return R(bids, hands, scores, cards)
 
     def test_career_accumulates_across_games(self):
         """Career stats must accumulate across multiple games."""
-        from app.services.analytics import _init_career, _process_game_for_career
 
         class FakeGame:
             def __init__(self, pid, players, settings):
@@ -514,7 +522,6 @@ class TestPostGameCareerSweeps:
     """Test the extracted _post_game_career_sweeps helper."""
 
     def test_sweep_awards_sole_winner(self):
-        from app.services.analytics import _init_career, _post_game_career_sweeps
 
         career = _init_career({"A", "B"})
         _post_game_career_sweeps(
@@ -529,7 +536,6 @@ class TestPostGameCareerSweeps:
         assert career["B"]["games_won"] == 0
 
     def test_comeback_tracks_deficit_recovery(self):
-        from app.services.analytics import _init_career, _post_game_career_sweeps
 
         career = _init_career({"A"})
         # Was at -30 after R1, recovered to +20 at R2. Recovery = 20 - (-30) = 50
@@ -544,7 +550,6 @@ class TestPostGameCareerSweeps:
         assert career["A"]["biggest_comeback"] == 50
 
     def test_triple_crown_requires_sole_leader_both(self):
-        from app.services.analytics import _init_career, _post_game_career_sweeps
 
         career = _init_career({"A", "B"})
         _post_game_career_sweeps(

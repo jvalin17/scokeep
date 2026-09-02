@@ -88,10 +88,7 @@ def bayesian_shrink(
     """
     weight = games_played / (games_played + PRIOR_WEIGHT)
     prior_value = 0.5
-    return [
-        round(prior_value + weight * (v - prior_value), 6)
-        for v in player_vector
-    ]
+    return [round(prior_value + weight * (v - prior_value), 6) for v in player_vector]
 
 
 # Single source of truth for personality display — served via API to frontend

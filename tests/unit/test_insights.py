@@ -1411,9 +1411,7 @@ class TestPipelinePreservesDifferences:
         values = list(shrunk.values())
         for i in range(len(values)):
             for j in range(i + 1, len(values)):
-                assert values[i] != values[j], (
-                    f"Players {i} and {j} collapsed to identical vectors"
-                )
+                assert values[i] != values[j], f"Players {i} and {j} collapsed to identical vectors"
 
     def test_global_z_normalize_independent_of_other_players(self):
         """Adding/removing players must not change any player's normalized vector."""
@@ -1421,10 +1419,12 @@ class TestPipelinePreservesDifferences:
 
         vec_alice = [0.8, 0.1, 0.1, 0.3, 0.7, 0.9, 0.6, 0.6, 0.5, 0.2]
         small = global_z_normalize({"Alice": vec_alice})
-        big = global_z_normalize({
-            "Alice": vec_alice,
-            "Bob": [0.3, 0.6, 0.4, 0.7, 0.4, 0.3, 0.8, 0.4, 0.7, 0.5],
-        })
+        big = global_z_normalize(
+            {
+                "Alice": vec_alice,
+                "Bob": [0.3, 0.6, 0.4, 0.7, 0.4, 0.3, 0.8, 0.4, 0.7, 0.5],
+            }
+        )
         assert small["Alice"] == big["Alice"], "Alice's vector changed when Bob was added"
 
     def test_bayesian_shrink_preserves_direction(self):
@@ -1473,9 +1473,7 @@ class TestCentroidSeparation:
                     PERSONALITY_CENTROIDS[names[i]],
                     PERSONALITY_CENTROIDS[names[j]],
                 )
-                assert sim < 0.95, (
-                    f"{names[i]} and {names[j]} too similar: {sim:.4f}"
-                )
+                assert sim < 0.95, f"{names[i]} and {names[j]} too similar: {sim:.4f}"
 
     def test_ema_alpha_is_0_4(self):
         """EMA alpha should be 0.4 for faster personality updates."""
@@ -1520,10 +1518,7 @@ class TestInsightsStability:
         second_result = _normalize_shrink_smooth(raw_vectors, game_counts, stored)
 
         # Round the second result the same way (simulating another storage cycle)
-        second_rounded = {
-            name: [round(v, 4) for v in vec]
-            for name, vec in second_result.items()
-        }
+        second_rounded = {name: [round(v, 4) for v in vec] for name, vec in second_result.items()}
 
         # The rounded vectors must be identical across recomputes
         for name in raw_vectors:
@@ -1532,8 +1527,7 @@ class TestInsightsStability:
                 zip(first_rounded, second_rounded[name], strict=True),
             ):
                 assert first_val == pytest.approx(second_val, abs=1e-6), (
-                    f"{name} vector[{i}] drifted after round-trip: "
-                    f"{first_val} → {second_val}"
+                    f"{name} vector[{i}] drifted after round-trip: {first_val} → {second_val}"
                 )
 
     def test_personality_stable_across_recomputes(self):

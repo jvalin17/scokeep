@@ -810,9 +810,7 @@ def _avg_bid_pattern(ctx: GameContext, key, emoji, title, desc, highest=True) ->
         avg = sum(bids) / len(bids)
         # Score must be > 0 per contract; negate avg for lowest-wins ranking
         score = avg if highest else max(0.01, 1.0 / (avg + 0.01))
-        candidates.append(
-            _candidate(key, emoji, title, desc, p, f"avg bid {avg:.1f}", score)
-        )
+        candidates.append(_candidate(key, emoji, title, desc, p, f"avg bid {avg:.1f}", score))
     return candidates
 
 
@@ -842,9 +840,7 @@ def _variance_pattern(ctx: GameContext, key, emoji, title, desc, highest=True) -
             continue
         # Score must be > 0 per contract; negate variance for lowest-wins ranking
         score = var if highest else max(0.01, 1.0 / (var + 0.01))
-        candidates.append(
-            _candidate(key, emoji, title, desc, p, f"variance {var:.1f}", score)
-        )
+        candidates.append(_candidate(key, emoji, title, desc, p, f"variance {var:.1f}", score))
     return candidates
 
 
