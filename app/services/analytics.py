@@ -26,11 +26,21 @@ class AnalyticsService:
     ) -> dict:
         empty_highlights = {
             "career": {
-                "sniper": [], "zero_master": [], "high_roller": [],
-                "all_in": [], "jinxed": [], "perfect_set": [],
-                "hot_hand": [], "biggest_bid": [], "set_champion": [],
-                "set_disaster": [], "comeback_king": [], "sweep": [],
-                "iron_wall": [], "heartbreaker": [], "triple_crown": [],
+                "sniper": [],
+                "zero_master": [],
+                "high_roller": [],
+                "all_in": [],
+                "jinxed": [],
+                "perfect_set": [],
+                "hot_hand": [],
+                "biggest_bid": [],
+                "set_champion": [],
+                "set_disaster": [],
+                "comeback_king": [],
+                "sweep": [],
+                "iron_wall": [],
+                "heartbreaker": [],
+                "triple_crown": [],
             },
             "last_game": None,
         }
@@ -160,8 +170,6 @@ class AnalyticsService:
 # ── Helper functions (module-level, testable independently) ──
 
 
-
-
 def _resolve_highlights(insights_blob, games, rounds_by_game):
     """Return cached highlights if fresh, otherwise recompute."""
     # Filter to games with scored rounds — matches insights blob total_games
@@ -234,9 +242,9 @@ def _process_game_for_career(game, rounds_by_game, career):
     )
 
 
-
-def _post_game_career_sweeps(players, game_totals, game_bids_made, game_bids_total,
-                             cumulative, career):
+def _post_game_career_sweeps(
+    players, game_totals, game_bids_made, game_bids_total, cumulative, career
+):
     """Compute post-game sweep/comeback/triple_crown and update career."""
     # Sweep — sole winner gets games_won
     if game_totals:
@@ -268,6 +276,7 @@ def _post_game_career_sweeps(players, game_totals, game_bids_made, game_bids_tot
         score_leaders = [n for n, s in game_totals.items() if s == best_score]
         if len(acc_leaders) == 1 and len(score_leaders) == 1 and acc_leaders[0] == score_leaders[0]:
             career[acc_leaders[0]]["triple_crowns"] += 1
+
 
 def _apply_career_rules(player_career, bid, hand, made, cards_dealt):
     """Apply career rules and miss streak to one player bid."""
@@ -404,15 +413,13 @@ def _career_table(career, key, count_key="count"):
     elif count_key == "highest":
         sort_key = "highest"
         table = [
-            {"name": name, sort_key: data[key]}
-            for name, data in career.items() if data[key] > 0
+            {"name": name, sort_key: data[key]} for name, data in career.items() if data[key] > 0
         ]
         table.sort(key=lambda x: -x[sort_key])
     elif count_key == "worst":
         sort_key = "worst"
         table = [
-            {"name": name, sort_key: data[key]}
-            for name, data in career.items() if data[key] < 0
+            {"name": name, sort_key: data[key]} for name, data in career.items() if data[key] < 0
         ]
         table.sort(key=lambda x: x[sort_key])
     else:

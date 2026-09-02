@@ -413,7 +413,7 @@ class TestNewCareerAwards:
             "iron_wall",
             "heartbreaker",
             "triple_crown",
-                    ]
+        ]
         for key in new_keys:
             assert key in tables, f"Missing career table: {key}"
 
