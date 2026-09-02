@@ -6,8 +6,8 @@ from app.services.analytics import (
     _best_player,
     _build_awards,
     _career_table,
-    _iter_round_bids,
 )
+from app.services.round_utils import _iter_round_bids
 
 
 class TestIterRoundBids:
