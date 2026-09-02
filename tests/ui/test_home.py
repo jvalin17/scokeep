@@ -39,3 +39,21 @@ def test_no_horizontal_overflow(page, server):
         "() => document.documentElement.scrollWidth > document.documentElement.clientWidth"
     )
     assert not overflow
+
+
+def test_howto_includes_per_game_titles_explanation(page, server):
+    """How To must explain what per-game titles are."""
+    from pathlib import Path
+    js = Path("app/static/js/screens/home.js").read_text()
+    assert "Per-Game Titles" in js or "per-game title" in js or "Post-Game Awards" in js, (
+        "How To missing per-game titles explanation"
+    )
+
+
+def test_howto_includes_career_records_explanation(page, server):
+    """How To must list career record categories."""
+    from pathlib import Path
+    js = Path("app/static/js/screens/home.js").read_text()
+    assert "Comeback King" in js or "Iron Wall" in js, (
+        "How To missing career record examples"
+    )

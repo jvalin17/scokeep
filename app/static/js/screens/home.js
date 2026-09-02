@@ -141,6 +141,16 @@ export const homeScreen = {
                                 <strong>8. Install as App</strong>
                                 <p>Scokeep is a PWA — tap "Add to Home Screen" in your browser to install it. Works like a native app with offline support and no browser chrome.</p>
                             </div>
+                            <div class="howto-step">
+                                <strong>9. Post-Game Awards</strong>
+                                <p>After each game, every player receives fun titles based on how they played. Titles include Champion, Sharpshooter, Comeback King, Hot Streak, and more — there are 40 possible titles.</p>
+                                <p>The system picks the most interesting titles and guarantees every player gets at least one. Titles are per-game — they change every time based on that game's data.</p>
+                            </div>
+                            <div class="howto-step">
+                                <strong>10. Career Records</strong>
+                                <p>Your lifetime achievements are tracked across all games in your room:</p>
+                                <p><strong>Sniper</strong> 🎯 Bid exactly 1 and made it · <strong>Zero Master</strong> 🥷 Bid 0 and won nothing · <strong>High Roller</strong> 🎲 Bid 3+ and made it · <strong>All-in</strong> 💎 Bid all cards and made it · <strong>Perfect Set</strong> ⭐ Made every bid in a full set · <strong>Sweep</strong> 🧹 Games won · <strong>Hot Hand</strong> 🔥 Longest streak of correct bids · <strong>Iron Wall</strong> 🛡️ Longest zero-bid streak · <strong>Biggest Bid</strong> 🎯 Highest bid successfully made · <strong>Comeback King</strong> 🦅 Biggest score recovery in a game · <strong>Set Champion</strong> 👑 Most points in a single set · <strong>Set Disaster</strong> 💀 Worst set score · <strong>Heartbreaker</strong> 💔 Rounds off by exactly 1 · <strong>Triple Crown</strong> 👑 Best accuracy AND highest score in same game</p>
+                            </div>
                         </div>
 
                         <h4>Game Modes</h4>

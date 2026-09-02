@@ -840,7 +840,8 @@ def _variance_pattern(ctx: GameContext, key, emoji, title, desc, highest=True) -
             continue
         # Score must be > 0 per contract; negate variance for lowest-wins ranking
         score = var if highest else max(0.01, 1.0 / (var + 0.01))
-        candidates.append(_candidate(key, emoji, title, desc, p, f"variance {var:.1f}", score))
+        detail = f"scores swung widely ({var:.0f} variance)"
+        candidates.append(_candidate(key, emoji, title, desc, p, detail, score))
     return candidates
 
 
@@ -873,7 +874,7 @@ def _crowd_pleaser(ctx: GameContext) -> list[dict]:
                     "Crowd Pleaser",
                     "Most rounds scoring ≥+10",
                     p,
-                    f"{count} rounds ≥+10",
+                    f"scored positive in {count} rounds",
                     count * 8,
                 )
             )
@@ -920,7 +921,7 @@ def _trump_master(ctx: GameContext) -> list[dict]:
                     "Trump Master",
                     "Best accuracy on 6-8 card rounds",
                     p,
-                    f"{made}/{total} on big rounds",
+                    f"{made} of {total} bids correct on high-card rounds",
                     pct * 100,
                 )
             )
@@ -947,7 +948,7 @@ def _minimalist(ctx: GameContext) -> list[dict]:
                     "Minimalist",
                     "Best accuracy on 1-3 card rounds",
                     p,
-                    f"{made}/{total} on small rounds",
+                    f"{made} of {total} bids correct on low-card rounds",
                     pct * 100,
                 )
             )
