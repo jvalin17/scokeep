@@ -16,17 +16,31 @@ EMA_ALPHA = 0.4
 MIN_CONFIDENCE_GAP = 0.1
 
 # Pre-defined personality centroids (raw, normalized to unit length at load)
+# 9 archetypes — max pairwise cosine similarity < 0.90
 _RAW_CENTROIDS = {
     "sniper": [1.0, 0.0, 0.0, 0.2, 0.6, 0.9, 0.9, 0.6, 0.6, 0.2],
-    "gambler": [0.3, 1.0, 0.0, 0.9, 0.1, 0.4, 0.2, 0.7, 0.3, 0.3],
-    "phoenix": [0.5, 0.2, 0.2, 0.6, 0.4, 0.5, 0.5, 0.1, 1.0, 0.8],
-    "rock": [0.5, 0.1, 0.1, 0.0, 0.7, 0.5, 0.5, 0.5, 0.5, 0.2],
-    "sprinter": [0.5, 0.2, 0.2, 0.6, 0.4, 0.5, 0.5, 1.0, 0.1, 0.1],
-    "ghost": [0.4, 0.0, 0.3, 0.1, 1.0, 0.2, 0.7, 0.5, 0.5, 0.1],
-    "architect": [0.7, 0.2, 0.1, 0.3, 0.2, 1.0, 0.2, 0.5, 0.5, 0.3],
-    "minimalist": [0.7, 0.1, 0.2, 0.3, 0.4, 0.2, 1.0, 0.5, 0.5, 0.3],
-    "comeback_kid": [0.3, 0.4, 0.4, 0.9, 0.2, 0.3, 0.3, 0.2, 0.5, 1.0],
-    "wildcard": [0.4, 0.6, 0.6, 1.0, 0.3, 0.4, 0.4, 0.5, 0.5, 0.5],
+    "gambler": [0.2, 1.0, 0.0, 0.7, 0.1, 0.3, 0.2, 0.7, 0.3, 0.3],
+    "phoenix": [0.4, 0.2, 0.3, 0.5, 0.4, 0.4, 0.4, 0.1, 1.0, 0.9],
+    "rock": [0.4, 0.1, 0.1, 0.0, 0.9, 0.4, 0.4, 0.5, 0.5, 0.1],
+    "sprinter": [0.5, 0.3, 0.2, 0.5, 0.3, 0.5, 0.4, 1.0, 0.1, 0.1],
+    "ghost": [0.2, 0.0, 0.6, 0.1, 1.0, 0.1, 0.5, 0.3, 0.3, 0.1],
+    "reader": [0.6, 0.2, 0.1, 0.3, 0.2, 1.0, 0.2, 0.5, 0.5, 0.3],
+    "surgeon": [0.5, 0.1, 0.2, 0.2, 0.4, 0.2, 1.0, 0.5, 0.5, 0.2],
+    "tilter": [0.3, 0.4, 0.3, 1.0, 0.2, 0.4, 0.3, 0.8, 0.2, 0.4],
+}
+
+# Per-persona weight vectors — dimensions each archetype cares about most.
+# Used in weighted cosine similarity. 2-3 dims at 1.5+, rest at 0.5-1.0.
+PERSONALITY_WEIGHTS = {
+    "sniper": [2.0, 0.8, 0.8, 0.5, 0.8, 1.5, 1.5, 0.7, 0.7, 0.5],
+    "gambler": [0.7, 2.0, 0.5, 1.5, 0.5, 0.7, 0.5, 0.8, 0.7, 0.7],
+    "phoenix": [0.7, 0.7, 0.7, 0.8, 0.7, 0.7, 0.7, 0.5, 2.0, 1.8],
+    "rock": [0.8, 0.7, 0.7, 1.5, 1.5, 0.7, 0.7, 0.7, 0.7, 0.5],
+    "sprinter": [0.8, 0.7, 0.7, 0.8, 0.6, 0.7, 0.7, 2.0, 1.5, 0.5],
+    "ghost": [0.6, 0.5, 1.0, 0.5, 2.0, 0.5, 0.8, 0.6, 0.6, 0.5],
+    "reader": [1.0, 0.7, 0.6, 0.6, 0.5, 2.0, 0.5, 0.7, 0.7, 0.7],
+    "surgeon": [1.0, 0.6, 0.7, 0.5, 0.7, 0.5, 2.0, 0.7, 0.7, 0.5],
+    "tilter": [0.6, 0.8, 0.8, 2.0, 0.5, 0.7, 0.6, 1.5, 0.7, 0.8],
 }
 
 
@@ -167,7 +181,7 @@ PERSONALITY_META = {
     },
     "phoenix": {
         "name": "The Phoenix",
-        "tagline": "Slow start? That's the plan.",
+        "tagline": "Rises when it matters most.",
         "color": "#BF360C",
         "icon": "🔥",
     },
@@ -189,29 +203,23 @@ PERSONALITY_META = {
         "color": "#4A148C",
         "icon": "👻",
     },
-    "architect": {
-        "name": "The Architect",
-        "tagline": "More cards, more to build.",
+    "reader": {
+        "name": "The Reader",
+        "tagline": "More cards, more to read.",
         "color": "#006064",
-        "icon": "🏗️",
+        "icon": "📖",
     },
-    "minimalist": {
-        "name": "The Minimalist",
-        "tagline": "Less is more. Always.",
+    "surgeon": {
+        "name": "The Surgeon",
+        "tagline": "Precision cuts. No wasted moves.",
         "color": "#3E2723",
-        "icon": "✨",
+        "icon": "🔬",
     },
-    "comeback_kid": {
-        "name": "The Comeback Kid",
-        "tagline": "Don't count them out.",
-        "color": "#880E4F",
-        "icon": "🦅",
-    },
-    "wildcard": {
-        "name": "The Wildcard",
-        "tagline": "You never know what you get.",
+    "tilter": {
+        "name": "The Tilter",
+        "tagline": "Hot or cold. Never lukewarm.",
         "color": "#FF6F00",
-        "icon": "🃏",
+        "icon": "🎢",
     },
 }
 
@@ -264,11 +272,27 @@ def cosine_similarity(vec_a: list[float], vec_b: list[float]) -> float:
     return dot_product / (magnitude_a * magnitude_b)
 
 
+def weighted_cosine_similarity(
+    vec_a: list[float],
+    vec_b: list[float],
+    weights: list[float],
+) -> float:
+    """Weighted cosine similarity: each dimension scaled by weight before comparison."""
+    wa = [a * w for a, w in zip(vec_a, weights, strict=True)]
+    wb = [b * w for b, w in zip(vec_b, weights, strict=True)]
+    dot_product = sum(a * b for a, b in zip(wa, wb, strict=True))
+    mag_a = math.sqrt(sum(a**2 for a in wa))
+    mag_b = math.sqrt(sum(b**2 for b in wb))
+    if mag_a < 1e-10 or mag_b < 1e-10:
+        return 0.0
+    return dot_product / (mag_a * mag_b)
+
+
 def assign_personality(
     vector: list[float],
     excluded: set[str] | None = None,
 ) -> dict:
-    """Assign personality archetype based on cosine similarity to centroids."""
+    """Assign personality archetype using per-persona weighted cosine similarity."""
     available = {
         name: centroid
         for name, centroid in PERSONALITY_CENTROIDS.items()
@@ -278,7 +302,8 @@ def assign_personality(
         available = PERSONALITY_CENTROIDS
 
     similarities = {
-        name: cosine_similarity(vector, centroid) for name, centroid in available.items()
+        name: weighted_cosine_similarity(vector, centroid, PERSONALITY_WEIGHTS[name])
+        for name, centroid in available.items()
     }
     sorted_matches = sorted(similarities.items(), key=lambda x: -x[1])
     top_name, top_score = sorted_matches[0]
@@ -310,11 +335,13 @@ def assign_personalities_unique(
 
 
 def _compute_all_matches(vectors: dict[str, list[float]]) -> list[tuple]:
-    """Compute similarity scores for all player-personality pairs."""
+    """Compute weighted similarity scores for all player-personality pairs."""
     matches = []
     for player_name, vector in vectors.items():
         for personality_name, centroid in PERSONALITY_CENTROIDS.items():
-            score = cosine_similarity(vector, centroid)
+            score = weighted_cosine_similarity(
+                vector, centroid, PERSONALITY_WEIGHTS[personality_name]
+            )
             matches.append((score, player_name, personality_name))
     matches.sort(key=lambda x: -x[0])
     return matches
@@ -339,7 +366,12 @@ def _draft_assign(
             if n not in taken and n != personality_name
         }
         second_score = (
-            max(cosine_similarity(vectors[player_name], c) for c in remaining.values())
+            max(
+                weighted_cosine_similarity(
+                    vectors[player_name], c, PERSONALITY_WEIGHTS[n]
+                )
+                for n, c in remaining.items()
+            )
             if remaining
             else 0.0
         )

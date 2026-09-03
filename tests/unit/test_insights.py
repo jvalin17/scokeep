@@ -661,9 +661,9 @@ class TestCosineSimilarity:
 class TestPersonalityCentroids:
     """Test centroid definitions."""
 
-    def test_ten_personalities_defined(self):
-        """All 10 personalities have centroids."""
-        assert len(PERSONALITY_CENTROIDS) == 10
+    def test_nine_personalities_defined(self):
+        """All 9 personalities have centroids."""
+        assert len(PERSONALITY_CENTROIDS) == 9
 
     def test_centroids_are_ten_dimensional(self):
         """Each centroid has 10 dimensions."""
@@ -695,11 +695,11 @@ class TestAssignPersonality:
         result = assign_personality(vector)
         assert result["personality"] == "ghost"
 
-    def test_wildcard_assignment(self):
-        """High variance → assigned as wildcard."""
-        vector = [0.4, 0.5, 0.5, 1.0, 0.3, 0.4, 0.4, 0.5, 0.5, 0.4]
+    def test_tilter_assignment(self):
+        """High variance → assigned as tilter."""
+        vector = [0.3, 0.4, 0.3, 1.0, 0.2, 0.4, 0.3, 0.8, 0.2, 0.4]
         result = assign_personality(vector)
-        assert result["personality"] == "wildcard"
+        assert result["personality"] == "tilter"
 
     def test_result_has_confidence(self):
         """Result includes confidence score and gap."""

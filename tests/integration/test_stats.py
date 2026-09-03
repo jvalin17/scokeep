@@ -229,10 +229,9 @@ class TestPlaygroundStats:
             "rock",
             "sprinter",
             "ghost",
-            "architect",
-            "minimalist",
-            "comeback_kid",
-            "wildcard",
+            "reader",
+            "surgeon",
+            "tilter",
         }
         for name in ["Alice", "Bob", "Charlie"]:
             player_data = insights["players"][name]
