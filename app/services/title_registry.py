@@ -266,27 +266,27 @@ def _evaluate_one(defn: dict, ctx) -> list[dict]:
         return _eval_per_player(defn, ctx, metric_fn, weight)
 
 
-def _eval_single_winner(defn, ctx, metric_fn, weight, reverse):
-    """Pick the single player with highest/lowest metric value."""
+def _find_best_player(ctx, metric_fn, reverse: bool):
+    """Scan all players and return (best_player, best_val, best_detail) or (None, None, '')."""
     best_player = None
     best_val = None
     best_detail = ""
-
     for p in ctx.players:
         result = metric_fn(ctx, p)
         if result is None:
             continue
         val, detail = result
         if best_val is None or (reverse and val > best_val) or (not reverse and val < best_val):
-            best_val = val
-            best_player = p
-            best_detail = detail
-        elif val == best_val:
+            best_val, best_player, best_detail = val, p, detail
+        elif val == best_val and ctx.players.index(p) < ctx.players.index(best_player):
             # Tiebreak: first player in roster order wins
-            if ctx.players.index(p) < ctx.players.index(best_player):
-                best_player = p
-                best_detail = detail
+            best_player, best_detail = p, detail
+    return best_player, best_val, best_detail
 
+
+def _eval_single_winner(defn, ctx, metric_fn, weight, reverse):
+    """Pick the single player with highest/lowest metric value."""
+    best_player, _best_val, best_detail = _find_best_player(ctx, metric_fn, reverse)
     if best_player is None:
         return []
     return [

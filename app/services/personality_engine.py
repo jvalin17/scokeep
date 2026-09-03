@@ -347,6 +347,21 @@ def _compute_all_matches(vectors: dict[str, list[float]]) -> list[tuple]:
     return matches
 
 
+def _compute_second_score(
+    player_vector: list[float], taken: set[str], personality_name: str
+) -> float:
+    """Compute best similarity score among remaining (non-taken, non-current) personalities."""
+    remaining = {
+        n: c for n, c in PERSONALITY_CENTROIDS.items() if n not in taken and n != personality_name
+    }
+    if not remaining:
+        return 0.0
+    return max(
+        weighted_cosine_similarity(player_vector, c, PERSONALITY_WEIGHTS[n])
+        for n, c in remaining.items()
+    )
+
+
 def _draft_assign(
     all_matches: list[tuple],
     vectors: dict[str, list[float]],
@@ -360,22 +375,7 @@ def _draft_assign(
         if player_name in assigned or personality_name in taken:
             continue
 
-        remaining = {
-            n: c
-            for n, c in PERSONALITY_CENTROIDS.items()
-            if n not in taken and n != personality_name
-        }
-        second_score = (
-            max(
-                weighted_cosine_similarity(
-                    vectors[player_name], c, PERSONALITY_WEIGHTS[n]
-                )
-                for n, c in remaining.items()
-            )
-            if remaining
-            else 0.0
-        )
-
+        second_score = _compute_second_score(vectors[player_name], taken, personality_name)
         results[player_name] = {
             "personality": personality_name,
             "confidence": round(score, 4),

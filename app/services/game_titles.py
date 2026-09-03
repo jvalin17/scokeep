@@ -81,16 +81,9 @@ def _init_context_state(players: list[str]) -> dict:
     }
 
 
-def _process_context_bid(state: dict, name: str, bid: int, hand: int, score: int):
-    """Process one bid result into the context state."""
-    state["bids_total"][name] += 1
-    state["bid_sequence"][name].append((bid, hand))
-    state["round_scores"][name].append(score)
-    state["totals"][name] += score
-    state["score_history"][name].append(state["totals"][name])
-
-    made = bid == hand
-    if made:
+def _update_bid_result(state: dict, name: str, bid: int, hand: int):
+    """Update state for whether a bid was made or missed."""
+    if bid == hand:
         state["bids_made"][name] += 1
         state["make_streak"][name] += 1
         state["miss_streak"][name] = 0
@@ -108,9 +101,19 @@ def _process_context_bid(state: dict, name: str, bid: int, hand: int, score: int
         if abs(hand - bid) == 1:
             state["off_by_one"][name] += 1
 
+
+def _process_context_bid(state: dict, name: str, bid: int, hand: int, score: int):
+    """Process one bid result into the context state."""
+    state["bids_total"][name] += 1
+    state["bid_sequence"][name].append((bid, hand))
+    state["round_scores"][name].append(score)
+    state["totals"][name] += score
+    state["score_history"][name].append(state["totals"][name])
+
+    _update_bid_result(state, name, bid, hand)
+
     if bid == 0:
         state["zero_bids_attempted"][name] += 1
-
     state["longest_miss_streak"][name] = max(
         state["longest_miss_streak"][name], state["miss_streak"][name]
     )
@@ -151,40 +154,42 @@ def _finalize_context(players: list[str], state: dict) -> GameContext:
 # ── Selection ────────────────────────────────────────────────────────────────
 
 
-def select_titles(
-    candidates: list[dict], players: list[str], target: int | None = None
-) -> list[dict]:
-    if target is None:
-        target = max(4, min(2 * len(players), 14))
-
-    used_keys: set = set()
-    covered: set = set()
-    result: list[dict] = []
-
-    def sort_key(c):
-        idx = players.index(c["player"]) if c["player"] in players else 9999
-        return (-c["score"], idx)
-
-    sorted_cands = sorted(candidates, key=sort_key)
-
-    # Phase 1: coverage — every player gets at least 1
+def _phase1_coverage(players: list[str], sorted_cands: list[dict], used_keys: set) -> list[dict]:
+    """Give every player at least one title (coverage pass)."""
+    result = []
     for p in players:
         player_cands = [c for c in sorted_cands if c["player"] == p and c["key"] not in used_keys]
         if player_cands:
             best = player_cands[0]
             result.append(best)
             used_keys.add(best["key"])
-            covered.add(p)
+    return result
 
-    # Phase 2: fill up to target by score desc
+
+def _phase2_fill(sorted_cands: list[dict], used_keys: set, result: list[dict], target: int) -> None:
+    """Fill remaining slots up to target by score descending."""
     for c in sorted_cands:
         if len(result) >= target:
             break
-        if c["key"] in used_keys:
-            continue
-        result.append(c)
-        used_keys.add(c["key"])
+        if c["key"] not in used_keys:
+            result.append(c)
+            used_keys.add(c["key"])
 
+
+def select_titles(
+    candidates: list[dict], players: list[str], target: int | None = None
+) -> list[dict]:
+    if target is None:
+        target = max(4, min(2 * len(players), 14))
+
+    def sort_key(c):
+        idx = players.index(c["player"]) if c["player"] in players else 9999
+        return (-c["score"], idx)
+
+    sorted_cands = sorted(candidates, key=sort_key)
+    used_keys: set = set()
+    result = _phase1_coverage(players, sorted_cands, used_keys)
+    _phase2_fill(sorted_cands, used_keys, result, target)
     return result
 
 

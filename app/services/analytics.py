@@ -17,6 +17,40 @@ CAREER_RULES = {
 }
 
 
+def _build_stats_response(game_history, highlights, insights_blob) -> dict:
+    """Build the standard stats response dict."""
+    return {
+        "game_history": game_history[:20],
+        "highlights": highlights,
+        "insights": insights_blob,
+        "total_games": len(game_history),
+    }
+
+
+def _build_empty_highlights() -> dict:
+    """Return the empty highlights structure used when no games exist."""
+    return {
+        "career": {
+            "sniper": [],
+            "zero_master": [],
+            "high_roller": [],
+            "all_in": [],
+            "jinxed": [],
+            "perfect_set": [],
+            "hot_hand": [],
+            "biggest_bid": [],
+            "set_champion": [],
+            "set_disaster": [],
+            "comeback_king": [],
+            "sweep": [],
+            "iron_wall": [],
+            "heartbreaker": [],
+            "triple_crown": [],
+        },
+        "last_game": None,
+    }
+
+
 class AnalyticsService:
     @staticmethod
     async def get_playground_stats(
@@ -24,59 +58,19 @@ class AnalyticsService:
         playground_id: int,
         insights_blob: dict | None = None,
     ) -> dict:
-        empty_highlights = {
-            "career": {
-                "sniper": [],
-                "zero_master": [],
-                "high_roller": [],
-                "all_in": [],
-                "jinxed": [],
-                "perfect_set": [],
-                "hot_hand": [],
-                "biggest_bid": [],
-                "set_champion": [],
-                "set_disaster": [],
-                "comeback_king": [],
-                "sweep": [],
-                "iron_wall": [],
-                "heartbreaker": [],
-                "triple_crown": [],
-            },
-            "last_game": None,
-        }
-
-        games, all_rounds = await AnalyticsService._load_data(
-            db,
-            playground_id,
-        )
+        # empty_highlights keys must match _career_tables output:
+        # "sniper","zero_master","high_roller","all_in","jinxed","perfect_set",
+        # "hot_hand","biggest_bid","set_champion","set_disaster","comeback_king",
+        # "sweep","iron_wall","heartbreaker","triple_crown"
+        games, all_rounds = await AnalyticsService._load_data(db, playground_id)
         if not games:
-            return {
-                "game_history": [],
-                "highlights": (insights_blob or {}).get(
-                    "highlights",
-                    empty_highlights,
-                ),
-                "insights": insights_blob,
-                "total_games": 0,
-            }
+            fallback_highlights = (insights_blob or {}).get("highlights", _build_empty_highlights())
+            return _build_stats_response([], fallback_highlights, insights_blob)
 
         rounds_by_game = AnalyticsService._group_rounds(all_rounds)
-        game_history = AnalyticsService._calc_game_history(
-            games,
-            rounds_by_game,
-        )
-        highlights = _resolve_highlights(
-            insights_blob,
-            games,
-            rounds_by_game,
-        )
-
-        return {
-            "game_history": game_history[:20],
-            "highlights": highlights,
-            "insights": insights_blob,
-            "total_games": len(game_history),
-        }
+        game_history = AnalyticsService._calc_game_history(games, rounds_by_game)
+        highlights = _resolve_highlights(insights_blob, games, rounds_by_game)
+        return _build_stats_response(game_history, highlights, insights_blob)
 
     @staticmethod
     async def _load_data(db: AsyncSession, playground_id: int):
@@ -191,6 +185,43 @@ def _resolve_highlights(insights_blob, games, rounds_by_game):
     return highlights
 
 
+def _process_round_for_career(rnd, players, career, acc):
+    """Process one round's bids into all career/game accumulators."""
+    for name, bid, hand, score, cur_rnd in _iter_round_bids(players, [rnd]):
+        made = bid == hand
+        _apply_career_rules(career[name], bid, hand, made, cur_rnd.cards_dealt)
+        acc["set_results"][name].append(made)
+        acc["game_totals"][name] += score
+        acc["game_bids_total"][name] += 1
+        if made:
+            acc["game_bids_made"][name] += 1
+        acc["running"][name] += score
+        acc["cumulative"][name].append(acc["running"][name])
+        acc["set_scores"][name] += score
+
+
+def _update_set_tracking(round_idx, rounds_per_set, players, acc, career):
+    """Check set boundaries and reset accumulators when a set completes."""
+    _check_perfect_sets(round_idx, rounds_per_set, players, acc["set_results"], career)
+    if rounds_per_set > 0 and (round_idx + 1) % rounds_per_set == 0:
+        _check_set_scores(players, acc["set_scores"], career)
+        acc["set_scores"] = dict.fromkeys(players, 0)
+        acc["set_results"] = {n: [] for n in players}
+
+
+def _init_game_accumulators(players):
+    """Initialize per-game accumulator dicts for career processing."""
+    return {
+        "set_results": {n: [] for n in players},
+        "game_totals": dict.fromkeys(players, 0),
+        "game_bids_made": dict.fromkeys(players, 0),
+        "game_bids_total": dict.fromkeys(players, 0),
+        "running": dict.fromkeys(players, 0),
+        "cumulative": {n: [] for n in players},
+        "set_scores": dict.fromkeys(players, 0),
+    }
+
+
 def _process_game_for_career(game, rounds_by_game, career):
     """Process one game's rounds for career record counting."""
     players = game.players
@@ -199,46 +230,20 @@ def _process_game_for_career(game, rounds_by_game, career):
         return
 
     rounds_per_set = game.settings.get("rounds_per_set", 8)
-    set_results: dict[str, list[bool]] = {n: [] for n in players}
-
-    # New accumulators
-    game_totals = dict.fromkeys(players, 0)
-    game_bids_made = dict.fromkeys(players, 0)
-    game_bids_total = dict.fromkeys(players, 0)
-    cumulative = {n: [] for n in players}
-    running = dict.fromkeys(players, 0)
-    set_scores = dict.fromkeys(players, 0)
+    acc = _init_game_accumulators(players)
 
     for round_idx, rnd in enumerate(game_rounds):
-        for name, bid, hand, score, cur_rnd in _iter_round_bids(players, [rnd]):
-            made = bid == hand
-            _apply_career_rules(career[name], bid, hand, made, cur_rnd.cards_dealt)
-            set_results[name].append(made)
-            # Accumulate per-game stats
-            game_totals[name] += score
-            game_bids_total[name] += 1
-            if bid == hand:
-                game_bids_made[name] += 1
-            running[name] += score
-            cumulative[name].append(running[name])
-            set_scores[name] += score
+        _process_round_for_career(rnd, players, career, acc)
+        _update_set_tracking(round_idx, rounds_per_set, players, acc, career)
 
-        _check_perfect_sets(
-            round_idx,
-            rounds_per_set,
-            players,
-            set_results,
-            career,
-        )
-        if rounds_per_set > 0 and (round_idx + 1) % rounds_per_set == 0:
-            _check_set_scores(players, set_scores, career)
-            set_scores = dict.fromkeys(players, 0)
-            set_results = {n: [] for n in players}
-
-    # POST-GAME: process final partial set
-    _check_set_scores(players, set_scores, career)
+    _check_set_scores(players, acc["set_scores"], career)
     _post_game_career_sweeps(
-        players, game_totals, game_bids_made, game_bids_total, cumulative, career
+        players,
+        acc["game_totals"],
+        acc["game_bids_made"],
+        acc["game_bids_total"],
+        acc["cumulative"],
+        career,
     )
 
 
@@ -278,38 +283,45 @@ def _post_game_career_sweeps(
             career[acc_leaders[0]]["triple_crowns"] += 1
 
 
-def _apply_career_rules(player_career, bid, hand, made, cards_dealt):
-    """Apply career rules and miss streak to one player bid."""
-    for rule_name, check in CAREER_RULES.items():
-        if check(bid, hand, cards_dealt):
-            player_career[rule_name] += 1
-    if not made:
-        player_career["current_miss_streak"] += 1
-        current = player_career["current_miss_streak"]
-        if current > player_career["longest_miss_streak"]:
-            player_career["longest_miss_streak"] = current
+def _apply_zero_bid_streak(player_career, bid, made):
+    """Update zero-bid streak counters after a made bid."""
+    if bid == 0:
+        player_career["current_zero_streak"] += 1
+        if player_career["current_zero_streak"] > player_career["longest_zero_streak"]:
+            player_career["longest_zero_streak"] = player_career["current_zero_streak"]
     else:
-        player_career["current_miss_streak"] = 0
+        player_career["current_zero_streak"] = 0
 
-    # New career tracking fields
-    player_career["total_rounds_played"] += 1
-    if abs(bid - hand) == 1:
-        player_career["off_by_one_total"] += 1
+
+def _apply_bid_tracking(player_career, bid, made):
+    """Update positive streak and biggest bid after any bid result."""
     if made:
         player_career["current_positive_streak"] += 1
         if player_career["current_positive_streak"] > player_career["longest_positive_streak"]:
             player_career["longest_positive_streak"] = player_career["current_positive_streak"]
         if bid > player_career["biggest_bid_made"]:
             player_career["biggest_bid_made"] = bid
-        if bid == 0:
-            player_career["current_zero_streak"] += 1
-            if player_career["current_zero_streak"] > player_career["longest_zero_streak"]:
-                player_career["longest_zero_streak"] = player_career["current_zero_streak"]
-        else:
-            player_career["current_zero_streak"] = 0
+        _apply_zero_bid_streak(player_career, bid, made)
     else:
         player_career["current_positive_streak"] = 0
         player_career["current_zero_streak"] = 0
+
+
+def _apply_career_rules(player_career, bid, hand, made, cards_dealt):
+    """Apply career rules and streak tracking to one player bid."""
+    for rule_name, check in CAREER_RULES.items():
+        if check(bid, hand, cards_dealt):
+            player_career[rule_name] += 1
+    if not made:
+        player_career["current_miss_streak"] += 1
+        if player_career["current_miss_streak"] > player_career["longest_miss_streak"]:
+            player_career["longest_miss_streak"] = player_career["current_miss_streak"]
+    else:
+        player_career["current_miss_streak"] = 0
+    player_career["total_rounds_played"] += 1
+    if abs(bid - hand) == 1:
+        player_career["off_by_one_total"] += 1
+    _apply_bid_tracking(player_career, bid, made)
 
 
 def _game_to_history(game, game_rounds):

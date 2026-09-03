@@ -114,32 +114,31 @@ class _GameWithRounds:
         return determine_winner(players, rounds)
 
 
-async def compute_insights(db: AsyncSession, playground_id: int) -> dict | None:
-    """Full pipeline: compute and store insights for all players."""
-    playground = await db.get(Playground, playground_id)
-    if not playground:
-        return None
-
+async def _load_and_prepare_games(db: AsyncSession, playground_id: int):
+    """Load games and rounds; return (games, wrapped_games, game_metrics_list, rounds_by_game)."""
     games, rounds_by_game = await _load_game_data(db, playground_id)
     if not games:
-        return None
-
+        return [], [], [], {}
     wrapped_games = [
         _GameWithRounds(g, rounds_by_game[g.id]) for g in games if g.id in rounds_by_game
     ]
-
-    # Compute GameMetrics for each game (single shared pass)
     game_metrics_list = [compute_game_metrics(g.players, g.rounds) for g in wrapped_games]
+    return games, wrapped_games, game_metrics_list, rounds_by_game
 
-    player_game_counts = _count_player_games(wrapped_games)
-    all_players = set(player_game_counts.keys())
+
+async def _compute_and_store_blob(
+    db,
+    playground,
+    raw_vectors,
+    player_game_counts,
+    all_players,
+    game_metrics_list,
+    games,
+    rounds_by_game,
+):
+    """Assemble the full insights blob, persist it, and return it."""
     existing_players = (playground.insights or {}).get("players", {})
-
-    raw_vectors = _compute_raw_vectors(all_players, player_game_counts, game_metrics_list)
-    if not raw_vectors:
-        return await _store_unlock_only(db, playground, all_players, player_game_counts)
-
-    insights_blob = _assemble_blob(
+    blob = _assemble_blob(
         raw_vectors,
         player_game_counts,
         existing_players,
@@ -148,9 +147,39 @@ async def compute_insights(db: AsyncSession, playground_id: int) -> dict | None:
         games,
         rounds_by_game,
     )
-    playground.insights = insights_blob
+    playground.insights = blob
     await db.commit()
-    return insights_blob
+    return blob
+
+
+async def compute_insights(db: AsyncSession, playground_id: int) -> dict | None:
+    """Full pipeline: compute and store insights for all players."""
+    playground = await db.get(Playground, playground_id)
+    if not playground:
+        return None
+
+    games, wrapped_games, game_metrics_list, rounds_by_game = await _load_and_prepare_games(
+        db, playground_id
+    )
+    if not wrapped_games:
+        return None
+
+    player_game_counts = _count_player_games(wrapped_games)
+    all_players = set(player_game_counts.keys())
+    raw_vectors = _compute_raw_vectors(all_players, player_game_counts, game_metrics_list)
+    if not raw_vectors:
+        return await _store_unlock_only(db, playground, all_players, player_game_counts)
+
+    return await _compute_and_store_blob(
+        db,
+        playground,
+        raw_vectors,
+        player_game_counts,
+        all_players,
+        game_metrics_list,
+        games,
+        rounds_by_game,
+    )
 
 
 def _compute_raw_vectors(all_players, player_game_counts, game_metrics_list):
@@ -160,6 +189,26 @@ def _compute_raw_vectors(all_players, player_game_counts, game_metrics_list):
         for name in all_players
         if player_game_counts[name] >= MIN_GAMES_FOR_PERSONALITY
     }
+
+
+def _assign_smoothed_players(
+    raw_vectors, player_game_counts, existing_players, all_players, game_metrics_list
+):
+    """Normalize, shrink, smooth vectors; assign personalities; build player data."""
+    calibration = _update_calibration(raw_vectors)
+    smoothed_vectors = _normalize_shrink_smooth(
+        raw_vectors, player_game_counts, existing_players, calibration
+    )
+    assignments = assign_personalities_unique(smoothed_vectors)
+    players_data = _build_player_data(
+        all_players,
+        player_game_counts,
+        assignments,
+        smoothed_vectors,
+        existing_players,
+        game_metrics_list,
+    )
+    return calibration, players_data
 
 
 def _assemble_blob(
@@ -172,31 +221,15 @@ def _assemble_blob(
     rounds_by_game,
 ):
     """Build the full insights blob from vectors and assignments."""
-    calibration = _update_calibration(raw_vectors)
-
-    smoothed_vectors = _normalize_shrink_smooth(
-        raw_vectors,
-        player_game_counts,
-        existing_players,
-        calibration,
+    calibration, players_data = _assign_smoothed_players(
+        raw_vectors, player_game_counts, existing_players, all_players, game_metrics_list
     )
-    assignments = assign_personalities_unique(smoothed_vectors)
-    players_data = _build_player_data(
-        all_players,
-        player_game_counts,
-        assignments,
-        smoothed_vectors,
-        existing_players,
-        game_metrics_list,
-    )
+    games_with_rounds = [g for g in games if g.id in rounds_by_game]
     return {
         "version": 1,
         "computed_at": datetime.now(UTC).isoformat(),
         "players": players_data,
-        "highlights": _compute_cached_highlights(
-            [g for g in games if g.id in rounds_by_game],
-            rounds_by_game,
-        ),
+        "highlights": _compute_cached_highlights(games_with_rounds, rounds_by_game),
         "total_games": len(game_metrics_list),
         "_calibration": calibration,
     }
@@ -306,42 +339,44 @@ def _build_player_data(
     }
 
 
-def _build_single_player(
-    name,
-    games_played,
-    assignments,
-    smoothed_vectors,
-    existing_players,
-    game_metrics_list,
+def _build_unlock_progress(games_played: int) -> dict:
+    """Return unlock-progress dict for players without enough games."""
+    return {
+        "personality": None,
+        "games_analyzed": games_played,
+        "unlock_at": MIN_GAMES_FOR_PERSONALITY,
+    }
+
+
+def _build_full_player_insights(
+    name, games_played, assignment, smoothed_vectors, existing_players, game_metrics_list
 ):
-    """Build data for one player — either unlock progress or full insights."""
-    if games_played < MIN_GAMES_FOR_PERSONALITY:
-        return {
-            "personality": None,
-            "games_analyzed": games_played,
-            "unlock_at": MIN_GAMES_FOR_PERSONALITY,
-        }
-
-    assignment = assignments[name]
-    previous = _detect_evolution(name, assignment, existing_players)
-    assigned_at = _resolve_assigned_at(name, assignment, existing_players)
-
+    """Build the complete insights dict for a player with enough games."""
     personality_key = assignment["personality"]
-    meta = PERSONALITY_META.get(personality_key, {})
-
     return {
         "personality": personality_key,
-        "meta": meta,
-        "previous_personality": previous,
+        "meta": PERSONALITY_META.get(personality_key, {}),
+        "previous_personality": _detect_evolution(name, assignment, existing_players),
         "confidence": assignment["confidence"],
         "confidence_gap": assignment["confidence_gap"],
         "feature_vector": [round(v, 4) for v in smoothed_vectors[name]],
         "accuracy_by_cards": compute_accuracy_by_cards_metrics(name, game_metrics_list),
-        "insights": generate_insights(smoothed_vectors[name], assignment["personality"]),
+        "insights": generate_insights(smoothed_vectors[name], personality_key),
         "extras": compute_display_extras(name, game_metrics_list),
         "games_analyzed": games_played,
-        "assigned_at": assigned_at,
+        "assigned_at": _resolve_assigned_at(name, assignment, existing_players),
     }
+
+
+def _build_single_player(
+    name, games_played, assignments, smoothed_vectors, existing_players, game_metrics_list
+):
+    """Build data for one player — either unlock progress or full insights."""
+    if games_played < MIN_GAMES_FOR_PERSONALITY:
+        return _build_unlock_progress(games_played)
+    return _build_full_player_insights(
+        name, games_played, assignments[name], smoothed_vectors, existing_players, game_metrics_list
+    )
 
 
 def _detect_evolution(name, assignment, existing_players):

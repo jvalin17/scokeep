@@ -331,23 +331,12 @@ _REMARKABLE_BID = 6
 # ── Core functions ────────────────────────────────────────────────────────────
 
 
-def aggregate_career(player_name: str, game_metrics_list: list) -> CareerMetrics:
-    """Aggregate a player's career stats from a list of GameMetrics.
-
-    Returns CareerMetrics with:
-      - feature_vector: 10-d, all values in [0, 1]
-      - extras: dict with wins, games_played, bidding_style, consistency, trend, etc.
-      - games_played: int
-    """
-    acc = _accumulate_rounds(player_name, game_metrics_list)
-    if acc.games_played == 0:
-        return _empty_career()
-
+def _build_feature_vector(acc: "_RoundAccumulator") -> list[float]:
+    """Build the 10-d career feature vector from accumulated round data."""
     stddev_raw = _stddev(acc.game_totals)
     first_avg = _safe_div(sum(acc.first_half_scores), len(acc.first_half_scores))
     second_avg = _safe_div(sum(acc.second_half_scores), len(acc.second_half_scores))
-
-    feature_vector = [
+    return [
         _safe_div(acc.weighted_correct, acc.weighted_total),  # 0 bid_accuracy
         _safe_div(acc.weighted_overbids, acc.weighted_total),  # 1 overbid_ratio
         _safe_div(acc.weighted_underbids, acc.weighted_total),  # 2 underbid_ratio
@@ -360,6 +349,20 @@ def aggregate_career(player_name: str, game_metrics_list: list) -> CareerMetrics
         _safe_div(acc.comeback_wins, acc.comeback_opportunities),  # 9 comeback_rate
     ]
 
+
+def aggregate_career(player_name: str, game_metrics_list: list) -> CareerMetrics:
+    """Aggregate a player's career stats from a list of GameMetrics.
+
+    Returns CareerMetrics with:
+      - feature_vector: 10-d, all values in [0, 1]
+      - extras: dict with wins, games_played, bidding_style, consistency, trend, etc.
+      - games_played: int
+    """
+    acc = _accumulate_rounds(player_name, game_metrics_list)
+    if acc.games_played == 0:
+        return _empty_career()
+
+    feature_vector = _build_feature_vector(acc)
     bidding_style, _ = _classify_bidding_style(
         acc.overbids_count, acc.underbids_count, acc.exact_bids_count
     )
@@ -375,36 +378,32 @@ def aggregate_career(player_name: str, game_metrics_list: list) -> CareerMetrics
     )
 
 
-def compute_display_extras(player_name: str, game_metrics_list: list) -> dict:
-    """Compute full display extras for a player from GameMetrics objects."""
-    acc = _accumulate_rounds(player_name, game_metrics_list)
+def _empty_display_extras() -> dict:
+    """Return the zero-state display extras dict used when a player has no games."""
+    return {
+        "wins": 0,
+        "games_played": 0,
+        "total_rounds": 0,
+        "best_trump": None,
+        "best_trump_pct": None,
+        "trend": "steady",
+        "favorite_bid": None,
+        "biggest_round_score": 0,
+        "fun_facts": [],
+        "bidding_style": "balanced",
+        "overbid_pct": 0,
+        "zero_bid_rate": 0,
+        "clutch_wins": 0,
+        "clutch_opportunities": 0,
+        "tempo": "even",
+        "consistency": "high",
+    }
 
-    if acc.games_played == 0:
-        return {
-            "wins": 0,
-            "games_played": 0,
-            "total_rounds": 0,
-            "best_trump": None,
-            "best_trump_pct": None,
-            "trend": "steady",
-            "favorite_bid": None,
-            "biggest_round_score": 0,
-            "fun_facts": [],
-            "bidding_style": "balanced",
-            "overbid_pct": 0,
-            "zero_bid_rate": 0,
-            "clutch_wins": 0,
-            "clutch_opportunities": 0,
-            "tempo": "even",
-            "consistency": "high",
-        }
 
-    best_suit, best_pct = _best_trump_suit(acc.trump_total, acc.trump_correct)
-    bidding_style, overbid_pct = _classify_bidding_style(
-        acc.overbids_count, acc.underbids_count, acc.exact_bids_count
-    )
-    favorite_bid = max(acc.bid_counts, key=lambda b: acc.bid_counts[b]) if acc.bid_counts else None
-
+def _build_display_extras_dict(
+    acc: "_RoundAccumulator", best_suit, best_pct, bidding_style, overbid_pct, favorite_bid
+) -> dict:
+    """Assemble the full display extras dict from pre-computed fields."""
     return {
         "wins": acc.wins,
         "games_played": acc.games_played,
@@ -427,6 +426,22 @@ def compute_display_extras(player_name: str, game_metrics_list: list) -> dict:
         "tempo": _classify_tempo(acc.first_half_scores, acc.second_half_scores),
         "consistency": _classify_consistency(acc.game_totals),
     }
+
+
+def compute_display_extras(player_name: str, game_metrics_list: list) -> dict:
+    """Compute full display extras for a player from GameMetrics objects."""
+    acc = _accumulate_rounds(player_name, game_metrics_list)
+    if acc.games_played == 0:
+        return _empty_display_extras()
+
+    best_suit, best_pct = _best_trump_suit(acc.trump_total, acc.trump_correct)
+    bidding_style, overbid_pct = _classify_bidding_style(
+        acc.overbids_count, acc.underbids_count, acc.exact_bids_count
+    )
+    favorite_bid = max(acc.bid_counts, key=lambda b: acc.bid_counts[b]) if acc.bid_counts else None
+    return _build_display_extras_dict(
+        acc, best_suit, best_pct, bidding_style, overbid_pct, favorite_bid
+    )
 
 
 def _compute_halfway_scores(gm) -> dict:
