@@ -64,9 +64,15 @@ class TestAggregateCareer:
 
         games = self._make_games()
         career = aggregate_career("Alice", games)
-        # Alice: game1 made 2/2, game2 made 1/2 → career 3/4 = 0.75
-        # Feature vector dim 0 = bid_accuracy (weighted)
-        assert career.feature_vector[0] > 0.5  # above average
+        # Alice: game1 made 2/2, game2 made 1/2 → career weighted accuracy ~0.75
+        assert career.feature_vector[0] > 0.65
+
+    def test_empty_games_list(self):
+        from app.services.metric_aggregator import aggregate_career
+
+        career = aggregate_career("Alice", [])
+        assert career.games_played == 0
+        assert career.feature_vector == [0.0] * 10
 
     def test_player_not_in_game_skipped(self):
         from app.services.metric_aggregator import aggregate_career

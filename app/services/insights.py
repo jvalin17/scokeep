@@ -12,13 +12,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.game import Game
 from app.models.playground import Playground
 from app.models.round import Round
-from app.services.feature_extractor import (
-    CARD_COUNT_WEIGHTS,
-    FEATURE_DIMENSIONS,
+from app.services.metric_aggregator import (
+    aggregate_career,
     compute_accuracy_by_cards,
+    compute_accuracy_by_cards_metrics,
+    compute_display_extras,
     compute_feature_vector,
     compute_player_extras,
 )
+from app.services.metrics import compute_game_metrics
 from app.services.personality_engine import (
     EMA_ALPHA,
     GROWTH_TEMPLATES,
@@ -26,6 +28,7 @@ from app.services.personality_engine import (
     PERSONALITY_CENTROIDS,
     PERSONALITY_META,
     STRENGTH_TEMPLATES,
+    adaptive_z_normalize,
     assign_personalities_unique,
     assign_personality,
     bayesian_shrink,
@@ -33,10 +36,26 @@ from app.services.personality_engine import (
     ema_update,
     generate_insights,
     global_z_normalize,
+    welford_update,
 )
 
 # Minimum games before personality is assigned
 MIN_GAMES_FOR_PERSONALITY = 3
+
+# Constants re-exported for backward compatibility
+CARD_COUNT_WEIGHTS = {1: 0.2, 2: 0.5}
+FEATURE_DIMENSIONS = [
+    "bid_accuracy",
+    "overbid_ratio",
+    "underbid_ratio",
+    "score_variance",
+    "zero_bid_success",
+    "high_card_accuracy",
+    "low_card_accuracy",
+    "tempo_first_half",
+    "tempo_second_half",
+    "comeback_rate",
+]
 
 # Re-export for backward compatibility with tests
 __all__ = [
@@ -49,18 +68,24 @@ __all__ = [
     "PERSONALITY_CENTROIDS",
     "PERSONALITY_META",
     "STRENGTH_TEMPLATES",
+    "adaptive_z_normalize",
+    "aggregate_career",
     "assign_personalities_unique",
     "assign_personality",
-    "compute_accuracy_by_cards",
     "backfill_meta",
+    "bayesian_shrink",
+    "compute_accuracy_by_cards",
+    "compute_accuracy_by_cards_metrics",
+    "compute_display_extras",
     "compute_feature_vector",
+    "compute_game_metrics",
     "compute_insights",
     "compute_player_extras",
     "cosine_similarity",
     "ema_update",
     "generate_insights",
-    "bayesian_shrink",
     "global_z_normalize",
+    "welford_update",
 ]
 
 
@@ -113,11 +138,17 @@ async def compute_insights(db: AsyncSession, playground_id: int) -> dict | None:
         _GameWithRounds(g, rounds_by_game[g.id]) for g in games if g.id in rounds_by_game
     ]
 
+    # Compute GameMetrics for each game (single shared pass)
+    game_metrics_list = [compute_game_metrics(g.players, g.rounds) for g in wrapped_games]
+
     player_game_counts = _count_player_games(wrapped_games)
     all_players = set(player_game_counts.keys())
     existing_players = (playground.insights or {}).get("players", {})
 
-    raw_vectors = _compute_raw_vectors(all_players, player_game_counts, wrapped_games)
+    # Load existing calibration state
+    existing_calibration = (playground.insights or {}).get("_calibration")
+
+    raw_vectors = _compute_raw_vectors(all_players, player_game_counts, game_metrics_list)
     if not raw_vectors:
         return await _store_unlock_only(db, playground, all_players, player_game_counts)
 
@@ -126,19 +157,20 @@ async def compute_insights(db: AsyncSession, playground_id: int) -> dict | None:
         player_game_counts,
         existing_players,
         all_players,
-        wrapped_games,
+        game_metrics_list,
         games,
         rounds_by_game,
+        existing_calibration,
     )
     playground.insights = insights_blob
     await db.commit()
     return insights_blob
 
 
-def _compute_raw_vectors(all_players, player_game_counts, wrapped_games):
+def _compute_raw_vectors(all_players, player_game_counts, game_metrics_list):
     """Compute feature vectors for players with enough games."""
     return {
-        name: compute_feature_vector(name, wrapped_games)
+        name: aggregate_career(name, game_metrics_list).feature_vector
         for name in all_players
         if player_game_counts[name] >= MIN_GAMES_FOR_PERSONALITY
     }
@@ -149,15 +181,20 @@ def _assemble_blob(
     player_game_counts,
     existing_players,
     all_players,
-    wrapped_games,
+    game_metrics_list,
     games,
     rounds_by_game,
+    existing_calibration=None,
 ):
     """Build the full insights blob from vectors and assignments."""
+    # Update Welford calibration with new raw vectors
+    calibration = _update_calibration(raw_vectors, existing_calibration)
+
     smoothed_vectors = _normalize_shrink_smooth(
         raw_vectors,
         player_game_counts,
         existing_players,
+        calibration,
     )
     assignments = assign_personalities_unique(smoothed_vectors)
     players_data = _build_player_data(
@@ -166,7 +203,7 @@ def _assemble_blob(
         assignments,
         smoothed_vectors,
         existing_players,
-        wrapped_games,
+        game_metrics_list,
     )
     return {
         "version": 1,
@@ -176,8 +213,24 @@ def _assemble_blob(
             [g for g in games if g.id in rounds_by_game],
             rounds_by_game,
         ),
-        "total_games": len(wrapped_games),
+        "total_games": len(game_metrics_list),
+        "_calibration": calibration,
     }
+
+
+def _update_calibration(raw_vectors, existing_calibration):
+    """Recompute Welford calibration from scratch (all vectors available).
+
+    We always have all qualifying players' vectors, so recomputing avoids
+    double-counting that would inflate the count on every recomputation.
+    """
+    num_dims = 10
+    state = {"count": 0, "mean": [0.0] * num_dims, "m2": [0.0] * num_dims}
+
+    for vec in raw_vectors.values():
+        state = welford_update(state, vec)
+
+    return state
 
 
 async def _load_game_data(db: AsyncSession, playground_id: int):
@@ -217,9 +270,10 @@ def _normalize_shrink_smooth(
     raw_vectors: dict[str, list[float]],
     player_game_counts: dict[str, int],
     existing_players: dict,
+    calibration: dict | None = None,
 ) -> dict[str, list[float]]:
-    """Pipeline: global-z normalize → Bayesian shrink → EMA smooth."""
-    normalized = global_z_normalize(raw_vectors)
+    """Pipeline: adaptive-z normalize → Bayesian shrink → EMA smooth."""
+    normalized = adaptive_z_normalize(raw_vectors, calibration)
 
     smoothed = {}
     for name, norm_vec in normalized.items():
@@ -258,7 +312,7 @@ def _build_player_data(
     assignments,
     smoothed_vectors,
     existing_players,
-    games,
+    game_metrics_list,
 ):
     """Build the full player data dict for the insights blob."""
     return {
@@ -268,7 +322,7 @@ def _build_player_data(
             assignments,
             smoothed_vectors,
             existing_players,
-            games,
+            game_metrics_list,
         )
         for name in all_players
     }
@@ -280,7 +334,7 @@ def _build_single_player(
     assignments,
     smoothed_vectors,
     existing_players,
-    games,
+    game_metrics_list,
 ):
     """Build data for one player — either unlock progress or full insights."""
     if games_played < MIN_GAMES_FOR_PERSONALITY:
@@ -304,9 +358,9 @@ def _build_single_player(
         "confidence": assignment["confidence"],
         "confidence_gap": assignment["confidence_gap"],
         "feature_vector": [round(v, 4) for v in smoothed_vectors[name]],
-        "accuracy_by_cards": compute_accuracy_by_cards(name, games),
+        "accuracy_by_cards": compute_accuracy_by_cards_metrics(name, game_metrics_list),
         "insights": generate_insights(smoothed_vectors[name], assignment["personality"]),
-        "extras": compute_player_extras(name, games),
+        "extras": compute_display_extras(name, game_metrics_list),
         "games_analyzed": games_played,
         "assigned_at": assigned_at,
     }

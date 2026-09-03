@@ -55,6 +55,66 @@ GLOBAL_PRIORS = [
 
 PRIOR_WEIGHT = 5
 
+# Minimum observations before using playground-specific calibration
+WELFORD_MIN_COUNT = 20
+
+
+def welford_update(state: dict, vec: list[float]) -> dict:
+    """Online update of running mean and M2 (sum of squared deviations).
+
+    Welford's algorithm — numerically stable single-pass.
+    State: {"count": int, "mean": list[float], "m2": list[float]}
+    """
+    count = state["count"] + 1
+    mean = list(state["mean"])
+    m2 = list(state["m2"])
+    for i in range(len(vec)):
+        delta = vec[i] - mean[i]
+        mean[i] += delta / count
+        delta2 = vec[i] - mean[i]
+        m2[i] += delta * delta2
+    return {"count": count, "mean": mean, "m2": m2}
+
+
+def welford_variance(state: dict) -> list[float]:
+    """Compute population variance from Welford state."""
+    if state["count"] < 2:
+        return [0.0] * len(state["mean"])
+    return [m2 / state["count"] for m2 in state["m2"]]
+
+
+def adaptive_z_normalize(
+    vectors: dict[str, list[float]],
+    calibration: dict | None,
+) -> dict[str, list[float]]:
+    """Normalize using playground-specific stats when available (count >= 20).
+
+    Falls back to global_z_normalize when calibration is None or count < threshold.
+    """
+    if not calibration or calibration.get("count", 0) < WELFORD_MIN_COUNT:
+        return global_z_normalize(vectors)
+
+    if not vectors:
+        return {}
+
+    cal_mean = calibration["mean"]
+    variances = welford_variance(calibration)
+    num_dims = len(cal_mean)
+
+    result = {}
+    for player, vec in vectors.items():
+        normalized = []
+        for i in range(min(len(vec), num_dims)):
+            sd = math.sqrt(variances[i]) if variances[i] > 0 else 0.0
+            if sd > 1e-10:
+                z = (vec[i] - cal_mean[i]) / sd
+                val = 1.0 / (1.0 + math.exp(-z))
+            else:
+                val = 0.5
+            normalized.append(round(val, 6))
+        result[player] = normalized
+    return result
+
 
 def global_z_normalize(vectors: dict[str, list[float]]) -> dict[str, list[float]]:
     """Normalize each dimension against fixed global priors, not other players."""
@@ -181,57 +241,6 @@ GROWTH_TEMPLATES = [
     "Keeping that energy late could be deadly.",
     "Comebacks are waiting to happen.",
 ]
-
-
-def min_max_normalize(vectors: dict[str, list[float]]) -> dict[str, list[float]]:
-    """Min-max normalize feature vectors across all players in a room."""
-    players = list(vectors.keys())
-    if not players:
-        return {}
-
-    num_dims = len(next(iter(vectors.values())))
-
-    if len(players) == 1:
-        return {players[0]: [0.5] * num_dims}
-
-    dim_mins = [float("inf")] * num_dims
-    dim_maxs = [float("-inf")] * num_dims
-    for vec in vectors.values():
-        for i in range(num_dims):
-            if vec[i] < dim_mins[i]:
-                dim_mins[i] = vec[i]
-            if vec[i] > dim_maxs[i]:
-                dim_maxs[i] = vec[i]
-
-    result = {}
-    for name, vec in vectors.items():
-        normalized = []
-        for i in range(num_dims):
-            span = dim_maxs[i] - dim_mins[i]
-            normalized.append((vec[i] - dim_mins[i]) / span if span > 0 else 0.5)
-        result[name] = normalized
-    return result
-
-
-def james_stein_shrink(
-    player_vector: list[float],
-    population_mean: list[float],
-    games_played: int,
-) -> list[float]:
-    """Apply James-Stein shrinkage toward population mean."""
-    num_dims = len(player_vector)
-    diff_squared_sum = sum((player_vector[i] - population_mean[i]) ** 2 for i in range(num_dims))
-
-    if diff_squared_sum < 1e-10 or games_played == 0:
-        return player_vector[:]
-
-    raw_shrinkage = 1.0 - (num_dims - 2) / (games_played * diff_squared_sum)
-    shrinkage_factor = max(0.0, min(1.0, raw_shrinkage))
-
-    return [
-        population_mean[i] + shrinkage_factor * (player_vector[i] - population_mean[i])
-        for i in range(num_dims)
-    ]
 
 
 def ema_update(

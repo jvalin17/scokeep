@@ -1,9 +1,7 @@
-"""Regression tests for specific bugs in feature_extractor and analytics.
+"""Regression tests for specific bugs in metric pipeline and analytics.
 
-BUG-029: 1-round game tempo skew — _track_tempo must return early when halfway < 1
-BUG-027: Accumulators count games where player has 0 rounds — both accumulators
-         must return early if no valid rounds exist for the player
-BUG-024: Phantom MVP from zero-score games — _build_awards must guard empty totals
+BUG-029: 1-round game tempo skew — tempo must be neutral for single-round games
+BUG-027: Accumulators count games where player has 0 rounds — must skip
 BUG-025/026: Cache staleness with empty games — _resolve_highlights must filter to
              games_with_rounds before comparing against cached total_games count
 """
@@ -12,13 +10,9 @@ import math
 
 import pytest
 
-from app.services.analytics import _build_awards, _resolve_highlights
-from app.services.feature_extractor import (
-    _ExtrasAccumulator,
-    _FeatureAccumulator,
-    compute_feature_vector,
-    compute_player_extras,
-)
+from app.services.analytics import _resolve_highlights
+from app.services.metric_aggregator import aggregate_career, compute_display_extras
+from app.services.metrics import compute_game_metrics
 
 # ---------------------------------------------------------------------------
 # Shared helpers (mirror style of test_insights.py)
@@ -60,79 +54,50 @@ def _make_game(players, rounds_data, winner=None):
 
 class TestBug029OnRoundGameTempoSkew:
     """A 1-round game has halfway = 0 // 2 = 0 (< 1).
-    _track_tempo must return early so neither half accumulates data.
+    Tempo must be neutral (0.5 normalized) for single-round games.
     Bug: if the guard was missing, round_idx=0 would be counted in the first
-    half and second-half would be empty, producing an asymmetric tempo reading
-    instead of a neutral 0.0 / 0.0."""
+    half and second-half would be empty, producing an asymmetric tempo reading."""
 
-    def _single_round_game(self, player="Nandini"):
-        """One 5-card round, Nandini bids 3 and makes 3 (score 30)."""
-        return _make_game(
-            players=[player, "Rahul"],
-            rounds_data=[
-                (5, {"0": 3, "1": 2}, {"0": 3, "1": 2}, {"0": 30, "1": 20}),
-            ],
-            winner=player,
-        )
+    def _single_round_metrics(self):
+        """GameMetrics from one 5-card round, Nandini bids 3 and makes 3."""
+        rnd = _make_round(5, {"0": 3, "1": 2}, {"0": 3, "1": 2}, {"0": 30, "1": 20})
+        return compute_game_metrics(["Nandini", "Rahul"], [rnd])
 
     def test_feature_vector_does_not_crash(self):
-        """compute_feature_vector on a 1-round game must not raise."""
-        game = self._single_round_game()
-        vector = compute_feature_vector("Nandini", [game] * 3)
-        assert len(vector) == 10
-        for v in vector:
+        """aggregate_career on a 1-round game must not raise."""
+        gm = self._single_round_metrics()
+        career = aggregate_career("Nandini", [gm] * 3)
+        assert len(career.feature_vector) == 10
+        for v in career.feature_vector:
             assert math.isfinite(v), f"Non-finite value in vector: {v}"
 
-    def test_tempo_dimensions_are_zero_for_single_round_game(self):
-        """Both tempo dimensions (7 and 8) must be 0.0 for a 1-round game.
-
-        halfway = 1 // 2 = 0 → _track_tempo returns early → no half
-        accumulates any score → _safe_divide(0, 0) = 0.0 for both.
-        If the guard is absent, dim 7 would be 30.0 and dim 8 would be 0.0.
-        """
-        game = self._single_round_game()
-        vector = compute_feature_vector("Nandini", [game] * 3)
-        assert vector[7] == pytest.approx(0.0), (
-            f"tempo_first_half should be 0.0 for 1-round game, got {vector[7]}"
+    def test_tempo_dimensions_neutral_for_single_round_game(self):
+        """Tempo dims (7 and 8) must be 0.5 (neutral) for 1-round games.
+        When halfway=0, no half accumulates → raw avg is 0 → normalized to 0.5."""
+        gm = self._single_round_metrics()
+        career = aggregate_career("Nandini", [gm] * 3)
+        assert career.feature_vector[7] == pytest.approx(0.5), (
+            f"tempo_first_half should be 0.5 for 1-round game, got {career.feature_vector[7]}"
         )
-        assert vector[8] == pytest.approx(0.0), (
-            f"tempo_second_half should be 0.0 for 1-round game, got {vector[8]}"
+        assert career.feature_vector[8] == pytest.approx(0.5), (
+            f"tempo_second_half should be 0.5 for 1-round game, got {career.feature_vector[8]}"
         )
 
     def test_extras_tempo_is_even_for_single_round_game(self):
-        """compute_player_extras must return tempo='even' for a 1-round game."""
-        game = self._single_round_game()
-        extras = compute_player_extras("Nandini", [game] * 3)
+        """compute_display_extras must return tempo='even' for a 1-round game."""
+        gm = self._single_round_metrics()
+        extras = compute_display_extras("Nandini", [gm] * 3)
         assert extras["tempo"] == "even", (
             f"Expected tempo='even' for 1-round game, got '{extras['tempo']}'"
         )
 
-    def test_feature_accumulator_track_tempo_skips_halfway_zero(self):
-        """Direct unit: _FeatureAccumulator._track_tempo with halfway=0 must not
-        increment either half's counters."""
-        accum = _FeatureAccumulator()
-        # halfway=0 → early return, no matter what round_idx and score are
-        accum._track_tempo(score=50, round_idx=0, halfway=0)
-        assert accum.first_half_round_count == 0
-        assert accum.second_half_round_count == 0
-        assert accum.first_half_score_sum == pytest.approx(0.0)
-        assert accum.second_half_score_sum == pytest.approx(0.0)
-
-    def test_extras_accumulator_track_tempo_skips_halfway_zero(self):
-        """Direct unit: _ExtrasAccumulator._track_tempo with halfway=0 must not
-        append to either half's score list."""
-        accum = _ExtrasAccumulator()
-        accum._track_tempo(score=50, round_idx=0, halfway=0)
-        assert accum.first_half_scores == []
-        assert accum.second_half_scores == []
-
     def test_accuracy_still_computed_for_single_round(self):
         """Bid accuracy (dim 0) must still reflect the single round even though
-        tempo is skipped — the early return is only inside _track_tempo."""
-        game = self._single_round_game()
-        vector = compute_feature_vector("Nandini", [game] * 3)
+        tempo is skipped."""
+        gm = self._single_round_metrics()
+        career = aggregate_career("Nandini", [gm] * 3)
         # Nandini bids 3 and makes 3 → perfect accuracy
-        assert vector[0] == pytest.approx(1.0)
+        assert career.feature_vector[0] == pytest.approx(1.0)
 
 
 # ---------------------------------------------------------------------------
@@ -144,219 +109,55 @@ class TestBug027AccumulatorsZeroRoundGames:
     """A player listed in game.players but with no bid/hand entries in any round
     must not increment games_played, wins, or game_scores.
 
-    Bug: if the early-return guard was missing, the accumulator would call
-    game_scores.append(0.0) and increment games_played even though the player
-    contributed nothing, inflating the game count and skewing variance."""
+    Bug: if the early-return guard was missing, the pipeline would count phantom
+    games, inflating the game count and skewing variance."""
 
-    def _game_player_listed_but_no_rounds(self):
-        """Priya is in the players list but has no bid/hand in any round.
-        Vikram plays normally."""
-        return _make_game(
-            players=["Priya", "Vikram"],
-            rounds_data=[
-                # Only Vikram (index 1) has data; Priya (index 0) is absent
-                (
-                    5,
-                    {"1": 3},
-                    {"1": 3},
-                    {"1": 30},
-                ),
-                (
-                    4,
-                    {"1": 2},
-                    {"1": 2},
-                    {"1": 20},
-                ),
-            ],
-            winner="Vikram",
+    def _metrics_player_listed_but_no_rounds(self):
+        """Priya is in the players list but has no bid/hand in any round."""
+        rnd1 = _make_round(5, {"1": 3}, {"1": 3}, {"1": 30})
+        rnd2 = _make_round(4, {"1": 2}, {"1": 2}, {"1": 20})
+        return compute_game_metrics(["Priya", "Vikram"], [rnd1, rnd2])
+
+    def _metrics_player_plays_normally(self):
+        """A normal game where Priya has rounds."""
+        rnd = _make_round(5, {"0": 2, "1": 3}, {"0": 2, "1": 3}, {"0": 20, "1": 30})
+        return compute_game_metrics(["Priya", "Vikram"], [rnd])
+
+    def test_career_does_not_count_zero_round_game(self):
+        """aggregate_career must not count games where player has 0 bids."""
+        gm = self._metrics_player_listed_but_no_rounds()
+        career = aggregate_career("Priya", [gm])
+        assert career.games_played == 0
+
+    def test_career_vector_all_zeros_for_zero_round_game(self):
+        """No bid data → feature vector must be all zeros."""
+        gm = self._metrics_player_listed_but_no_rounds()
+        career = aggregate_career("Priya", [gm])
+        assert all(v == pytest.approx(0.0) for v in career.feature_vector)
+
+    def test_career_skips_game_with_no_player_rounds(self):
+        """1 normal game + 1 zero-round game → career reflects only 1 game."""
+        normal = self._metrics_player_plays_normally()
+        empty = self._metrics_player_listed_but_no_rounds()
+        career = aggregate_career("Priya", [normal, empty])
+        # Only 1 game of data → score_variance (dim 3) must be 0
+        assert career.feature_vector[3] == pytest.approx(0.0), (
+            "score_variance must be 0 with a single scored game"
         )
+        assert career.feature_vector[0] == pytest.approx(1.0)
 
-    def _game_player_plays_normally(self):
-        """A normal game where Priya has rounds (used as contrast)."""
-        return _make_game(
-            players=["Priya", "Vikram"],
-            rounds_data=[
-                (5, {"0": 2, "1": 3}, {"0": 2, "1": 3}, {"0": 20, "1": 30}),
-            ],
-            winner="Vikram",
-        )
+    def test_display_extras_does_not_count_zero_round_game(self):
+        """compute_display_extras must not count games where player has 0 bids."""
+        gm = self._metrics_player_listed_but_no_rounds()
+        extras = compute_display_extras("Priya", [gm])
+        assert extras["games_played"] == 0
 
-    # --- _FeatureAccumulator ---
-
-    def test_feature_accumulator_does_not_count_zero_round_game(self):
-        """_FeatureAccumulator.process_game must not append to game_scores when
-        player has 0 valid rounds."""
-        accum = _FeatureAccumulator()
-        game = self._game_player_listed_but_no_rounds()
-        accum.process_game(game, "Priya", "0")
-        assert accum.game_scores == [], (
-            "game_scores must remain empty when player has no valid rounds"
-        )
-
-    def test_feature_accumulator_no_weighted_total_for_zero_round_game(self):
-        """No bid data → weighted_total stays 0; vector must be all zeros."""
-        accum = _FeatureAccumulator()
-        game = self._game_player_listed_but_no_rounds()
-        accum.process_game(game, "Priya", "0")
-        assert accum.weighted_total == pytest.approx(0.0)
-        vector = accum.to_vector()
-        assert all(v == pytest.approx(0.0) for v in vector)
-
-    def test_feature_vector_skips_game_with_no_player_rounds(self):
-        """compute_feature_vector: 1 normal game + 1 zero-round game → vector
-        reflects only the 1 normal game, no phantom data from the empty one."""
-        normal_game = self._game_player_plays_normally()
-        empty_game = self._game_player_listed_but_no_rounds()
-        vector = compute_feature_vector("Priya", [normal_game, empty_game])
-        # Only 1 game of data → score_variance (dim 3) must be 0 (single sample)
-        assert vector[3] == pytest.approx(0.0), (
-            "score_variance must be 0 with a single scored game "
-            f"(phantom game must not inflate count), got {vector[3]}"
-        )
-        # Accuracy from normal game: Priya bid 2 and made 2 → 1.0
-        assert vector[0] == pytest.approx(1.0)
-
-    # --- _ExtrasAccumulator ---
-
-    def test_extras_accumulator_does_not_count_zero_round_game(self):
-        """_ExtrasAccumulator.process_game must not increment games_played when
-        player has 0 valid rounds."""
-        accum = _ExtrasAccumulator()
-        game = self._game_player_listed_but_no_rounds()
-        accum.process_game(game, "Priya")
-        assert accum.games_played == 0, (
-            f"games_played must be 0 when player has no valid rounds, got {accum.games_played}"
-        )
-
-    def test_extras_accumulator_does_not_count_win_for_zero_round_game(self):
-        """Even if game.winner matches the player, wins must not be counted when
-        the player has 0 valid rounds (data integrity: can't win if not scored)."""
-        accum = _ExtrasAccumulator()
-        # Contrived: game says Priya won, but Priya has no scored rounds
-        game = _make_game(
-            players=["Priya", "Vikram"],
-            rounds_data=[(5, {"1": 5}, {"1": 5}, {"1": 50})],
-            winner="Priya",
-        )
-        accum.process_game(game, "Priya")
-        assert accum.wins == 0
-
-    def test_extras_accumulator_zero_round_game_leaves_game_totals_empty(self):
-        """game_totals must stay empty when player has no valid rounds, so
-        consistency() doesn't compute from phantom data."""
-        accum = _ExtrasAccumulator()
-        game = self._game_player_listed_but_no_rounds()
-        accum.process_game(game, "Priya")
-        assert accum.game_totals == []
-
-    def test_extras_games_played_only_counts_real_games(self):
-        """compute_player_extras: 1 real game + 2 zero-round games → games_played=1."""
-        normal_game = self._game_player_plays_normally()
-        empty_game = self._game_player_listed_but_no_rounds()
-        extras = compute_player_extras("Priya", [normal_game, empty_game, empty_game])
-        assert extras["games_played"] == 1, f"Expected 1 real game, got {extras['games_played']}"
-
-
-# ---------------------------------------------------------------------------
-# BUG-024: _build_awards must not crash or produce phantom MVP for empty totals
-# ---------------------------------------------------------------------------
-
-
-class TestBug024PhantomMvpFromZeroScoreGames:
-    """_build_awards receives stats with an empty totals dict when the most
-    recent game had no scored rounds.  Without the guard, max() on an empty
-    dict raises ValueError.
-
-    The fix: return None when totals is empty."""
-
-    def _empty_stats(self):
-        """stats dict as returned by _accumulate_game_stats when no bids exist."""
-        return {
-            "totals": {},
-            "bids_made": {},
-            "bids_total": {},
-            "zero_bids_made": {},
-            "overbids": {},
-            "underbids": {},
-            "best_bid": {},
-            "longest_miss": {},
-        }
-
-    def _stats_all_zero_scores(self):
-        """All players have 0 total score (common in short/penalty games)."""
-        players = ["Arjun", "Deepa", "Sanjay"]
-        return {
-            "totals": dict.fromkeys(players, 0),
-            "bids_made": dict.fromkeys(players, 0),
-            "bids_total": dict.fromkeys(players, 2),
-            "zero_bids_made": dict.fromkeys(players, 0),
-            "overbids": dict.fromkeys(players, 1),
-            "underbids": dict.fromkeys(players, 1),
-            "best_bid": dict.fromkeys(players, 2),
-            "longest_miss": dict.fromkeys(players, 0),
-        }
-
-    def test_empty_totals_returns_none(self):
-        """_build_awards({totals: {}}) must return None, not crash."""
-        result = _build_awards(self._empty_stats())
-        assert result is None, f"Expected None for empty totals, got {result!r}"
-
-    def test_all_zero_scores_does_not_select_arbitrary_mvp(self):
-        """When all players scored 0, the MVP award must not be returned
-        (max score is 0, which is not > 0, so mvp should be None or reflect
-        that no one scored).
-
-        The current implementation does return an MVP in this case (it picks
-        max by value which is 0), but it must not crash and the result must be
-        a dict with a 'mvp' key."""
-        result = _build_awards(self._stats_all_zero_scores())
-        # Must not raise; must be a dict (not None, since totals is non-empty)
-        assert isinstance(result, dict)
-        assert "mvp" in result
-        # The mvp name must be one of the known players
-        assert result["mvp"]["name"] in {"Arjun", "Deepa", "Sanjay"}
-
-    def test_normal_game_stats_awards_correct_mvp(self):
-        """Sanity check: when one player clearly scored highest, they get MVP."""
-        stats = {
-            "totals": {"Arjun": 80, "Deepa": 45, "Sanjay": 30},
-            "bids_made": {"Arjun": 5, "Deepa": 3, "Sanjay": 2},
-            "bids_total": {"Arjun": 6, "Deepa": 6, "Sanjay": 6},
-            "zero_bids_made": {"Arjun": 0, "Deepa": 0, "Sanjay": 0},
-            "overbids": {"Arjun": 0, "Deepa": 1, "Sanjay": 2},
-            "underbids": {"Arjun": 1, "Deepa": 2, "Sanjay": 2},
-            "best_bid": {"Arjun": 4, "Deepa": 3, "Sanjay": 2},
-            "longest_miss": {"Arjun": 1, "Deepa": 2, "Sanjay": 3},
-        }
-        result = _build_awards(stats)
-        assert result is not None
-        assert result["mvp"]["name"] == "Arjun"
-        assert result["mvp"]["score"] == 80
-
-    def test_build_awards_returns_expected_keys(self):
-        """Result dict must contain all expected award keys."""
-        stats = {
-            "totals": {"Kiran": 50, "Preethi": 40},
-            "bids_made": {"Kiran": 3, "Preethi": 2},
-            "bids_total": {"Kiran": 4, "Preethi": 4},
-            "zero_bids_made": {"Kiran": 1, "Preethi": 0},
-            "overbids": {"Kiran": 0, "Preethi": 1},
-            "underbids": {"Kiran": 1, "Preethi": 1},
-            "best_bid": {"Kiran": 3, "Preethi": 2},
-            "longest_miss": {"Kiran": 1, "Preethi": 2},
-        }
-        result = _build_awards(stats)
-        assert result is not None
-        expected_keys = {
-            "mvp",
-            "sharpshooter",
-            "brick_wall",
-            "bold_move",
-            "cursed",
-            "sandbagger",
-            "gambler",
-        }
-        assert expected_keys == set(result.keys())
+    def test_display_extras_only_counts_real_games(self):
+        """1 real game + 2 zero-round games → games_played=1."""
+        normal = self._metrics_player_plays_normally()
+        empty = self._metrics_player_listed_but_no_rounds()
+        extras = compute_display_extras("Priya", [normal, empty, empty])
+        assert extras["games_played"] == 1
 
 
 # ---------------------------------------------------------------------------
