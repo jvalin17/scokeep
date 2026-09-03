@@ -22,20 +22,12 @@ from app.services.insights import (
     generate_insights,
     global_z_normalize,
 )
+from tests.unit.conftest import MockRound
 
 
 def _make_round(cards_dealt, bids, hands_won, scores, trump_suit="spades"):
     """Create a mock round object for testing."""
-
-    class MockRound:
-        def __init__(self, cards_dealt, bids, hands_won, scores, trump_suit):
-            self.cards_dealt = cards_dealt
-            self.bids = bids
-            self.hands_won = hands_won
-            self.scores = scores
-            self.trump_suit = trump_suit
-
-    return MockRound(cards_dealt, bids, hands_won, scores, trump_suit)
+    return MockRound(bids, hands_won, scores, cards_dealt, trump_suit)
 
 
 def _make_game(players, rounds_data, winner=None):

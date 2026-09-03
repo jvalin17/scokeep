@@ -8,19 +8,13 @@ from app.services.analytics import (
     _process_game_for_career,
 )
 from app.services.round_utils import _iter_round_bids
+from tests.unit.conftest import MockRound
 
 
 class TestIterRoundBids:
     """Shared generator that resolves player indices to names."""
 
     def _make_round(self, bids, hands, scores):
-        class MockRound:
-            def __init__(self, bids, hands_won, scores):
-                self.bids = bids
-                self.hands_won = hands_won
-                self.scores = scores
-                self.cards_dealt = 8
-
         return MockRound(bids, hands, scores)
 
     def test_yields_name_bid_hand_score(self):

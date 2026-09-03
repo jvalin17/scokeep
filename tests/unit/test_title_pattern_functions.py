@@ -37,15 +37,7 @@ from app.services.title_patterns import (
     _variance_pattern,
     _zero_hero,
 )
-
-
-class MockRound:
-    def __init__(self, bids, hands_won, scores, cards_dealt=8, trump_suit="spades"):
-        self.bids = bids
-        self.hands_won = hands_won
-        self.scores = scores
-        self.cards_dealt = cards_dealt
-        self.trump_suit = trump_suit
+from tests.unit.conftest import MockRound
 
 
 def _build_ctx(players, rounds_data):

@@ -13,6 +13,7 @@ import pytest
 from app.services.analytics import _resolve_highlights
 from app.services.metric_aggregator import aggregate_career, compute_display_extras
 from app.services.metrics import compute_game_metrics
+from tests.unit.conftest import MockRound
 
 # ---------------------------------------------------------------------------
 # Shared helpers (mirror style of test_insights.py)
@@ -20,15 +21,7 @@ from app.services.metrics import compute_game_metrics
 
 
 def _make_round(cards_dealt, bids, hands_won, scores, trump_suit="spades"):
-    class MockRound:
-        def __init__(self):
-            self.cards_dealt = cards_dealt
-            self.bids = bids
-            self.hands_won = hands_won
-            self.scores = scores
-            self.trump_suit = trump_suit
-
-    return MockRound()
+    return MockRound(bids, hands_won, scores, cards_dealt, trump_suit)
 
 
 def _make_game(players, rounds_data, winner=None):
