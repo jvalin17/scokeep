@@ -1,5 +1,7 @@
 """Shared metric computation layer for game analytics."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 
 from app.services.round_utils import _iter_round_bids
@@ -27,16 +29,16 @@ class PlayerGameMetrics:
 
 @dataclass
 class GameMetrics:
-    players: list
+    players: list[str]
     round_count: int
-    player_metrics: dict
-    totals: dict
+    player_metrics: dict[str, PlayerGameMetrics]
+    totals: dict[str, int]
     winner: str | None
-    cards_per_round: list
-    trump_per_round: list
+    cards_per_round: list[int]
+    trump_per_round: list[str]
 
 
-def compute_game_metrics(players, game_rounds):
+def compute_game_metrics(players: list[str], game_rounds: list) -> GameMetrics:
     """Compute unified per-player stats from a list of game rounds."""
     if not game_rounds:
         return GameMetrics(

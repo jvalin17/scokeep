@@ -204,88 +204,116 @@ def _accumulate_rounds(player_name: str, game_metrics_list: list) -> _RoundAccum
         if n == 0:
             continue
 
-        halfway = n // 2
-        game_correct = 0
-
-        for i in range(n):
-            bid, hand = pm.bid_sequence[i]
-            score = pm.round_scores[i]
-            cards = gm.cards_per_round[i]
-            w = _weight(cards)
-            made = bid == hand
-
-            # Weighted accuracy (aggregate_career)
-            acc.weighted_total += w
-            if made:
-                acc.weighted_correct += w
-                acc.exact_bids_count += 1
-                game_correct += 1
-            elif bid > hand:
-                acc.weighted_overbids += w
-                acc.overbids_count += 1
-            else:
-                acc.weighted_underbids += w
-                acc.underbids_count += 1
-
-            # High/low card (aggregate_career)
-            if cards >= _HIGH_CARD_THRESHOLD:
-                acc.high_card_total += 1.0
-                if made:
-                    acc.high_card_correct += 1.0
-            if cards <= _LOW_CARD_THRESHOLD:
-                low_w = _weight(cards)
-                acc.low_card_total += low_w
-                if made:
-                    acc.low_card_correct += low_w
-
-            # Zero bid (shared)
-            if bid == 0:
-                acc.zero_bid_attempts += 1
-                if made:
-                    acc.zero_bid_successes += 1
-                    acc.zero_bid_streak += 1
-                    if acc.zero_bid_streak > acc.max_zero_streak:
-                        acc.max_zero_streak = acc.zero_bid_streak
-                else:
-                    acc.zero_bid_streak = 0
-
-            # Tempo (shared — store as lists; aggregate uses sum/len)
-            if halfway >= 1:
-                if i < halfway:
-                    acc.first_half_scores.append(score)
-                else:
-                    acc.second_half_scores.append(score)
-
-            # Display-only fields
-            acc.total_rounds += 1
-            if score > acc.biggest_round_score:
-                acc.biggest_round_score = score
-            acc.bid_counts[bid] = acc.bid_counts.get(bid, 0) + 1
-
-            if i < len(gm.trump_per_round) and gm.trump_per_round[i]:
-                trump = gm.trump_per_round[i].lower()
-                acc.trump_total[trump] = acc.trump_total.get(trump, 0) + 1
-                if made:
-                    acc.trump_correct[trump] = acc.trump_correct.get(trump, 0) + 1
-
-        acc.games_played += 1
-        acc.game_totals.append(pm.total_score)
-        if pm.bids_total > 0:
-            acc.game_accuracies.append(game_correct / pm.bids_total)
-        if gm.winner == player_name:
-            acc.wins += 1
-
-        # Comeback (shared)
-        if gm.round_count >= _MIN_ROUNDS_FOR_COMEBACK:
-            halfway_scores = _compute_halfway_scores(gm)
-            if halfway_scores:
-                leader = max(halfway_scores, key=lambda name: halfway_scores[name])
-                if player_name != leader:
-                    acc.comeback_opportunities += 1
-                    if gm.winner == player_name:
-                        acc.comeback_wins += 1
+        game_correct = _process_game_rounds(acc, pm, gm, n)
+        _finalize_game(acc, pm, gm, player_name, game_correct)
 
     return acc
+
+
+def _process_game_rounds(acc: _RoundAccumulator, pm, gm, n: int) -> int:
+    """Process all rounds in one game, return count of correct bids."""
+    halfway = n // 2
+    game_correct = 0
+
+    for i in range(n):
+        bid, hand = pm.bid_sequence[i]
+        score = pm.round_scores[i]
+        cards = gm.cards_per_round[i]
+        made = bid == hand
+
+        game_correct += _track_accuracy(acc, bid, hand, cards, made)
+        _track_card_ranges(acc, cards, made)
+        _track_zero_bids(acc, bid, made)
+        _track_tempo(acc, score, i, halfway)
+        _track_display(acc, bid, score, i, gm, made)
+
+    return game_correct
+
+
+def _track_accuracy(acc: _RoundAccumulator, bid, hand, cards, made) -> int:
+    """Track weighted accuracy and bid direction. Returns 1 if made, 0 otherwise."""
+    w = _weight(cards)
+    acc.weighted_total += w
+    if made:
+        acc.weighted_correct += w
+        acc.exact_bids_count += 1
+        return 1
+    elif bid > hand:
+        acc.weighted_overbids += w
+        acc.overbids_count += 1
+    else:
+        acc.weighted_underbids += w
+        acc.underbids_count += 1
+    return 0
+
+
+def _track_card_ranges(acc: _RoundAccumulator, cards: int, made: bool):
+    """Track high-card and low-card accuracy."""
+    if cards >= _HIGH_CARD_THRESHOLD:
+        acc.high_card_total += 1.0
+        if made:
+            acc.high_card_correct += 1.0
+    if cards <= _LOW_CARD_THRESHOLD:
+        low_w = _weight(cards)
+        acc.low_card_total += low_w
+        if made:
+            acc.low_card_correct += low_w
+
+
+def _track_zero_bids(acc: _RoundAccumulator, bid: int, made: bool):
+    """Track zero bid attempts, successes, and streaks."""
+    if bid != 0:
+        return
+    acc.zero_bid_attempts += 1
+    if made:
+        acc.zero_bid_successes += 1
+        acc.zero_bid_streak += 1
+        if acc.zero_bid_streak > acc.max_zero_streak:
+            acc.max_zero_streak = acc.zero_bid_streak
+    else:
+        acc.zero_bid_streak = 0
+
+
+def _track_tempo(acc: _RoundAccumulator, score, round_idx: int, halfway: int):
+    """Track first/second half scores for tempo calculation."""
+    if halfway < 1:
+        return
+    if round_idx < halfway:
+        acc.first_half_scores.append(score)
+    else:
+        acc.second_half_scores.append(score)
+
+
+def _track_display(acc: _RoundAccumulator, bid, score, round_idx, gm, made):
+    """Track display-only fields: round count, biggest score, bids, trump."""
+    acc.total_rounds += 1
+    if score > acc.biggest_round_score:
+        acc.biggest_round_score = score
+    acc.bid_counts[bid] = acc.bid_counts.get(bid, 0) + 1
+
+    if round_idx < len(gm.trump_per_round) and gm.trump_per_round[round_idx]:
+        trump = gm.trump_per_round[round_idx].lower()
+        acc.trump_total[trump] = acc.trump_total.get(trump, 0) + 1
+        if made:
+            acc.trump_correct[trump] = acc.trump_correct.get(trump, 0) + 1
+
+
+def _finalize_game(acc: _RoundAccumulator, pm, gm, player_name: str, game_correct: int):
+    """Finalize per-game stats: totals, accuracy, wins, comeback."""
+    acc.games_played += 1
+    acc.game_totals.append(pm.total_score)
+    acc.game_accuracies.append(game_correct / pm.bids_total)
+    if gm.winner == player_name:
+        acc.wins += 1
+
+    if gm.round_count >= _MIN_ROUNDS_FOR_COMEBACK:
+        halfway_scores = _compute_halfway_scores(gm)
+        if halfway_scores:
+            leader = max(halfway_scores, key=lambda n: halfway_scores[n])
+            if player_name != leader:
+                acc.comeback_opportunities += 1
+                if gm.winner == player_name:
+                    acc.comeback_wins += 1
 
 
 # ── Display extras constants ───────────────────────────────────────────────────

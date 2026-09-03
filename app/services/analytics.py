@@ -314,6 +314,8 @@ def _apply_career_rules(player_career, bid, hand, made, cards_dealt):
 
 def _game_to_history(game, game_rounds):
     """Convert one game + rounds into a history entry dict."""
+    from app.services.round_utils import determine_winner
+
     players = game.players
     game_totals = dict.fromkeys(players, 0)
     for rnd in game_rounds:
@@ -321,18 +323,13 @@ def _game_to_history(game, game_rounds):
             idx = int(idx_str)
             if idx < len(players):
                 game_totals[players[idx]] += score
-    if game_totals:
-        top_score = max(game_totals.values())
-        leaders = [n for n, s in game_totals.items() if s == top_score]
-        winner = leaders[0] if len(leaders) == 1 else None
-    else:
-        winner = None
+
     return {
         "game_id": game.id,
         "date": game.started_at.isoformat() if game.started_at else None,
         "players": players,
         "scores": game_totals,
-        "winner": winner,
+        "winner": determine_winner(players, game_rounds),
         "rounds_played": len(game_rounds),
         "mode": game.settings.get("mode", "expert"),
     }

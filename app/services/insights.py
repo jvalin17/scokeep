@@ -109,19 +109,9 @@ class _GameWithRounds:
 
     @staticmethod
     def _determine_winner(players, rounds):
-        if not rounds:
-            return None
-        totals = dict.fromkeys(players, 0)
-        for rnd in rounds:
-            for idx_str, score in rnd.scores.items():
-                idx = int(idx_str)
-                if idx < len(players):
-                    totals[players[idx]] += score
-        if not totals:
-            return None
-        top_score = max(totals.values())
-        leaders = [n for n, s in totals.items() if s == top_score]
-        return leaders[0] if len(leaders) == 1 else None
+        from app.services.round_utils import determine_winner
+
+        return determine_winner(players, rounds)
 
 
 async def compute_insights(db: AsyncSession, playground_id: int) -> dict | None:
@@ -145,9 +135,6 @@ async def compute_insights(db: AsyncSession, playground_id: int) -> dict | None:
     all_players = set(player_game_counts.keys())
     existing_players = (playground.insights or {}).get("players", {})
 
-    # Load existing calibration state
-    existing_calibration = (playground.insights or {}).get("_calibration")
-
     raw_vectors = _compute_raw_vectors(all_players, player_game_counts, game_metrics_list)
     if not raw_vectors:
         return await _store_unlock_only(db, playground, all_players, player_game_counts)
@@ -160,7 +147,6 @@ async def compute_insights(db: AsyncSession, playground_id: int) -> dict | None:
         game_metrics_list,
         games,
         rounds_by_game,
-        existing_calibration,
     )
     playground.insights = insights_blob
     await db.commit()
@@ -184,11 +170,9 @@ def _assemble_blob(
     game_metrics_list,
     games,
     rounds_by_game,
-    existing_calibration=None,
 ):
     """Build the full insights blob from vectors and assignments."""
-    # Update Welford calibration with new raw vectors
-    calibration = _update_calibration(raw_vectors, existing_calibration)
+    calibration = _update_calibration(raw_vectors)
 
     smoothed_vectors = _normalize_shrink_smooth(
         raw_vectors,
@@ -218,18 +202,12 @@ def _assemble_blob(
     }
 
 
-def _update_calibration(raw_vectors, existing_calibration):
-    """Recompute Welford calibration from scratch (all vectors available).
-
-    We always have all qualifying players' vectors, so recomputing avoids
-    double-counting that would inflate the count on every recomputation.
-    """
+def _update_calibration(raw_vectors):
+    """Recompute Welford calibration from scratch (all vectors available)."""
     num_dims = 10
     state = {"count": 0, "mean": [0.0] * num_dims, "m2": [0.0] * num_dims}
-
     for vec in raw_vectors.values():
         state = welford_update(state, vec)
-
     return state
 
 

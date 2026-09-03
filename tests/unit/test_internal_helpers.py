@@ -52,8 +52,7 @@ class TestInsightsHelpers:
         from app.services.insights import _update_calibration
 
         vectors = {"Alice": [0.5] * 10, "Bob": [0.8] * 10}
-        existing = {"count": 100, "mean": [0.0] * 10, "m2": [0.0] * 10}
-        result = _update_calibration(vectors, existing)
+        result = _update_calibration(vectors)
         assert result["count"] == 2
 
 

@@ -42,87 +42,109 @@ TITLE_REGISTRY: list = list(COMPLEX_PATTERNS) + [
 
 
 def build_context(players: list[str], game_rounds) -> GameContext:
-    totals: dict[str, int] = dict.fromkeys(players, 0)
-    bids_made: dict[str, int] = dict.fromkeys(players, 0)
-    bids_total: dict[str, int] = dict.fromkeys(players, 0)
-    zero_bids_made: dict[str, int] = dict.fromkeys(players, 0)
-    zero_bids_attempted: dict[str, int] = dict.fromkeys(players, 0)
-    overbids: dict[str, int] = dict.fromkeys(players, 0)
-    underbids: dict[str, int] = dict.fromkeys(players, 0)
-    best_bid_made: dict[str, int] = dict.fromkeys(players, 0)
-    miss_streak: dict[str, int] = dict.fromkeys(players, 0)
-    make_streak: dict[str, int] = dict.fromkeys(players, 0)
-    longest_miss_streak: dict[str, int] = dict.fromkeys(players, 0)
-    longest_make_streak: dict[str, int] = dict.fromkeys(players, 0)
-    score_history: dict[str, list[int]] = {p: [] for p in players}
-    bid_sequence: dict[str, list[tuple[int, int]]] = {p: [] for p in players}
-    round_scores: dict[str, list[int]] = {p: [] for p in players}
-    cards_per_round: list[int] = []
-    trump_per_round: list[str] = []
-    off_by_one: dict[str, int] = dict.fromkeys(players, 0)
-
+    """Build a GameContext by iterating all rounds once."""
+    state = _init_context_state(players)
     seen_rounds: set = set()
 
     for name, bid, hand, score, rnd in _iter_round_bids(players, game_rounds):
         if id(rnd) not in seen_rounds:
             seen_rounds.add(id(rnd))
-            cards_per_round.append(rnd.cards_dealt)
-            trump_per_round.append(getattr(rnd, "trump", ""))
+            state["cards_per_round"].append(rnd.cards_dealt)
+            state["trump_per_round"].append(getattr(rnd, "trump", ""))
 
-        bids_total[name] += 1
-        bid_sequence[name].append((bid, hand))
-        round_scores[name].append(score)
-        totals[name] += score
-        score_history[name].append(totals[name])
+        _process_context_bid(state, name, bid, hand, score)
 
-        made = bid == hand
-        if made:
-            bids_made[name] += 1
-            make_streak[name] += 1
-            miss_streak[name] = 0
-            if bid > best_bid_made[name]:
-                best_bid_made[name] = bid
-            if bid == 0:
-                zero_bids_made[name] += 1
-        else:
-            miss_streak[name] += 1
-            make_streak[name] = 0
-            if hand > bid:
-                underbids[name] += 1
-            else:
-                overbids[name] += 1
-            if abs(hand - bid) == 1:
-                off_by_one[name] += 1
+    return _finalize_context(players, state)
 
+
+def _init_context_state(players: list[str]) -> dict:
+    """Initialize all accumulator dicts for build_context."""
+    return {
+        "totals": dict.fromkeys(players, 0),
+        "bids_made": dict.fromkeys(players, 0),
+        "bids_total": dict.fromkeys(players, 0),
+        "zero_bids_made": dict.fromkeys(players, 0),
+        "zero_bids_attempted": dict.fromkeys(players, 0),
+        "overbids": dict.fromkeys(players, 0),
+        "underbids": dict.fromkeys(players, 0),
+        "best_bid_made": dict.fromkeys(players, 0),
+        "miss_streak": dict.fromkeys(players, 0),
+        "make_streak": dict.fromkeys(players, 0),
+        "longest_miss_streak": dict.fromkeys(players, 0),
+        "longest_make_streak": dict.fromkeys(players, 0),
+        "score_history": {p: [] for p in players},
+        "bid_sequence": {p: [] for p in players},
+        "round_scores": {p: [] for p in players},
+        "cards_per_round": [],
+        "trump_per_round": [],
+        "off_by_one": dict.fromkeys(players, 0),
+    }
+
+
+def _process_context_bid(state: dict, name: str, bid: int, hand: int, score: int):
+    """Process one bid result into the context state."""
+    state["bids_total"][name] += 1
+    state["bid_sequence"][name].append((bid, hand))
+    state["round_scores"][name].append(score)
+    state["totals"][name] += score
+    state["score_history"][name].append(state["totals"][name])
+
+    made = bid == hand
+    if made:
+        state["bids_made"][name] += 1
+        state["make_streak"][name] += 1
+        state["miss_streak"][name] = 0
+        if bid > state["best_bid_made"][name]:
+            state["best_bid_made"][name] = bid
         if bid == 0:
-            zero_bids_attempted[name] += 1
+            state["zero_bids_made"][name] += 1
+    else:
+        state["miss_streak"][name] += 1
+        state["make_streak"][name] = 0
+        if hand > bid:
+            state["underbids"][name] += 1
+        else:
+            state["overbids"][name] += 1
+        if abs(hand - bid) == 1:
+            state["off_by_one"][name] += 1
 
-        longest_miss_streak[name] = max(longest_miss_streak[name], miss_streak[name])
-        longest_make_streak[name] = max(longest_make_streak[name], make_streak[name])
+    if bid == 0:
+        state["zero_bids_attempted"][name] += 1
 
-    accuracy = {p: bids_made[p] / bids_total[p] if bids_total[p] > 0 else 0.0 for p in players}
-    round_count = len(cards_per_round)
+    state["longest_miss_streak"][name] = max(
+        state["longest_miss_streak"][name], state["miss_streak"][name]
+    )
+    state["longest_make_streak"][name] = max(
+        state["longest_make_streak"][name], state["make_streak"][name]
+    )
 
+
+def _finalize_context(players: list[str], state: dict) -> GameContext:
+    """Build the final GameContext from accumulated state."""
+    accuracy = {
+        p: state["bids_made"][p] / state["bids_total"][p] if state["bids_total"][p] > 0 else 0.0
+        for p in players
+    }
     return GameContext(
         players=players,
-        totals=totals,
-        round_count=round_count,
+        totals=state["totals"],
+        round_count=len(state["cards_per_round"]),
         accuracy=accuracy,
-        bids_made=bids_made,
-        bids_total=bids_total,
-        zero_bids_made=zero_bids_made,
-        zero_bids_attempted=zero_bids_attempted,
-        overbids=overbids,
-        underbids=underbids,
-        best_bid_made=best_bid_made,
-        longest_miss_streak=longest_miss_streak,
-        longest_make_streak=longest_make_streak,
-        score_history=score_history,
-        bid_sequence=bid_sequence,
-        round_scores=round_scores,
-        cards_per_round=cards_per_round,
-        trump_per_round=trump_per_round,
-        off_by_one=off_by_one,
+        bids_made=state["bids_made"],
+        bids_total=state["bids_total"],
+        zero_bids_made=state["zero_bids_made"],
+        zero_bids_attempted=state["zero_bids_attempted"],
+        overbids=state["overbids"],
+        underbids=state["underbids"],
+        best_bid_made=state["best_bid_made"],
+        longest_miss_streak=state["longest_miss_streak"],
+        longest_make_streak=state["longest_make_streak"],
+        score_history=state["score_history"],
+        bid_sequence=state["bid_sequence"],
+        round_scores=state["round_scores"],
+        cards_per_round=state["cards_per_round"],
+        trump_per_round=state["trump_per_round"],
+        off_by_one=state["off_by_one"],
     )
 
 
