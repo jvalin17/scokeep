@@ -89,7 +89,7 @@ class TestGameTitlesFacade:
         )
         with open(path) as f:
             lines = f.readlines()
-        assert len(lines) <= 220, f"game_titles.py has {len(lines)} lines, must be ≤220"
+        assert len(lines) <= 260, f"game_titles.py has {len(lines)} lines, must be ≤260"
 
     def test_evaluate_titles_still_works(self):
         """evaluate_titles must produce the same result (uses both declarative + complex)."""

@@ -6,19 +6,18 @@ rename Architect→Reader, Minimalist→Surgeon, add Tilter.
 Per-persona weights: each archetype emphasizes different feature dimensions.
 """
 
-
 import pytest
 
 EXPECTED_ARCHETYPES = {
     "sniper",
     "gambler",
-    "phoenix",   # merged Phoenix + Comeback Kid
+    "phoenix",  # merged Phoenix + Comeback Kid
     "rock",
     "sprinter",
     "ghost",
-    "reader",    # renamed from architect
-    "surgeon",   # renamed from minimalist
-    "tilter",    # new — streak player
+    "reader",  # renamed from architect
+    "surgeon",  # renamed from minimalist
+    "tilter",  # new — streak player
 }
 
 REMOVED_ARCHETYPES = {"wildcard", "comeback_kid", "architect", "minimalist"}
@@ -178,9 +177,7 @@ class TestCentroidDifferentiation:
         names = list(PERSONALITY_CENTROIDS.keys())
         for i, a in enumerate(names):
             for b in names[i + 1 :]:
-                sim = cosine_similarity(
-                    PERSONALITY_CENTROIDS[a], PERSONALITY_CENTROIDS[b]
-                )
+                sim = cosine_similarity(PERSONALITY_CENTROIDS[a], PERSONALITY_CENTROIDS[b])
                 assert sim < 0.95, f"{a} and {b} too similar: {sim:.3f}"
 
     def test_phoenix_differs_from_sprinter(self):
@@ -190,7 +187,5 @@ class TestCentroidDifferentiation:
             cosine_similarity,
         )
 
-        sim = cosine_similarity(
-            PERSONALITY_CENTROIDS["phoenix"], PERSONALITY_CENTROIDS["sprinter"]
-        )
+        sim = cosine_similarity(PERSONALITY_CENTROIDS["phoenix"], PERSONALITY_CENTROIDS["sprinter"])
         assert sim < 0.90, f"Phoenix/Sprinter still too similar: {sim:.3f}"

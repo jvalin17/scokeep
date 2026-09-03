@@ -198,10 +198,56 @@ def evaluate_titles(players: list[str], game_rounds) -> list[dict]:
     if ctx.round_count == 0:
         return []
 
-    # Collect candidates from both declarative and complex titles
+    return _evaluate_from_context(ctx, players)
+
+
+def build_context_from_metrics(gm) -> GameContext:
+    """Build a GameContext from a GameMetrics object (shared pipeline)."""
+    players = gm.players
+    state = _init_context_state(players)
+
+    for player in players:
+        pm = gm.player_metrics.get(player)
+        if pm is None:
+            continue
+        _fill_state_from_player_metrics(state, player, pm, gm)
+
+    return _finalize_context(players, state)
+
+
+def _fill_state_from_player_metrics(state, player, pm, gm):
+    """Copy PlayerGameMetrics fields into context state dict."""
+    state["bids_made"][player] = pm.bids_made
+    state["bids_total"][player] = pm.bids_total
+    state["zero_bids_made"][player] = pm.zero_bids_made
+    state["zero_bids_attempted"][player] = pm.zero_bids_attempted
+    state["overbids"][player] = pm.overbids
+    state["underbids"][player] = pm.underbids
+    state["best_bid_made"][player] = pm.best_bid_made
+    state["longest_miss_streak"][player] = pm.longest_miss_streak
+    state["longest_make_streak"][player] = pm.longest_make_streak
+    state["off_by_one"][player] = pm.off_by_one
+    state["total_rounds"] = gm.round_count
+    state["totals"][player] = pm.total_score
+    state["round_scores"][player] = list(pm.round_scores)
+    state["bid_sequence"][player] = list(pm.bid_sequence)
+    state["score_history"][player] = list(pm.score_cumulative)
+    state["cards_per_round"] = list(gm.cards_per_round)
+    state["trump_per_round"] = list(gm.trump_per_round)
+
+
+def evaluate_titles_from_metrics(gm) -> list[dict]:
+    """Evaluate titles from a GameMetrics object (shared pipeline path)."""
+    if gm.round_count == 0:
+        return []
+    ctx = build_context_from_metrics(gm)
+    return _evaluate_from_context(ctx, gm.players)
+
+
+def _evaluate_from_context(ctx: GameContext, players: list[str]) -> list[dict]:
+    """Collect candidates from declarative + complex titles and select."""
     candidates: list[dict] = []
     candidates.extend(evaluate_declarative(ctx))
     for fn in COMPLEX_PATTERNS:
         candidates.extend(fn(ctx))
-
     return select_titles(candidates, players)
