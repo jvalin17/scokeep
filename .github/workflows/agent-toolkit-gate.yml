@@ -27,8 +27,9 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r .agent-toolkit/gate/requirements.txt
-          pip install -e ".[dev]"
+          python -m venv .venv
+          .venv/bin/pip install -r .agent-toolkit/gate/requirements.txt
+          .venv/bin/pip install -e ".[dev]"
 
       - name: Seed skill reports
         run: |
@@ -36,13 +37,13 @@ jobs:
 
       - name: Run attestation (tests + skill reports)
         run: |
-          python .agent-toolkit/gate/scripts/verify_gate.py attest --project-root .
+          .venv/bin/python .agent-toolkit/gate/scripts/verify_gate.py attest --project-root .
         env:
           AGENT_TOOLKIT_ATTEST_SKIP_HOOK_TESTS: "1"
 
       - name: Issue signed gate token
         run: |
-          python .agent-toolkit/gate/scripts/issue_token.py \
+          .venv/bin/python .agent-toolkit/gate/scripts/issue_token.py \
             --project-root . \
             --action push
         env:
@@ -50,7 +51,7 @@ jobs:
 
       - name: Verify token
         run: |
-          python .agent-toolkit/gate/scripts/verify_gate.py verify \
+          .venv/bin/python .agent-toolkit/gate/scripts/verify_gate.py verify \
             --project-root . \
             --action push \
             --commit "${{ github.sha }}"
