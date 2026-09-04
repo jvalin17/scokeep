@@ -25,7 +25,7 @@ def test_lobby_renders(lobby_page, viewport):
 def test_start_game_button_visible(lobby_page):
     """Start Game button is present."""
     btn = lobby_page.locator('button:has-text("Start Game")')
-    assert btn.count() > 0
+    btn.wait_for(state="visible", timeout=10000)
     assert btn.is_visible()
 
 

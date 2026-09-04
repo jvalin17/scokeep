@@ -103,7 +103,6 @@ class TestExtendFlow:
 
         # Select 1 set and 1 card per round so the game has only 1 round total
         page.wait_for_selector("#start-game", timeout=5000)
-        page.select_option("#setting-timer", "0")
         page.select_option("#setting-sets", "1")
         page.select_option("#setting-set-type", "1")
         page.click("#start-game")
