@@ -232,6 +232,12 @@ def _process_game_for_career(game, rounds_by_game, career):
     rounds_per_set = game.settings.get("rounds_per_set", 8)
     acc = _init_game_accumulators(players)
 
+    # Reset all running streaks at game start — streaks are per-game, not cross-game
+    for name in players:
+        career[name]["current_positive_streak"] = 0
+        career[name]["current_zero_streak"] = 0
+        career[name]["current_miss_streak"] = 0
+
     for round_idx, rnd in enumerate(game_rounds):
         _process_round_for_career(rnd, players, career, acc)
         _update_set_tracking(round_idx, rounds_per_set, players, acc, career)
