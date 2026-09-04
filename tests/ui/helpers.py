@@ -101,9 +101,9 @@ def confirm_bids(page: Page):
 def enter_hands_won(page: Page, hands: list[int]):
     """Enter hands won for all players after clicking enter round end."""
     end_round_btn = page.locator('button:has-text("End Round"), button:has-text("Enter Results")')
-    if end_round_btn.count() > 0:
-        end_round_btn.first.click()
-        page.wait_for_function("() => location.hash.includes('roundend')", timeout=10000)
+    end_round_btn.first.wait_for(state="visible", timeout=60000)
+    end_round_btn.first.click()
+    page.wait_for_function("() => location.hash.includes('roundend')", timeout=10000)
 
     for hand in hands:
         page.wait_for_selector(".keypad", timeout=60000)
