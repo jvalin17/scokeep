@@ -6,7 +6,7 @@ import { getRoundCards, escapeHtml } from '../components/game-utils.js';
 import { getEntryOrder } from '../components/entry-utils.js';
 import { renderGameIsland, renderRoundInfoBar, renderTrumpDisplay, attachEndGameHandler, showError, setScreenContext } from '../components/screen-parts.js';
 import { soundStartRound } from '../components/sounds.js';
-import { showReviewTimer } from '../components/review-timer.js';
+
 
 export const biddingScreen = {
     async mount(container, state, { navigate, params }) {
@@ -20,7 +20,7 @@ export const biddingScreen = {
         const mustLose = settings.must_lose || false;
         const mode = settings.mode || 'expert';
         const rps = settings.rounds_per_set || 8;
-        const reviewTimerMs = (settings.timer_seconds ?? 10) * 1000;
+
         const biddingOrder = getEntryOrder(game.dealer_index, players.length);
         let bidPosition = 0;
         let bidsCollected = {};
@@ -93,10 +93,7 @@ export const biddingScreen = {
                 max: cardsDealt,
                 disabled: getMustLoseDisabledKeys(pi, cardsDealt),
                 onSelect: (value) => {
-                    showReviewTimer(container, value, reviewTimerMs,
-                        (confirmed) => handleBidSelect(confirmed),
-                        () => renderCollecting(),
-                    );
+                    handleBidSelect(value);
                 },
             });
             container.querySelector('#keypad-container').appendChild(keypad);

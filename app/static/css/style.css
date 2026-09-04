@@ -345,7 +345,7 @@ input::placeholder { color: var(--text-muted); }
 .keypad-selected { background: var(--accent); color: #fff; transform: scale(1.05); box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
 .keypad-disabled { opacity: 0.25; cursor: not-allowed; }
 
-/* Review timer overlay */
+/* Review timer overlay — REMOVED, kept class for safety */
 .review-overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,0.7);
     display: flex; flex-direction: column; align-items: center;

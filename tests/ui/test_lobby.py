@@ -58,7 +58,7 @@ def test_sound_mute_toggle(lobby_page):
     """Toggle-sound button switches between 🔊 and 🔇 and persists to localStorage."""
     page = lobby_page
     toggle = page.locator("#toggle-sound")
-    assert toggle.count() > 0, "#toggle-sound button not found"
+    toggle.wait_for(state="visible", timeout=10000)
     initial_text = toggle.inner_text()
     assert "🔊" in initial_text, f"Expected 🔊 initially, got: {initial_text!r}"
     toggle.click()

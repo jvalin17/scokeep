@@ -103,14 +103,6 @@ export const lobbyScreen = {
                                 <option value="kachuful_zeros">Zeros (bid 1 = 10)</option>
                             </select>
 
-                            <label>Review timer</label>
-                            <select id="setting-timer">
-                                <option value="0">Instant</option>
-                                <option value="5">5 seconds</option>
-                                <option value="10" selected>10 seconds</option>
-                                <option value="15">15 seconds</option>
-                            </select>
-
                             <label>Must-lose</label>
                             <label class="toggle">
                                 <input type="checkbox" id="setting-must-lose" checked>
@@ -226,7 +218,6 @@ export const lobbyScreen = {
                     num_sets: numSets,
                     rounds_per_set: roundsPerSet,
                     must_lose: container.querySelector('#setting-must-lose').checked,
-                    timer_seconds: parseInt(container.querySelector('#setting-timer').value),
                 };
 
                 try {
