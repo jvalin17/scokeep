@@ -24,21 +24,21 @@ jobs:
           SHA=${{ steps.sha.outputs.sha }}
           echo "Checking CI status for main @ $SHA"
 
-          # Wait up to 30s for checks to be available (in case CI just started)
-          for i in 1 2 3; do
-            STATUS=$(gh api repos/${{ github.repository }}/commits/$SHA/status --jq '.state')
-            if [ "$STATUS" != "pending" ]; then break; fi
-            echo "Checks pending, waiting 10s..."
+          # Wait up to 5 minutes for CI to complete (CI takes ~3-4 min)
+          echo "Waiting for CI to complete..."
+          for i in $(seq 1 30); do
+            CONCLUSION=$(gh run list \
+              --branch main \
+              --workflow ci.yml \
+              --limit 1 \
+              --json headSha,conclusion,status \
+              --jq '.[0] | select(.headSha == "'"$SHA"'") | .conclusion')
+            if [ -n "$CONCLUSION" ] && [ "$CONCLUSION" != "" ]; then
+              break
+            fi
+            echo "  CI still running, waiting 10s... (attempt $i/30)"
             sleep 10
           done
-
-          # Check the CI workflow specifically
-          CONCLUSION=$(gh run list \
-            --branch main \
-            --workflow ci.yml \
-            --limit 1 \
-            --json headSha,conclusion \
-            --jq '.[0] | select(.headSha == "'"$SHA"'") | .conclusion')
 
           if [ "$CONCLUSION" != "success" ]; then
             echo "::error::CI has not passed on main ($SHA). Conclusion: ${CONCLUSION:-not found}"
