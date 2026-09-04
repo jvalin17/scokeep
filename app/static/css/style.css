@@ -264,7 +264,7 @@ input::placeholder { color: var(--text-muted); }
     border-radius: 20px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     margin: 0 auto 12px;
-    font-size: 1.05rem;
+    font-size: 1.125rem;
     font-weight: 600;
     color: var(--text-primary);
 }
