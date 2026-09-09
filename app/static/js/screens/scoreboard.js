@@ -3,7 +3,6 @@
 import { getGame, getScoreboard, undoRound, endGame, nextRound, enterRescore, extendGame } from '../api.js';
 import { getTrump, escapeHtml } from '../components/game-utils.js';
 import { soundNextRound, soundEndGame, soundUndo } from '../components/sounds.js';
-import { renderScoresheetTable } from '../components/screen-parts.js';
 
 export const scoreboardScreen = {
     async mount(container, state, { navigate, params }) {
@@ -79,7 +78,36 @@ export const scoreboardScreen = {
 
             // Game over: full scoresheet — round scores only, total at bottom
             scoreTableHtml = `
-                ${renderScoresheetTable(players, rounds, totals)}
+                <div class="score-table score-table-full">
+                    <table class="scoresheet">
+                        <thead>
+                            <tr>
+                                <th>R#</th>
+                                ${players.map(name => `<th>${escapeHtml(name)}</th>`).join('')}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rounds.map(round => {
+                                const trump = getTrump(round.round_num);
+                                return `<tr>
+                                    <td>${round.round_num}<span class="${trump.isRed ? 'trump-red' : ''}" style="font-size:0.7em;">${trump.symbol}</span></td>
+                                    ${players.map((_, idx) => {
+                                        const roundScore = round.scores[String(idx)] || 0;
+                                        return `<td class="${roundScore < 0 ? 'score-negative' : ''}">
+                                            ${roundScore > 0 ? '+' : ''}${roundScore}
+                                        </td>`;
+                                    }).join('')}
+                                </tr>`;
+                            }).join('')}
+                        </tbody>
+                        <tfoot>
+                            <tr class="totals-row">
+                                <td><strong>Tot</strong></td>
+                                ${players.map((_, idx) => `<td><strong>${totals[String(idx)] || 0}</strong></td>`).join('')}
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
                 ${rankingsHtml}
             `;
         } else if (rounds.length > 0) {
@@ -142,8 +170,9 @@ export const scoreboardScreen = {
                 nextRoundBtn.addEventListener('click', async () => {
                     try {
                         const updated = await nextRound(gameId);
-                        if (updated.phase === 'review') {
-                            navigate(`review/${gameId}`);
+                        if (updated.status === 'finished') {
+                            navigate(`scoreboard/${gameId}`);
+                            window.dispatchEvent(new HashChangeEvent('hashchange'));
                         } else {
                             soundNextRound();
                             navigate(`bid/${gameId}`);
@@ -172,7 +201,9 @@ export const scoreboardScreen = {
                 endGameBtn.addEventListener('click', async () => {
                     try {
                         await endGame(gameId);
-                        navigate(`review/${gameId}`);
+                        soundEndGame();
+                        navigate(`scoreboard/${gameId}`);
+                        window.dispatchEvent(new HashChangeEvent('hashchange'));
                     } catch (error) {
                         showError(error.message);
                     }

@@ -1058,12 +1058,12 @@ class TestEdgeCasesReviewerFindings:
         vector = compute_feature_vector("Alice", games)
         assert all(v == 0.0 for v in vector)
 
-    def test_personality_not_assigned_at_0_games(self):
-        """Player with 0 games should NOT get personality."""
+    def test_personality_not_assigned_at_2_games(self):
+        """Player with exactly 2 games should NOT get personality."""
         from app.services.insights import MIN_GAMES_FOR_PERSONALITY
 
-        assert MIN_GAMES_FOR_PERSONALITY == 1
-        # 0 < 1, so no personality
+        assert MIN_GAMES_FOR_PERSONALITY == 3
+        # 2 < 3, so no personality
 
     def test_tied_scores_winner_is_none(self):
         """When scores are tied, winner is None — no arbitrary pick."""

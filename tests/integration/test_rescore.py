@@ -160,9 +160,9 @@ class TestEnterRescore:
         """Cannot rescore after game is ended/finished."""
         game_id, cookies = await _setup_scored_round(client)
 
-        # End the game (transitions to review phase)
+        # End the game
         await client.post(f"/api/game/{game_id}/end", cookies=cookies)
 
-        # Rescore should fail — game phase is 'review', not 'scoreboard'
+        # Rescore should fail — game phase is 'final', not 'scoreboard'
         resp = await client.post(f"/api/game/{game_id}/enter-rescore", cookies=cookies)
         assert resp.status_code == 409

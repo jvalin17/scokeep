@@ -39,7 +39,7 @@ function renderSingleCard(playerName, data) {
 
 function renderLockedCard(playerName, data) {
     const progress = data.games_analyzed || 0;
-    const needed = data.unlock_at || 1;
+    const needed = data.unlock_at || 3;
     const pct = Math.round((progress / needed) * 100);
 
     return `

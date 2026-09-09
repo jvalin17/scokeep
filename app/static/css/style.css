@@ -362,18 +362,6 @@ input::placeholder { color: var(--text-muted); }
     color: rgba(255,255,255,0.8); font-size: 1rem;
     background: none; border: none; cursor: pointer; text-decoration: underline;
 }
-/* Review screen — pre-final score editing */
-.review-screen { padding: 16px 0; max-width: 600px; margin: 0 auto; }
-.review-hint { text-align: center; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 12px; }
-.review-round-row { cursor: pointer; transition: background 0.15s; }
-.review-round-row:hover { background: var(--bg-hover, rgba(0,0,0,0.04)); }
-.review-round-row.review-editing { background: var(--accent-light, rgba(59,130,246,0.1)); }
-.review-edit-panel {
-    background: var(--bg-card); border-radius: var(--radius); padding: 16px;
-    margin: 12px 0; border: 1px solid var(--border);
-}
-.review-edit-panel h3 { margin: 0 0 12px 0; font-size: 1rem; }
-
 .keypad-disabled:active { background: var(--bg-card); color: var(--text-primary); transform: none; }
 
 /* Inline keypad (compact, for editing bids on confirm screen) */

@@ -273,7 +273,7 @@ class TestGameLifecycle:
             ["Alice", "Bob"],
         )
 
-        # End from bidding → goes to review
+        # End from bidding
         game = await start_game(
             client,
             pg["id"],
@@ -282,13 +282,9 @@ class TestGameLifecycle:
         )
         resp = await client.post(f"/api/game/{game['id']}/end", cookies=cookies)
         assert resp.status_code == 200
-        assert resp.json()["phase"] == "review"
-        # confirm-final finishes it
-        resp = await client.post(f"/api/game/{game['id']}/confirm-final", cookies=cookies)
-        assert resp.status_code == 200
         assert resp.json()["status"] == "finished"
 
-        # End from playing → goes to review
+        # End from playing
         game2 = await start_game(
             client,
             pg["id"],
@@ -307,10 +303,10 @@ class TestGameLifecycle:
         await client.post(f"/api/game/{game2['id']}/start-round", cookies=cookies)
         resp = await client.post(f"/api/game/{game2['id']}/end", cookies=cookies)
         assert resp.status_code == 200
-        assert resp.json()["phase"] == "review"
+        assert resp.json()["status"] == "finished"
 
     async def test_no_active_game_after_end(self, client: AsyncClient):
-        """After ending and confirming, active game endpoint returns 404."""
+        """After ending, active game endpoint returns 404."""
         pg, cookies = await create_playground(
             client,
             "Clear Active",
@@ -324,7 +320,6 @@ class TestGameLifecycle:
             ["Alice", "Bob"],
         )
         await client.post(f"/api/game/{game['id']}/end", cookies=cookies)
-        await client.post(f"/api/game/{game['id']}/confirm-final", cookies=cookies)
 
         resp = await client.get(
             f"/api/game/active/{pg['id']}",
@@ -1008,11 +1003,8 @@ class TestFullGameSimulation:
         assert totals["1"] == -8  # -19 + 11
         assert totals["2"] == 11  # 1 + 10
 
-        # End game → review → confirm
+        # End game
         await client.post(f"/api/game/{game_id}/end", cookies=cookies)
-        game_resp = await client.get(f"/api/game/{game_id}", cookies=cookies)
-        assert game_resp.json()["phase"] == "review"
-        await client.post(f"/api/game/{game_id}/confirm-final", cookies=cookies)
         game_resp = await client.get(f"/api/game/{game_id}", cookies=cookies)
         assert game_resp.json()["status"] == "finished"
 
@@ -1122,14 +1114,8 @@ class TestEndGameFromAnyPhase:
         )
         assert resp.status_code == 200
         body = resp.json()
-        assert body["phase"] == "review"
-        assert body["status"] == "active"
-
-        # confirm-final finishes it
-        resp = await client.post(f"/api/game/{game['id']}/confirm-final", cookies=cookies)
-        assert resp.status_code == 200
-        assert resp.json()["status"] == "finished"
-        assert resp.json()["phase"] == "final"
+        assert body["status"] == "finished"
+        assert body["phase"] == "final"
 
         # Scoreboard still accessible with zero rounds
         sb = await client.get(
@@ -1164,17 +1150,11 @@ class TestEndGameFromAnyPhase:
         )
         assert resp.status_code == 200
 
-        # End game with partial bids → review phase
+        # End game with partial bids
         resp = await client.post(
             f"/api/game/{game['id']}/end",
             cookies=cookies,
         )
-        assert resp.status_code == 200
-        assert resp.json()["phase"] == "review"
-        assert resp.json()["status"] == "active"
-
-        # confirm-final finishes it
-        resp = await client.post(f"/api/game/{game['id']}/confirm-final", cookies=cookies)
         assert resp.status_code == 200
         assert resp.json()["status"] == "finished"
 
@@ -1203,16 +1183,10 @@ class TestEndGameFromAnyPhase:
                 cookies=cookies,
             )
 
-        # End game from confirm screen → review phase
+        # End game from confirm screen
         resp = await client.post(
             f"/api/game/{game['id']}/end",
             cookies=cookies,
         )
-        assert resp.status_code == 200
-        assert resp.json()["phase"] == "review"
-        assert resp.json()["status"] == "active"
-
-        # confirm-final finishes it
-        resp = await client.post(f"/api/game/{game['id']}/confirm-final", cookies=cookies)
         assert resp.status_code == 200
         assert resp.json()["status"] == "finished"

@@ -5,6 +5,7 @@
 
 import { endGame } from '../api.js';
 import { getRoundCards, getTrump, escapeHtml } from './game-utils.js';
+import { soundEndGame } from './sounds.js';
 
 /**
  * Set the phase and appearance on document.body for CSS styling.
@@ -82,9 +83,10 @@ export function attachEndGameHandler(container, gameId, navigate, state) {
     const btn = container.querySelector('#end-game-btn');
     if (!btn) return;
     btn.addEventListener('click', async () => {
-        if (confirm('End this game? You can review scores before finalizing.')) {
+        if (confirm('End this game? Scores so far will be saved.')) {
             await endGame(gameId);
-            navigate(`review/${gameId}`);
+            soundEndGame();
+            navigate(`scoreboard/${gameId}`);
         }
     });
 }
@@ -97,47 +99,4 @@ export function showError(container, selectorId, message) {
     if (!errorEl) return;
     errorEl.textContent = message;
     errorEl.classList.remove('hidden');
-}
-
-/**
- * Render a full scoresheet table (used by scoreboard game-over and review screen).
- * @param {string[]} players - Player names
- * @param {Array} rounds - Round data with scores
- * @param {Object} totals - Cumulative totals by player index
- * @param {function} [rowAttrs] - Optional fn(round) returning extra attributes for each <tr>
- */
-export function renderScoresheetTable(players, rounds, totals, { rowAttrs } = {}) {
-    return `
-        <div class="score-table score-table-full">
-            <table class="scoresheet">
-                <thead>
-                    <tr>
-                        <th>R#</th>
-                        ${players.map(name => `<th>${escapeHtml(name)}</th>`).join('')}
-                    </tr>
-                </thead>
-                <tbody>
-                    ${rounds.map(round => {
-                        const trump = getTrump(round.round_num);
-                        const extraAttrs = rowAttrs ? rowAttrs(round) : '';
-                        return `<tr ${extraAttrs}>
-                            <td>${round.round_num}<span class="${trump.isRed ? 'trump-red' : ''}" style="font-size:0.7em;">${trump.symbol}</span></td>
-                            ${players.map((_, idx) => {
-                                const roundScore = round.scores[String(idx)] || 0;
-                                return `<td class="${roundScore < 0 ? 'score-negative' : ''}">
-                                    ${roundScore > 0 ? '+' : ''}${roundScore}
-                                </td>`;
-                            }).join('')}
-                        </tr>`;
-                    }).join('')}
-                </tbody>
-                <tfoot>
-                    <tr class="totals-row">
-                        <td><strong>Tot</strong></td>
-                        ${players.map((_, idx) => `<td><strong>${totals[String(idx)] || 0}</strong></td>`).join('')}
-                    </tr>
-                </tfoot>
-            </table>
-        </div>
-    `;
 }

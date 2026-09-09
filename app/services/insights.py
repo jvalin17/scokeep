@@ -40,7 +40,7 @@ from app.services.personality_engine import (
 )
 
 # Minimum games before personality is assigned
-MIN_GAMES_FOR_PERSONALITY = 1
+MIN_GAMES_FOR_PERSONALITY = 3
 
 # Constants re-exported for backward compatibility
 CARD_COUNT_WEIGHTS = {1: 0.2, 2: 0.5}

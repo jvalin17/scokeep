@@ -1,4 +1,4 @@
-"""Game API routes — create, get state, end game, review phase."""
+"""Game API routes — create, get state, end game."""
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -99,62 +99,4 @@ async def end_game(
         raise HTTPException(status_code=409, detail="Game is already finished")
 
     await GameService.end_game(db, game)
-    return game
-
-
-@router.post("/{game_id}/enter-review")
-async def enter_review(
-    game_id: int,
-    playground_id: int = Depends(require_auth),
-    db: AsyncSession = Depends(get_db),
-):
-    game = await get_game_with_auth(db, game_id, playground_id)
-    if game.phase != "scoreboard":
-        raise HTTPException(
-            status_code=409,
-            detail=f"Game is in '{game.phase}' phase, not 'scoreboard'",
-        )
-
-    await GameService.update_phase(db, game, "review")
-    return {"phase": game.phase}
-
-
-@router.post("/{game_id}/rescore/{round_num}")
-async def rescore_round(
-    game_id: int,
-    round_num: int,
-    playground_id: int = Depends(require_auth),
-    db: AsyncSession = Depends(get_db),
-):
-    """Reset a specific round for re-entry of hands. Only works in review phase."""
-    game = await get_game_with_auth(db, game_id, playground_id)
-    if game.phase != "review":
-        raise HTTPException(
-            status_code=409,
-            detail=f"Game is in '{game.phase}' phase, not 'review'",
-        )
-
-    try:
-        await GameService.enter_review_rescore(db, game, round_num)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-
-    return {"phase": game.phase, "editing_round": round_num}
-
-
-@router.post("/{game_id}/confirm-final", response_model=GameResponse)
-async def confirm_final(
-    game_id: int,
-    playground_id: int = Depends(require_auth),
-    db: AsyncSession = Depends(get_db),
-):
-    """Finalize game from review phase — lock scores, compute insights."""
-    game = await get_game_with_auth(db, game_id, playground_id)
-    if game.phase != "review":
-        raise HTTPException(
-            status_code=409,
-            detail=f"Game is in '{game.phase}' phase, not 'review'",
-        )
-
-    await GameService.confirm_final(db, game)
     return game

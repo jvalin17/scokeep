@@ -128,15 +128,10 @@ class TestAdvanceRound:
             settings={"num_sets": 1},  # 8 rounds total
         )
 
-        # Advance through all 8 rounds → goes to review phase
+        # Advance through all 8 rounds
         for _ in range(8):
             await GameService.advance_round(db_session, game)
 
-        assert game.phase == "review"
-        assert game.status == "active"
-
-        # confirm_final finalizes the game
-        await GameService.confirm_final(db_session, game)
         assert game.status == "finished"
         assert game.phase == "final"
         assert game.finished_at is not None
@@ -152,14 +147,8 @@ class TestEndGameEarly:
             settings={},
         )
 
-        # end_game transitions to review phase (status stays active)
         await GameService.end_game(db_session, game)
 
-        assert game.phase == "review"
-        assert game.status == "active"
-
-        # confirm_final finalizes the game
-        await GameService.confirm_final(db_session, game)
         assert game.status == "finished"
         assert game.phase == "final"
         assert game.finished_at is not None
