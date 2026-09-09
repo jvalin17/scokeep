@@ -135,7 +135,7 @@ export const homeScreen = {
                             <div class="howto-step">
                                 <strong>7. Stats & Insights</strong>
                                 <p>View career awards (Sniper, Zero Master, High Roller), game history with expandable scoresheets, and score progression charts.</p>
-                                <p>After 3 games, each player unlocks a <strong>Personality Card</strong> — tap to flip and see accuracy stats, bidding style, strengths, and fun facts.</p>
+                                <p>After your first game, each player unlocks a <strong>Personality Card</strong> — tap to flip and see accuracy stats, bidding style, strengths, and fun facts.</p>
                             </div>
                             <div class="howto-step">
                                 <strong>8. Install as App</strong>

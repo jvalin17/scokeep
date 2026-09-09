@@ -208,8 +208,13 @@ class TestEndGameFromAnyPhase:
         # Game starts in bidding phase
         assert game["phase"] == "bidding"
 
-        # End game
+        # End game → review phase
         resp = await client.post(f"/api/game/{game_id}/end", cookies=cookies)
+        assert resp.status_code == 200
+        assert resp.json()["phase"] == "review"
+        assert resp.json()["status"] == "active"
+        # confirm-final finishes it
+        resp = await client.post(f"/api/game/{game_id}/confirm-final", cookies=cookies)
         assert resp.status_code == 200
         assert resp.json()["status"] == "finished"
 
@@ -235,8 +240,13 @@ class TestEndGameFromAnyPhase:
         game_resp = await client.get(f"/api/game/{game_id}", cookies=cookies)
         assert game_resp.json()["phase"] == "playing"
 
-        # End game from playing
+        # End game from playing → review phase
         resp = await client.post(f"/api/game/{game_id}/end", cookies=cookies)
+        assert resp.status_code == 200
+        assert resp.json()["phase"] == "review"
+        assert resp.json()["status"] == "active"
+        # confirm-final finishes it
+        resp = await client.post(f"/api/game/{game_id}/confirm-final", cookies=cookies)
         assert resp.status_code == 200
         assert resp.json()["status"] == "finished"
 
@@ -263,8 +273,13 @@ class TestEndGameFromAnyPhase:
         game_resp = await client.get(f"/api/game/{game_id}", cookies=cookies)
         assert game_resp.json()["phase"] == "round_end"
 
-        # End game
+        # End game → review phase
         resp = await client.post(f"/api/game/{game_id}/end", cookies=cookies)
+        assert resp.status_code == 200
+        assert resp.json()["phase"] == "review"
+        assert resp.json()["status"] == "active"
+        # confirm-final finishes it
+        resp = await client.post(f"/api/game/{game_id}/confirm-final", cookies=cookies)
         assert resp.status_code == 200
         assert resp.json()["status"] == "finished"
 
@@ -349,20 +364,22 @@ class TestActiveGameAfterEnd:
         assert resp.status_code == 200
         assert resp.json()["id"] == game_id
 
-        # End game
+        # End game → review, then confirm-final → finished
         await client.post(f"/api/game/{game_id}/end", cookies=cookies)
+        await client.post(f"/api/game/{game_id}/confirm-final", cookies=cookies)
 
         # No active game anymore
         resp = await client.get(f"/api/game/active/{pg['id']}", cookies=cookies)
         assert resp.status_code == 404
 
     async def test_end_from_bidding_clears_active(self, client: AsyncClient):
-        """Ending during bidding also clears active game."""
+        """Ending during bidding and confirming clears active game."""
         pg, cookies = await _setup(client, "Clear Active Bid")
         game = await _create_game(client, pg["id"], cookies)
 
-        # End during bidding
+        # End during bidding → review, then confirm-final → finished
         await client.post(f"/api/game/{game['id']}/end", cookies=cookies)
+        await client.post(f"/api/game/{game['id']}/confirm-final", cookies=cookies)
 
         # No active game
         resp = await client.get(f"/api/game/active/{pg['id']}", cookies=cookies)

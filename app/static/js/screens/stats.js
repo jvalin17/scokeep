@@ -280,7 +280,7 @@ export const statsScreen = {
         function renderInsights() {
             const insights = stats.insights;
             if (!insights || !insights.players) {
-                return '<p class="stats-empty">Play 3 games to unlock player insights!</p>';
+                return '<p class="stats-empty">Play a game to unlock player insights!</p>';
             }
             return renderPersonalityCards(insights.players);
         }

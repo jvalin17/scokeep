@@ -135,8 +135,15 @@ class TestEndGame:
         )
         game_id = create_response.json()["id"]
 
+        # /end transitions to review phase (status stays active)
         response = await client.post(f"/api/game/{game_id}/end", cookies=pg["cookies"])
+        assert response.status_code == 200
+        body = response.json()
+        assert body["phase"] == "review"
+        assert body["status"] == "active"
 
+        # confirm-final finishes it
+        response = await client.post(f"/api/game/{game_id}/confirm-final", cookies=pg["cookies"])
         assert response.status_code == 200
         body = response.json()
         assert body["status"] == "finished"
@@ -178,8 +185,14 @@ class TestEndGame:
         game = await client.get(f"/api/game/{game_id}", cookies=pg["cookies"])
         assert game.json()["phase"] == "playing"
 
-        # End game from playing phase
+        # End game from playing → review phase
         response = await client.post(f"/api/game/{game_id}/end", cookies=pg["cookies"])
+        assert response.status_code == 200
+        assert response.json()["phase"] == "review"
+        assert response.json()["status"] == "active"
+
+        # confirm-final finishes it
+        response = await client.post(f"/api/game/{game_id}/confirm-final", cookies=pg["cookies"])
         assert response.status_code == 200
         assert response.json()["status"] == "finished"
 
@@ -196,6 +209,7 @@ class TestEndGame:
         game_id = create_response.json()["id"]
 
         await client.post(f"/api/game/{game_id}/end", cookies=pg["cookies"])
+        await client.post(f"/api/game/{game_id}/confirm-final", cookies=pg["cookies"])
         response = await client.post(f"/api/game/{game_id}/end", cookies=pg["cookies"])
 
         assert response.status_code == 409

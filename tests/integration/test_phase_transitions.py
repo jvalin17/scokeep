@@ -255,6 +255,11 @@ class TestScoreboardPhase:
         await _play_full_round(client, game_id, cookies)
         r = await client.post(f"/api/game/{game_id}/end", cookies=cookies)
         assert r.status_code == 200
+        assert r.json()["phase"] == "review"
+        assert r.json()["status"] == "active"
+        # confirm-final finishes it
+        r = await client.post(f"/api/game/{game_id}/confirm-final", cookies=cookies)
+        assert r.status_code == 200
         assert r.json()["status"] == "finished"
 
     async def test_bid_rejected_in_scoreboard(self, client: AsyncClient):
@@ -343,6 +348,12 @@ class TestEndGameConsistency:
         game_id = await _create_game(client, pg_id, cookies)
         await _play_full_round(client, game_id, cookies)
         await client.post(f"/api/game/{game_id}/end", cookies=cookies)
+        # /end transitions to review phase (status stays active)
+        r = await client.get(f"/api/game/{game_id}", cookies=cookies)
+        assert r.json()["phase"] == "review"
+        assert r.json()["status"] == "active"
+        # confirm-final finishes it
+        await client.post(f"/api/game/{game_id}/confirm-final", cookies=cookies)
         r = await client.get(f"/api/game/{game_id}", cookies=cookies)
         assert r.json()["status"] == "finished"
         assert r.json()["phase"] == "final"
@@ -352,6 +363,7 @@ class TestEndGameConsistency:
         game_id = await _create_game(client, pg_id, cookies)
         await _play_full_round(client, game_id, cookies)
         await client.post(f"/api/game/{game_id}/end", cookies=cookies)
+        await client.post(f"/api/game/{game_id}/confirm-final", cookies=cookies)
         r = await client.post(f"/api/game/{game_id}/end", cookies=cookies)
         assert r.status_code == 409
 
@@ -360,6 +372,7 @@ class TestEndGameConsistency:
         game_id = await _create_game(client, pg_id, cookies)
         await _play_full_round(client, game_id, cookies)
         await client.post(f"/api/game/{game_id}/end", cookies=cookies)
+        await client.post(f"/api/game/{game_id}/confirm-final", cookies=cookies)
         r = await client.post(
             f"/api/game/{game_id}/bid", json={"player_index": 0, "value": 1}, cookies=cookies
         )
@@ -370,6 +383,7 @@ class TestEndGameConsistency:
         game_id = await _create_game(client, pg_id, cookies)
         await _play_full_round(client, game_id, cookies)
         await client.post(f"/api/game/{game_id}/end", cookies=cookies)
+        await client.post(f"/api/game/{game_id}/confirm-final", cookies=cookies)
         r = await client.post(f"/api/game/{game_id}/next-round", cookies=cookies)
         assert r.status_code == 409
 
@@ -406,8 +420,12 @@ class TestMultiRoundConsistency:
             if round_num < 3:
                 await client.post(f"/api/game/{game_id}/next-round", cookies=cookies)
 
-        # End game
+        # End game → review phase
         r = await client.post(f"/api/game/{game_id}/end", cookies=cookies)
+        assert r.json()["phase"] == "review"
+        assert r.json()["status"] == "active"
+        # confirm-final finishes it
+        r = await client.post(f"/api/game/{game_id}/confirm-final", cookies=cookies)
         assert r.json()["status"] == "finished"
 
         # Final scoreboard has all 3 rounds
