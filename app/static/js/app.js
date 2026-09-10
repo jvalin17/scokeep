@@ -8,6 +8,7 @@ import { biddingScreen } from './screens/bidding.js';
 import { playScreen } from './screens/play.js';
 import { roundendScreen } from './screens/roundend.js';
 import { scoreboardScreen } from './screens/scoreboard.js';
+import { reviewScreen } from './screens/review.js';
 import { finalScreen } from './screens/final.js';
 import { statsScreen } from './screens/stats.js';
 
@@ -28,6 +29,7 @@ const routes = {
     'play': playScreen,
     'roundend': roundendScreen,
     'scoreboard': scoreboardScreen,
+    'review': reviewScreen,
     'final': finalScreen,
     'stats': statsScreen,
 
@@ -71,7 +73,7 @@ async function render() {
                 const resp = await fetch(`/api/game/${gameId}`, { credentials: 'same-origin' });
                 if (resp.ok) {
                     const game = await resp.json();
-                    const routeMap = { bidding: 'bid', playing: 'play', round_end: 'roundend', scoreboard: 'scoreboard', final: 'final' };
+                    const routeMap = { bidding: 'bid', playing: 'play', round_end: 'roundend', scoreboard: 'scoreboard', review: 'review', final: 'final' };
                     logger.resync(gameId, screen, routeMap[game.phase] || 'scoreboard');
                     const target = routeMap[game.phase] || 'scoreboard';
                     if (target !== screen) {

@@ -161,20 +161,15 @@ def test_locked_personality_card(page, server):
 
     navigate_to_stats(page, server, name, "1234")
 
-    # Insights tab is active by default — assert locked cards are present
-    locked_card = page.locator(".personality-card-locked")
-    assert locked_card.count() > 0, "Expected .personality-card-locked with only 1 game played"
+    # MIN_GAMES_FOR_PERSONALITY=1, so after 1 game cards should be unlocked
+    unlocked_card = page.locator(".personality-card:not(.personality-card-locked)")
+    assert unlocked_card.count() > 0, "Expected unlocked personality cards after 1 game"
 
-    unlock_text = page.locator(".personality-unlock-text")
-    assert unlock_text.count() > 0, "Expected .personality-unlock-text to be rendered"
-    text_content = unlock_text.first.inner_text()
-    assert "1/" in text_content, f"Expected '1/' in unlock text, got: {text_content!r}"
-
-    # Click a locked card — it must NOT get .flipped class
-    locked_card.first.click()
+    # Click an unlocked card — it should flip
+    unlocked_card.first.click()
     page.wait_for_timeout(700)
-    flipped = page.locator(".personality-card-locked.flipped")
-    assert flipped.count() == 0, "Locked card should not flip when clicked"
+    flipped = page.locator(".personality-card.flipped")
+    assert flipped.count() > 0, "Unlocked card should flip when clicked"
 
 
 def test_career_table_header_matches_value_type(page, server):

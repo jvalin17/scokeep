@@ -83,7 +83,9 @@ class TestActiveGame:
         )
         game_id = game_resp.json()["id"]
 
+        # end_game goes to review, confirm-final finishes it
         await client.post(f"/api/game/{game_id}/end", cookies=cookies)
+        await client.post(f"/api/game/{game_id}/confirm-final", cookies=cookies)
 
         # Active game should return 404
         resp = await client.get(
@@ -210,8 +212,14 @@ class TestCRUDCompleteness:
         assert r.json()["current_round"] == 2
         assert r.json()["dealer_index"] == 1
 
-        # End game
+        # End game → review phase
         r = await client.post(f"/api/game/{game_id}/end", cookies=cookies)
+        assert r.status_code == 200
+        assert r.json()["status"] == "active"
+        assert r.json()["phase"] == "review"
+
+        # Confirm final → finished
+        r = await client.post(f"/api/game/{game_id}/confirm-final", cookies=cookies)
         assert r.status_code == 200
         assert r.json()["status"] == "finished"
         assert r.json()["phase"] == "final"

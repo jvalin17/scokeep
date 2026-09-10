@@ -81,9 +81,7 @@ class GameService:
     @staticmethod
     async def advance_round(db: AsyncSession, game: Game) -> None:
         if game.current_round >= game.total_rounds:
-            game.status = "finished"
-            game.phase = "final"
-            game.finished_at = func.now()
+            game.phase = "review"
         else:
             player_count = len(game.players)
             game.current_round += 1
@@ -92,11 +90,6 @@ class GameService:
 
         await db.commit()
         await db.refresh(game)
-
-        if game.status == "finished":
-            from app.services.insights import compute_insights
-
-            await compute_insights(db, game.playground_id)
 
     @staticmethod
     async def extend_game(db: AsyncSession, game: Game) -> None:
@@ -110,6 +103,13 @@ class GameService:
 
     @staticmethod
     async def end_game(db: AsyncSession, game: Game) -> None:
+        game.phase = "review"
+        await db.commit()
+        await db.refresh(game)
+
+    @staticmethod
+    async def confirm_final(db: AsyncSession, game: Game) -> None:
+        """Finalize game from review phase — lock scores, compute insights."""
         game.status = "finished"
         game.phase = "final"
         game.finished_at = func.now()
@@ -123,5 +123,22 @@ class GameService:
     @staticmethod
     async def update_phase(db: AsyncSession, game: Game, phase: str) -> None:
         game.phase = phase
+        await db.commit()
+        await db.refresh(game)
+
+    @staticmethod
+    async def enter_review_rescore(db: AsyncSession, game: Game, round_num: int) -> None:
+        """Reset a specific round for re-entry during review phase."""
+        from app.services.round import RoundService
+
+        round_obj = await RoundService.get_current_round(db, game.id, round_num)
+        if not round_obj:
+            raise ValueError(f"Round {round_num} not found")
+
+        round_obj.scores = {}
+        round_obj.status = "round_end"
+        game.current_round = round_num
+        game.phase = "round_end"
+        game.settings = {**game.settings, "_review_rescore": True}
         await db.commit()
         await db.refresh(game)

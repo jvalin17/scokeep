@@ -35,9 +35,13 @@ class TestInsightsHelpers:
             ["Alice", "Bob"],
             [MockRound({"0": 2, "1": 1}, {"0": 2, "1": 1}, {"0": 20, "1": 11})],
         )
-        vectors = _compute_raw_vectors({"Alice", "Bob"}, {"Alice": 3, "Bob": 2}, [gm])
+        player_counts = {"Alice": 3, "Bob": 2, "Charlie": 0}
+        vectors = _compute_raw_vectors(
+            {"Alice", "Bob", "Charlie"}, player_counts, [gm],
+        )
         assert "Alice" in vectors
-        assert "Bob" not in vectors
+        assert "Bob" in vectors  # 2 games >= MIN_GAMES_FOR_PERSONALITY (1)
+        assert "Charlie" not in vectors  # 0 games < 1
         assert len(vectors["Alice"]) == 10
 
     def test_update_calibration(self):

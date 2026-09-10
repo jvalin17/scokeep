@@ -167,7 +167,14 @@ async def end_round(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    await GameService.update_phase(db, game, "scoreboard")
+    # If this was a review-phase rescore (flagged by rescore/{round_num} endpoint),
+    # return to review and clear the flag; otherwise go to scoreboard.
+    is_review_rescore = game.settings.get("_review_rescore", False)
+    if is_review_rescore:
+        game.settings = {k: v for k, v in game.settings.items() if k != "_review_rescore"}
+        await GameService.update_phase(db, game, "review")
+    else:
+        await GameService.update_phase(db, game, "scoreboard")
     return round_obj
 
 

@@ -128,16 +128,25 @@ def play_one_round(page: Page, bids: list[int], hands: list[int]):
 
 
 def end_game(page: Page):
-    """End the game from scoreboard or play screen."""
+    """End the game — clicks End Game, confirms on review screen, waits for final."""
+    current_hash = page.evaluate("() => location.hash")
     end_btn = page.locator('#end-game, #end-game-btn, button:has-text("End Game")')
     end_btn.first.wait_for(state="visible", timeout=60000)
-    # Accept browser confirm() dialog before triggering it
     page.once("dialog", lambda dialog: dialog.accept())
     end_btn.first.click()
     page.wait_for_function(
-        "() => location.hash.includes('scoreboard') || location.hash.includes('final')",
+        f"() => location.hash !== '{current_hash}'",
         timeout=10000,
     )
+    if "review" in page.evaluate("() => location.hash"):
+        confirm_btn = page.locator('#confirm-final')
+        confirm_btn.wait_for(state="visible", timeout=10000)
+        confirm_btn.click()
+        page.wait_for_function(
+            "() => location.hash.includes('scoreboard')"
+            " || location.hash.includes('final')",
+            timeout=10000,
+        )
 
 
 def navigate_to_stats(page: Page, server: str, name: str, pin: str):

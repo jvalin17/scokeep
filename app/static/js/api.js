@@ -38,6 +38,7 @@ const PHASE_ROUTES = {
     playing: 'play',
     round_end: 'roundend',
     scoreboard: 'scoreboard',
+    review: 'review',
     final: 'final',
 };
 
@@ -163,6 +164,19 @@ export function endRound(gameId) {
 
 export function enterRescore(gameId) {
     return request('POST', `/game/${gameId}/enter-rescore`);
+}
+
+// Review phase
+export function enterReview(gameId) {
+    return request('POST', `/game/${gameId}/enter-review`);
+}
+
+export function rescoreRound(gameId, roundNum) {
+    return request('POST', `/game/${gameId}/rescore/${roundNum}`);
+}
+
+export function confirmFinal(gameId) {
+    return request('POST', `/game/${gameId}/confirm-final`);
 }
 
 // Scoreboard

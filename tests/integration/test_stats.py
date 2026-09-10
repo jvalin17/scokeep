@@ -77,9 +77,10 @@ async def _play_full_game(
             cookies=cookies,
         )
 
-    # Score + end
+    # Score + end → review → confirm-final → finished
     await client.post(f"/api/game/{game_id}/end-round", cookies=cookies)
     await client.post(f"/api/game/{game_id}/end", cookies=cookies)
+    await client.post(f"/api/game/{game_id}/confirm-final", cookies=cookies)
     return game_resp.json()
 
 
@@ -139,6 +140,7 @@ async def _play_multi_round_game(
             )
 
     await client.post(f"/api/game/{game_id}/end", cookies=cookies)
+    await client.post(f"/api/game/{game_id}/confirm-final", cookies=cookies)
     return game_resp.json()
 
 
@@ -266,7 +268,7 @@ class TestPlaygroundStats:
             assert meta["name"].startswith("The ")
 
     async def test_stats_insights_unlock_progress(self, client: AsyncClient):
-        """Players with < 3 games show unlock progress, not personality."""
+        """After 1 game, players already have personality (MIN_GAMES_FOR_PERSONALITY=1)."""
         pg, cookies = await _setup(client, "Insights Unlock")
 
         await _play_full_game(
@@ -283,9 +285,9 @@ class TestPlaygroundStats:
             cookies=cookies,
         )
         insights = resp.json()["insights"]
-        assert insights["players"]["Alice"]["personality"] is None
+        # MIN_GAMES_FOR_PERSONALITY=1, so 1 game is enough to unlock personality
+        assert insights["players"]["Alice"]["personality"] is not None
         assert insights["players"]["Alice"]["games_analyzed"] == 1
-        assert insights["players"]["Alice"]["unlock_at"] == 3
 
     async def test_insights_unique_personalities(self, client: AsyncClient):
         """All players get different personality types."""
