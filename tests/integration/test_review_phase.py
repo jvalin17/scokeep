@@ -235,7 +235,6 @@ class TestRescoreSpecificRound:
         round1_scores_after = sb_after.json()["rounds"][0]["scores"]
         assert round1_scores_after != round1_scores_before
 
-
     async def test_cancel_edit_via_end_round_restores_original_scores(self, client: AsyncClient):
         """Cancel-edit: end-round without re-submitting hands restores scores.
 

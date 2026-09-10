@@ -37,7 +37,9 @@ class TestInsightsHelpers:
         )
         player_counts = {"Alice": 3, "Bob": 2, "Charlie": 0}
         vectors = _compute_raw_vectors(
-            {"Alice", "Bob", "Charlie"}, player_counts, [gm],
+            {"Alice", "Bob", "Charlie"},
+            player_counts,
+            [gm],
         )
         assert "Alice" in vectors
         assert "Bob" in vectors  # 2 games >= MIN_GAMES_FOR_PERSONALITY (1)

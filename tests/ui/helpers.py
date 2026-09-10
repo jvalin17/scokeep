@@ -139,12 +139,11 @@ def end_game(page: Page):
         timeout=10000,
     )
     if "review" in page.evaluate("() => location.hash"):
-        confirm_btn = page.locator('#confirm-final')
+        confirm_btn = page.locator("#confirm-final")
         confirm_btn.wait_for(state="visible", timeout=10000)
         confirm_btn.click()
         page.wait_for_function(
-            "() => location.hash.includes('scoreboard')"
-            " || location.hash.includes('final')",
+            "() => location.hash.includes('scoreboard') || location.hash.includes('final')",
             timeout=10000,
         )
 
