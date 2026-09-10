@@ -22,15 +22,33 @@ export function setScreenContext(phase, game) {
 export function renderGameIsland(game, roundsPerSet) {
     const cardsDealt = getRoundCards(game.current_round, roundsPerSet);
     const dealerName = game.players[game.dealer_index];
+    const collapsed = localStorage.getItem('scokeep_island_collapsed') === '1';
+    const cls = collapsed ? 'game-island island-collapsed' : 'game-island';
+    const icon = collapsed ? '+' : '−';
     return `
-        <div class="game-island">
+        <div class="${cls}">
             <span>${escapeHtml(dealerName)} deals</span>
             <span class="island-sep">·</span>
             <span>${cardsDealt} card${cardsDealt > 1 ? 's' : ''}</span>
             <span class="island-sep">·</span>
             <span>R${game.current_round}/${game.total_rounds}</span>
+            <button class="island-toggle">${icon}</button>
         </div>
     `;
+}
+
+/**
+ * Attach the island toggle click handler inside a container.
+ */
+export function attachIslandToggle(container) {
+    const toggle = container.querySelector('.island-toggle');
+    if (!toggle) return;
+    toggle.addEventListener('click', () => {
+        const island = container.querySelector('.game-island');
+        const isCollapsed = island.classList.toggle('island-collapsed');
+        toggle.textContent = isCollapsed ? '+' : '−';
+        localStorage.setItem('scokeep_island_collapsed', isCollapsed ? '1' : '0');
+    });
 }
 
 /**

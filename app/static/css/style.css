@@ -269,6 +269,14 @@ input::placeholder { color: var(--text-muted); }
     color: var(--text-primary);
 }
 .game-island .island-sep { color: var(--border); }
+.island-toggle {
+    background: none; border: none; cursor: pointer;
+    font-size: 1.1rem; font-weight: 700; color: var(--text-muted);
+    padding: 0 4px; line-height: 1;
+}
+.game-island.island-collapsed { font-size: 0; gap: 0; padding: 8px 14px; }
+.game-island.island-collapsed > span { display: none; }
+.game-island.island-collapsed .island-toggle { font-size: 1.1rem; display: inline; }
 
 /* Round info bar */
 .round-info {
