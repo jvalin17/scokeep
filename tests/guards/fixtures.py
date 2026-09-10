@@ -1,13 +1,6 @@
 """Shared MockRound factories and edge-case datasets for guard tests."""
 
-
-class MockRound:
-    def __init__(self, bids, hands_won, scores, cards_dealt=8, trump_suit=None):
-        self.bids = bids
-        self.hands_won = hands_won
-        self.scores = scores
-        self.cards_dealt = cards_dealt
-        self.trump_suit = trump_suit
+from tests.unit.conftest import MockRound
 
 
 def make_round(bids, hands, scores, cards_dealt=8, trump_suit=None):

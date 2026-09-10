@@ -402,3 +402,94 @@ class TestPostGameCareerSweeps:
             career=career,
         )
         assert career["A"]["triple_crowns"] == 1
+
+
+class TestCalcHighlights:
+    """calc_highlights computes career records from games and rounds."""
+
+    def test_calc_highlights_returns_career_dict(self):
+        from app.services.analytics import AnalyticsService
+
+        result = AnalyticsService.calc_highlights([], {})
+        assert "career" in result
+
+    def test_calc_highlights_with_no_games_empty_career(self):
+        from app.services.analytics import AnalyticsService
+
+        result = AnalyticsService.calc_highlights([], {})
+        assert all(v == [] for v in result["career"].values())
+
+
+class TestCalcLastGameAwards:
+    """calc_last_game_awards returns awards for the most recent game."""
+
+    def test_calc_last_game_awards_no_games(self):
+        from app.services.analytics import AnalyticsService
+
+        result = AnalyticsService.calc_last_game_awards([], {})
+        assert result is None
+
+
+class TestApplyGamesWon:
+    """_apply_games_won awards sole winner, skips ties."""
+
+    def test_apply_games_won_sole_winner(self):
+        from app.services.analytics import _apply_games_won, _init_career
+
+        career = _init_career({"A", "B"})
+        _apply_games_won({"A": 50, "B": 30}, career)
+        assert career["A"]["games_won"] == 1
+        assert career["B"]["games_won"] == 0
+
+    def test_apply_games_won_tie_no_winner(self):
+        from app.services.analytics import _apply_games_won, _init_career
+
+        career = _init_career({"A", "B"})
+        _apply_games_won({"A": 50, "B": 50}, career)
+        assert career["A"]["games_won"] == 0
+        assert career["B"]["games_won"] == 0
+
+
+class TestApplyBiggestComeback:
+    """_apply_biggest_comeback tracks deficit recovery."""
+
+    def test_apply_biggest_comeback_tracks_deficit(self):
+        from app.services.analytics import _apply_biggest_comeback, _init_career
+
+        career = _init_career({"A"})
+        _apply_biggest_comeback(
+            ["A"],
+            cumulative={"A": [-20, -10, 30]},
+            career=career,
+        )
+        assert career["A"]["biggest_comeback"] == 50
+
+
+class TestApplyTripleCrown:
+    """_apply_triple_crown awards when sole leader tops score and accuracy."""
+
+    def test_apply_triple_crown_awarded(self):
+        from app.services.analytics import _apply_triple_crown, _init_career
+
+        career = _init_career({"A", "B"})
+        _apply_triple_crown(
+            ["A", "B"],
+            game_totals={"A": 50, "B": 30},
+            game_bids_made={"A": 3, "B": 1},
+            game_bids_total={"A": 3, "B": 3},
+            career=career,
+        )
+        assert career["A"]["triple_crowns"] == 1
+
+    def test_apply_triple_crown_not_awarded_tie(self):
+        from app.services.analytics import _apply_triple_crown, _init_career
+
+        career = _init_career({"A", "B"})
+        _apply_triple_crown(
+            ["A", "B"],
+            game_totals={"A": 50, "B": 50},
+            game_bids_made={"A": 2, "B": 2},
+            game_bids_total={"A": 3, "B": 3},
+            career=career,
+        )
+        assert career["A"]["triple_crowns"] == 0

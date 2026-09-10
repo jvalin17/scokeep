@@ -92,7 +92,7 @@ export function renderTrumpDisplay(roundNum, mode, size = 'small') {
  * Attach the End Game click handler to #end-game-btn in the container.
  */
 export function attachEndGameHandler(container, gameId, navigate, state) {
-    // Bind data-nav buttons (replaces inline onclick)
+    attachIslandToggle(container);
     container.querySelectorAll('[data-nav]').forEach(el => {
         el.addEventListener('click', () => { location.hash = el.dataset.nav; });
     });

@@ -114,7 +114,7 @@ class AnalyticsService:
         return history
 
     @staticmethod
-    def _calc_highlights(games, rounds_by_game) -> dict:
+    def calc_highlights(games, rounds_by_game) -> dict:
         """Career records: one pass, rule-driven."""
         all_players = {name for g in games for name in g.players}
         career = _init_career(all_players)
@@ -123,7 +123,7 @@ class AnalyticsService:
         return {"career": _career_tables(career)}
 
     @staticmethod
-    def _calc_last_game_awards(games, rounds_by_game) -> dict | None:
+    def calc_last_game_awards(games, rounds_by_game) -> dict | None:
         """Awards for the most recent finished game."""
         sorted_games = sorted(
             games,
@@ -173,11 +173,11 @@ def _resolve_highlights(insights_blob, games, rounds_by_game):
     if cached and cached_total == len(games_with_rounds):
         return cached
 
-    highlights = AnalyticsService._calc_highlights(
+    highlights = AnalyticsService.calc_highlights(
         games_with_rounds,
         rounds_by_game,
     )
-    last_game = AnalyticsService._calc_last_game_awards(
+    last_game = AnalyticsService.calc_last_game_awards(
         games_with_rounds,
         rounds_by_game,
     )
@@ -253,40 +253,42 @@ def _process_game_for_career(game, rounds_by_game, career):
     )
 
 
+def _apply_games_won(game_totals, career):
+    """Award games_won to the sole winner; skip on a tie."""
+    if not game_totals:
+        return
+    top = max(game_totals.values())
+    winners = [n for n, s in game_totals.items() if s == top]
+    if len(winners) == 1:
+        career[winners[0]]["games_won"] += 1
+
+
+def _apply_biggest_comeback(players, cumulative, career):
+    """Track the largest deficit-to-final recovery for each player."""
+    for name in players:
+        cum = cumulative.get(name, [])
+        if cum and (recovery := cum[-1] - min(cum)) > career[name]["biggest_comeback"]:
+            career[name]["biggest_comeback"] = recovery
+
+
+def _apply_triple_crown(players, game_totals, game_bids_made, game_bids_total, career):
+    """Award triple_crown when a sole leader tops both score and accuracy."""
+    accs = {n: game_bids_made[n] / game_bids_total[n] for n in players if game_bids_total.get(n)}
+    if not accs or not game_totals:
+        return
+    acc_leaders = [n for n, a in accs.items() if a == max(accs.values())]
+    score_leaders = [n for n, s in game_totals.items() if s == max(game_totals.values())]
+    if len(acc_leaders) == 1 and len(score_leaders) == 1 and acc_leaders[0] == score_leaders[0]:
+        career[acc_leaders[0]]["triple_crowns"] += 1
+
+
 def _post_game_career_sweeps(
     players, game_totals, game_bids_made, game_bids_total, cumulative, career
 ):
-    """Compute post-game sweep/comeback/triple_crown and update career."""
-    # Sweep — sole winner gets games_won
-    if game_totals:
-        top_score = max(game_totals.values())
-        winners = [n for n, s in game_totals.items() if s == top_score]
-        if len(winners) == 1:
-            career[winners[0]]["games_won"] += 1
-
-    # Comeback king
-    for name in players:
-        cum = cumulative.get(name, [])
-        if cum:
-            final = cum[-1]
-            min_cum = min(cum)
-            recovery = final - min_cum
-            if recovery > career[name]["biggest_comeback"]:
-                career[name]["biggest_comeback"] = recovery
-
-    # Triple crown — sole leader in both score and accuracy
-    accuracies = {}
-    for name in players:
-        total = game_bids_total.get(name, 0)
-        if total > 0:
-            accuracies[name] = game_bids_made[name] / total
-    if accuracies and game_totals:
-        best_acc = max(accuracies.values())
-        acc_leaders = [n for n, a in accuracies.items() if a == best_acc]
-        best_score = max(game_totals.values())
-        score_leaders = [n for n, s in game_totals.items() if s == best_score]
-        if len(acc_leaders) == 1 and len(score_leaders) == 1 and acc_leaders[0] == score_leaders[0]:
-            career[acc_leaders[0]]["triple_crowns"] += 1
+    """Dispatcher: run all post-game career sweep checks."""
+    _apply_games_won(game_totals, career)
+    _apply_biggest_comeback(players, cumulative, career)
+    _apply_triple_crown(players, game_totals, game_bids_made, game_bids_total, career)
 
 
 def _apply_zero_bid_streak(player_career, bid, made):

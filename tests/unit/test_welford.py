@@ -111,3 +111,31 @@ class TestAdaptiveZNormalize:
         variance = welford_variance(state)
         for v in variance:
             assert v == pytest.approx(0.0)
+
+
+class TestSigmoidNormalizeVec:
+    """_sigmoid_normalize_vec applies per-dimension sigmoid normalization."""
+
+    def test_sigmoid_normalize_vec_at_mean(self):
+        from app.services.personality_engine import _sigmoid_normalize_vec
+
+        result = _sigmoid_normalize_vec(
+            vec=[0.5] * 10,
+            cal_mean=[0.5] * 10,
+            variances=[0.04] * 10,
+            num_dims=10,
+        )
+        assert len(result) == 10
+        for value in result:
+            assert abs(value - 0.5) < 0.01
+
+    def test_sigmoid_normalize_vec_above_mean(self):
+        from app.services.personality_engine import _sigmoid_normalize_vec
+
+        result = _sigmoid_normalize_vec(
+            vec=[0.9] + [0.5] * 9,
+            cal_mean=[0.5] * 10,
+            variances=[0.04] * 10,
+            num_dims=10,
+        )
+        assert result[0] > 0.5

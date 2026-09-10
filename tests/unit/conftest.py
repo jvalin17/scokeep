@@ -4,7 +4,7 @@
 class MockRound:
     """Mock round object for testing game logic without a database."""
 
-    def __init__(self, bids, hands_won, scores, cards_dealt=8, trump_suit="spades"):
+    def __init__(self, bids, hands_won, scores, cards_dealt=8, trump_suit=None):
         self.bids = bids
         self.hands_won = hands_won
         self.scores = scores

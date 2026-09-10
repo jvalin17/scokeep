@@ -403,8 +403,8 @@ def _compute_cached_highlights(games, rounds_by_game):
     """Compute highlights for caching in insights blob."""
     from app.services.analytics import AnalyticsService
 
-    highlights = AnalyticsService._calc_highlights(games, rounds_by_game)
-    last_game = AnalyticsService._calc_last_game_awards(
+    highlights = AnalyticsService.calc_highlights(games, rounds_by_game)
+    last_game = AnalyticsService.calc_last_game_awards(
         games,
         rounds_by_game,
     )

@@ -97,6 +97,25 @@ def welford_variance(state: dict) -> list[float]:
     return [m2 / state["count"] for m2 in state["m2"]]
 
 
+def _sigmoid_normalize_vec(
+    vec: list[float],
+    cal_mean: list[float],
+    variances: list[float],
+    num_dims: int,
+) -> list[float]:
+    """Apply per-dimension sigmoid normalization using calibration statistics."""
+    normalized = []
+    for i in range(min(len(vec), num_dims)):
+        sd = math.sqrt(variances[i]) if variances[i] > 0 else 0.0
+        if sd > 1e-10:
+            z = (vec[i] - cal_mean[i]) / sd
+            val = 1.0 / (1.0 + math.exp(-z))
+        else:
+            val = 0.5
+        normalized.append(round(val, 6))
+    return normalized
+
+
 def adaptive_z_normalize(
     vectors: dict[str, list[float]],
     calibration: dict | None,
@@ -115,19 +134,10 @@ def adaptive_z_normalize(
     variances = welford_variance(calibration)
     num_dims = len(cal_mean)
 
-    result = {}
-    for player, vec in vectors.items():
-        normalized = []
-        for i in range(min(len(vec), num_dims)):
-            sd = math.sqrt(variances[i]) if variances[i] > 0 else 0.0
-            if sd > 1e-10:
-                z = (vec[i] - cal_mean[i]) / sd
-                val = 1.0 / (1.0 + math.exp(-z))
-            else:
-                val = 0.5
-            normalized.append(round(val, 6))
-        result[player] = normalized
-    return result
+    return {
+        player: _sigmoid_normalize_vec(vec, cal_mean, variances, num_dims)
+        for player, vec in vectors.items()
+    }
 
 
 def global_z_normalize(vectors: dict[str, list[float]]) -> dict[str, list[float]]:
