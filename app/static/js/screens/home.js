@@ -1,6 +1,7 @@
-// Home screen — create or join playground
+// Home screen — create or join playground, or start a quick local game
 
 import { createPlayground, authPlayground, listRecentPlaygrounds, browsePlaygrounds, getPinHint } from '../api.js';
+import { createGame } from '../game-api.js';
 import { escapeHtml } from '../components/game-utils.js';
 
 export const homeScreen = {
@@ -15,6 +16,7 @@ export const homeScreen = {
                 <div class="tabs">
                     <button class="tab active" data-tab="create">Create</button>
                     <button class="tab" data-tab="join">Join</button>
+                    <button class="tab" data-tab="quick">Quick Game</button>
                     <button class="tab" data-tab="howto">How To</button>
                 </div>
 
@@ -62,6 +64,51 @@ export const homeScreen = {
                     <p id="pin-hint-display" class="stats-muted hidden" style="font-size:0.85rem;"></p>
                     <p id="join-error" class="error hidden"></p>
                 </form>
+
+                <div id="quick-form" class="form hidden">
+                    <div id="quick-player-list" class="player-list">
+                        <div class="player-input-row">
+                            <input type="text" placeholder="Player 1" class="quick-player-name"
+                                maxlength="15" required autocomplete="off">
+                        </div>
+                        <div class="player-input-row">
+                            <input type="text" placeholder="Player 2" class="quick-player-name"
+                                maxlength="15" required autocomplete="off">
+                        </div>
+                    </div>
+                    <button type="button" id="quick-add-player" class="btn-text">+ Add player</button>
+
+                    <div class="settings-grid" style="margin-top:12px;">
+                        <label>Mode</label>
+                        <select id="quick-setting-mode">
+                            <option value="expert">Expert</option>
+                            <option value="rookie" selected>Rookie</option>
+                            <option value="friendly">Friendly</option>
+                        </select>
+
+                        <label>Scoring</label>
+                        <select id="quick-setting-scoring">
+                            <option value="kachuful_standard" selected>Ones (bid 1 = 11)</option>
+                            <option value="kachuful_zeros">Zeros (bid 1 = 10)</option>
+                        </select>
+
+                        <label>Sets</label>
+                        <select id="quick-setting-sets">
+                            ${[1,2,3,4,5].map(n =>
+                                `<option value="${n}" ${n === 3 ? 'selected' : ''}>${n} set${n > 1 ? 's' : ''}</option>`
+                            ).join('')}
+                        </select>
+
+                        <label>Must-lose</label>
+                        <label class="toggle">
+                            <input type="checkbox" id="quick-setting-must-lose" checked>
+                            <span class="toggle-label">On</span>
+                        </label>
+                    </div>
+
+                    <button type="button" id="quick-start" class="btn btn-primary" style="margin-top:16px;">Start Game</button>
+                    <p id="quick-error" class="error hidden"></p>
+                </div>
 
                 <div id="howto-section" class="form hidden">
                     <div class="howto">
@@ -199,17 +246,24 @@ export const homeScreen = {
         }
 
         // Tab switching
+        const TAB_PANELS = ['create', 'join', 'quick', 'howto'];
         container.querySelectorAll('.tab').forEach(tab => {
             tab.addEventListener('click', () => {
                 container.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
                 tab.classList.add('active');
                 const target = tab.dataset.tab;
-                container.querySelector('#create-form').classList.toggle('visible', target === 'create');
-                container.querySelector('#create-form').classList.toggle('hidden', target !== 'create');
-                container.querySelector('#join-form').classList.toggle('visible', target === 'join');
-                container.querySelector('#join-form').classList.toggle('hidden', target !== 'join');
-                container.querySelector('#howto-section').classList.toggle('visible', target === 'howto');
-                container.querySelector('#howto-section').classList.toggle('hidden', target !== 'howto');
+                const panelIds = {
+                    create: '#create-form',
+                    join: '#join-form',
+                    quick: '#quick-form',
+                    howto: '#howto-section',
+                };
+                TAB_PANELS.forEach(name => {
+                    const el = container.querySelector(panelIds[name]);
+                    if (!el) return;
+                    el.classList.toggle('visible', name === target);
+                    el.classList.toggle('hidden', name !== target);
+                });
                 if (target === 'join') loadRecent();
             });
         });
@@ -301,7 +355,70 @@ export const homeScreen = {
             });
         }
 
-        // Add player button
+        // Quick Game — add player
+        let quickPlayerCount = 2;
+        container.querySelector('#quick-add-player').addEventListener('click', () => {
+            if (quickPlayerCount >= 8) return;
+            quickPlayerCount++;
+            const row = document.createElement('div');
+            row.className = 'player-input-row';
+            row.innerHTML = `
+                <input type="text" placeholder="Player ${quickPlayerCount}" class="quick-player-name"
+                    maxlength="15" autocomplete="off">
+                <button type="button" class="btn-remove" title="Remove">&times;</button>
+            `;
+            row.querySelector('.btn-remove').addEventListener('click', () => {
+                row.remove();
+                quickPlayerCount--;
+            });
+            container.querySelector('#quick-player-list').appendChild(row);
+        });
+
+        // Quick Game — start
+        container.querySelector('#quick-start').addEventListener('click', async () => {
+            const errorElement = container.querySelector('#quick-error');
+            errorElement.classList.add('hidden');
+
+            const players = Array.from(container.querySelectorAll('.quick-player-name'))
+                .map(input => input.value.trim())
+                .filter(name => name.length > 0);
+
+            if (players.length < 2) {
+                errorElement.textContent = 'At least 2 players required';
+                errorElement.classList.remove('hidden');
+                return;
+            }
+
+            const mode = container.querySelector('#quick-setting-mode').value;
+            const formula = container.querySelector('#quick-setting-scoring').value;
+            const numSets = parseInt(container.querySelector('#quick-setting-sets').value);
+            const mustLose = container.querySelector('#quick-setting-must-lose').checked;
+            const maxCards = Math.floor(52 / Math.max(players.length, 2));
+            const roundsPerSet = Math.min(maxCards, 8);
+
+            const startBtn = container.querySelector('#quick-start');
+            const originalText = startBtn.textContent;
+            startBtn.textContent = 'Starting...';
+            startBtn.disabled = true;
+
+            try {
+                const game = await createGame(players, {
+                    mode,
+                    formula,
+                    num_sets: numSets,
+                    must_lose: mustLose,
+                    rounds_per_set: roundsPerSet,
+                });
+                navigate(`bid/${game.id}`);
+            } catch (error) {
+                errorElement.textContent = error.message;
+                errorElement.classList.remove('hidden');
+                startBtn.textContent = originalText;
+                startBtn.disabled = false;
+            }
+        });
+
+        // Create playground — add player button
         let playerCount = 2;
         container.querySelector('#add-player').addEventListener('click', () => {
             if (playerCount >= 8) return;

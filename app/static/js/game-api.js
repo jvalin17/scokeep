@@ -7,19 +7,184 @@
  * Screens should import from this module instead of engine/game-engine.js
  * so that server sync is always applied consistently.
  *
- * Public API mirrors game-engine.js exactly:
- *   createGame, getGame, submitBid, getBids, editBid
- *   startRound, enterRoundEnd, submitHands
+ * Public API mirrors api.js shape for drop-in replacement by game screens:
+ *   createGame, getGame, getBids, getScoreboard
+ *   submitBid, editBid, startRound, enterRoundEnd, submitHands
  *   endRound, nextRound, endGame, extendGame
- *   getScoreboard, undoRound, confirmFinal
+ *   undoRound, confirmFinal
+ *   guardPhase, resyncGame, loadGameFromServer
+ *   enterRescore, rescoreRound, enterReview
  */
 
 import * as engine from './engine/game-engine.js';
+import { saveGame as storeSaveGame, saveRound as storeSaveRound, getRound as storeGetRound } from './engine/store.js';
 import { syncRound, syncGameState } from './engine/server-sync.js';
 
-// Re-export read-only helpers unchanged (no sync needed)
+const PHASE_ROUTES = {
+  bidding: 'bid',
+  playing: 'play',
+  round_end: 'roundend',
+  scoring: 'scoreboard',
+  scoreboard: 'scoreboard',
+  review: 'review',
+  final: 'final',
+  finished: 'scoreboard',
+};
+
+// ─── server bridge ────────────────────────────────────────────────────────────
+
+/**
+ * Fetch a game and all its rounds from the server and save them to IndexedDB.
+ * Called when a server-created game is not yet in local storage.
+ *
+ * @param {string|number} gameId
+ * @returns {Promise<Object>} The game object.
+ */
+export async function loadGameFromServer(gameId) {
+  const resp = await fetch(`/api/game/${gameId}`, { credentials: 'same-origin' });
+  if (!resp.ok) throw new Error('Failed to load game from server');
+  const game = await resp.json();
+
+  const roundsResp = await fetch(`/api/game/${gameId}/history`, { credentials: 'same-origin' });
+  const roundsData = roundsResp.ok ? await roundsResp.json() : [];
+
+  await storeSaveGame(game);
+  for (const round of roundsData) {
+    await storeSaveRound(round);
+  }
+  return game;
+}
+
+// ─── navigation helpers ───────────────────────────────────────────────────────
+
+/**
+ * Guard: ensure the local game phase matches expectedPhase.
+ * If the game is not in IndexedDB and we are online, fetch it from the server.
+ * Redirects to the correct screen if phase mismatches.
+ *
+ * @param {string|number} gameId
+ * @param {string} expectedPhase
+ * @returns {Promise<Object|null>} game object, or null if redirected.
+ */
+export async function guardPhase(gameId, expectedPhase) {
+  let game = await engine.getGame(gameId);
+  if (!game && navigator.onLine) {
+    try {
+      game = await loadGameFromServer(gameId);
+    } catch { /* fall through — will be null */ }
+  }
+  if (!game) return null;
+
+  if (game.phase !== expectedPhase) {
+    const route = PHASE_ROUTES[game.phase] || 'scoreboard';
+    window.location.hash = `${route}/${gameId}`;
+    return null;
+  }
+  return game;
+}
+
+/**
+ * Re-sync: load game state and navigate to the correct screen.
+ *
+ * @param {string|number} gameId
+ * @returns {Promise<Object>} game object.
+ */
+export async function resyncGame(gameId) {
+  let game = await engine.getGame(gameId);
+  if (!game && navigator.onLine) {
+    game = await loadGameFromServer(gameId);
+  }
+  if (!game) throw new Error(`Game not found: ${gameId}`);
+  const route = PHASE_ROUTES[game.phase] || 'scoreboard';
+  window.location.hash = `${route}/${gameId}`;
+  return game;
+}
+
+// ─── re-score / review helpers ────────────────────────────────────────────────
+
+/**
+ * Enter rescore mode: reset current round to round_end phase so hands can
+ * be re-entered. Delegates to engine.enterRoundEnd to set phase.
+ *
+ * @param {string|number} gameId
+ * @returns {Promise<Object>} Updated game.
+ */
+export async function enterRescore(gameId) {
+  const game = await engine.enterRoundEnd(gameId);
+  syncGameState(gameId, game);
+  return game;
+}
+
+/**
+ * Prepare a specific round for rescoring by setting its status back to active
+ * and transitioning the game to round_end phase.
+ *
+ * @param {string|number} gameId
+ * @param {number} roundNum
+ * @returns {Promise<Object>} Updated game.
+ */
+export async function rescoreRound(gameId, roundNum) {
+  // Reset the targeted round's status so endRound will re-score it.
+  const game = await engine.getGame(gameId);
+  if (!game) throw new Error(`Game not found: ${gameId}`);
+
+  // Load the round from store and set it back to active.
+  const round = await storeGetRound(gameId, roundNum);
+  if (round) {
+    round.status = 'active';
+    await storeSaveRound(round);
+  }
+
+  // Set current_round to the round being rescored so endRound targets it.
+  game.current_round = roundNum;
+  game.phase = 'round_end';
+  await storeSaveGame(game);
+
+  syncGameState(gameId, game);
+  return game;
+}
+
+/**
+ * Enter the review phase.
+ *
+ * @param {string|number} gameId
+ * @returns {Promise<Object>} Updated game.
+ */
+export async function enterReview(gameId) {
+  const game = await engine.getGame(gameId);
+  if (!game) throw new Error(`Game not found: ${gameId}`);
+  game.phase = 'review';
+  await storeSaveGame(game);
+  syncGameState(gameId, game);
+  return game;
+}
+
+// ─── read-only helpers ────────────────────────────────────────────────────────
+
+/**
+ * Get a game by ID from IndexedDB.
+ */
 export const getGame = engine.getGame;
-export const getBids = engine.getBids;
+
+/**
+ * Get bids for the current round.
+ * Returns the full round object (with .bids and .hands_won) to match the
+ * shape returned by the server's GET /game/:id/bids endpoint.
+ *
+ * @param {string|number} gameId
+ * @returns {Promise<Object>} Round object with bids, hands_won, etc.
+ */
+export async function getBids(gameId) {
+  const game = await engine.getGame(gameId);
+  if (!game) throw new Error(`Game not found: ${gameId}`);
+  const round = await storeGetRound(gameId, game.current_round);
+  if (!round) throw new Error(`Round not found: game=${gameId} round=${game.current_round}`);
+  return round;
+}
+
+/**
+ * Get the scoreboard (totals + per-round data).
+ */
 export const getScoreboard = engine.getScoreboard;
 
 /**

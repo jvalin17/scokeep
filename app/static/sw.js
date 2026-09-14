@@ -1,12 +1,13 @@
 // Service worker — cache app shell for offline use
 
-const CACHE_NAME = 'scokeep-v68';
+const CACHE_NAME = 'scokeep-v69';
 const APP_SHELL = [
     '/',
     '/static/css/style.css',
     '/static/js/app.js',
     '/static/js/sw-register.js',
     '/static/js/api.js',
+    '/static/js/game-api.js',
     '/static/js/screens/home.js',
     '/static/js/screens/lobby.js',
     '/static/js/screens/bidding.js',
@@ -26,6 +27,15 @@ const APP_SHELL = [
     '/static/js/components/personality-card.js',
     '/static/js/components/stats-charts.js',
     '/static/js/components/stats-awards.js',
+    '/static/js/engine/scoring.js',
+    '/static/js/engine/trump.js',
+    '/static/js/engine/bid.js',
+    '/static/js/engine/hands.js',
+    '/static/js/engine/scoreboard.js',
+    '/static/js/engine/phase.js',
+    '/static/js/engine/store.js',
+    '/static/js/engine/game-engine.js',
+    '/static/js/engine/server-sync.js',
     '/static/manifest.json',
     '/static/icons/icon-192.png',
     '/static/icons/icon-512.png',
