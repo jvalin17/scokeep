@@ -12,7 +12,7 @@ from slowapi.errors import RateLimitExceeded
 from sqlalchemy import text
 
 from app.database import create_tables, engine
-from app.routes import game, playground, score
+from app.routes import game, playground, score, sync
 from app.routes import round as round_routes
 
 logging.basicConfig(
@@ -108,6 +108,7 @@ app.include_router(playground.router)
 app.include_router(game.router)
 app.include_router(round_routes.router)
 app.include_router(score.router)
+app.include_router(sync.router)
 
 
 @app.get("/")
