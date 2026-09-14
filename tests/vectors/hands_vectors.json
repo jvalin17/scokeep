@@ -1,0 +1,116 @@
+{
+  "validate_hands": [
+    {
+      "description": "exceeds remaining — rejected",
+      "existing_hands": {"0": 2, "1": 3},
+      "player_index": 2,
+      "value": 4,
+      "cards_dealt": 8,
+      "valid": false
+    },
+    {
+      "description": "equals remaining — ok",
+      "existing_hands": {"0": 2, "1": 3},
+      "player_index": 2,
+      "value": 3,
+      "cards_dealt": 8,
+      "valid": true
+    },
+    {
+      "description": "below remaining — ok",
+      "existing_hands": {"0": 2, "1": 3},
+      "player_index": 2,
+      "value": 1,
+      "cards_dealt": 8,
+      "valid": true
+    },
+    {
+      "description": "zero always valid",
+      "existing_hands": {"0": 5, "1": 2},
+      "player_index": 2,
+      "value": 0,
+      "cards_dealt": 8,
+      "valid": true
+    },
+    {
+      "description": "first entry — no others yet",
+      "existing_hands": {},
+      "player_index": 0,
+      "value": 5,
+      "cards_dealt": 8,
+      "valid": true
+    },
+    {
+      "description": "first entry exceeds full deck — rejected",
+      "existing_hands": {},
+      "player_index": 0,
+      "value": 9,
+      "cards_dealt": 8,
+      "valid": false
+    },
+    {
+      "description": "1-card round — value 1 ok",
+      "existing_hands": {},
+      "player_index": 0,
+      "value": 1,
+      "cards_dealt": 1,
+      "valid": true
+    },
+    {
+      "description": "1-card round — value 2 rejected",
+      "existing_hands": {},
+      "player_index": 0,
+      "value": 2,
+      "cards_dealt": 1,
+      "valid": false
+    },
+    {
+      "description": "1-card round — others took the card",
+      "existing_hands": {"0": 1},
+      "player_index": 1,
+      "value": 0,
+      "cards_dealt": 1,
+      "valid": true
+    },
+    {
+      "description": "1-card round — others took card, player claims 1 — rejected",
+      "existing_hands": {"0": 1},
+      "player_index": 1,
+      "value": 1,
+      "cards_dealt": 1,
+      "valid": false
+    },
+    {
+      "description": "negative value — rejected",
+      "existing_hands": {"0": 2},
+      "player_index": 1,
+      "value": -1,
+      "cards_dealt": 8,
+      "valid": false
+    },
+    {
+      "description": "player already has entry — own entry excluded from others sum",
+      "existing_hands": {"0": 3, "1": 2},
+      "player_index": 0,
+      "value": 2,
+      "cards_dealt": 8,
+      "valid": true
+    },
+    {
+      "description": "player updating own entry — exceed check uses others only",
+      "existing_hands": {"0": 3, "1": 2},
+      "player_index": 0,
+      "value": 6,
+      "cards_dealt": 8,
+      "valid": true
+    },
+    {
+      "description": "player updating own entry — exceeds when others fill remaining",
+      "existing_hands": {"0": 3, "1": 6},
+      "player_index": 0,
+      "value": 3,
+      "cards_dealt": 8,
+      "valid": false
+    }
+  ]
+}

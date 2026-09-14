@@ -6,6 +6,34 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.round import Round
 
 
+def compute_scoreboard(rounds: list[dict], player_count: int = 0) -> dict:
+    """Pure function: compute cumulative totals from a list of scored round dicts.
+
+    Each round dict must have a 'scores' key mapping player_key -> score int.
+    Other fields (round_num, cards_dealt, trump_suit, bids, hands_won) are
+    passed through unchanged in the returned rounds list.
+
+    Args:
+        rounds: List of round dicts with scores and metadata.
+        player_count: Ensures players 0..player_count-1 appear in totals (value 0).
+
+    Returns:
+        {"totals": {player_key: cumulative_score}, "rounds": [round_dict, ...]}
+    """
+    totals: dict[str, int] = {}
+    rounds_data = []
+
+    for round_dict in rounds:
+        rounds_data.append(dict(round_dict))
+        for player_key, score in round_dict["scores"].items():
+            totals[player_key] = totals.get(player_key, 0) + score
+
+    for i in range(player_count):
+        totals.setdefault(str(i), 0)
+
+    return {"totals": totals, "rounds": rounds_data}
+
+
 class ScoreboardService:
     @staticmethod
     async def get_scoreboard(

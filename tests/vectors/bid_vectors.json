@@ -1,0 +1,90 @@
+[
+  {
+    "id": "must_lose_rejects_last_player",
+    "description": "Last player bid makes total equal cards_dealt — must-lose rejects it",
+    "existingBids": {"0": 2, "1": 3},
+    "playerIndex": 2,
+    "value": 3,
+    "mustLose": true,
+    "cardsDeal": 8,
+    "playerCount": 3,
+    "expectError": true
+  },
+  {
+    "id": "must_lose_allows_last_player_safe_bid",
+    "description": "Last player bid keeps total different from cards_dealt — must-lose allows it",
+    "existingBids": {"0": 2, "1": 3},
+    "playerIndex": 2,
+    "value": 2,
+    "mustLose": true,
+    "cardsDeal": 8,
+    "playerCount": 3,
+    "expectError": false
+  },
+  {
+    "id": "must_lose_non_last_player_any_bid_ok",
+    "description": "Non-last player: must-lose constraint is not applied",
+    "existingBids": {"0": 4},
+    "playerIndex": 1,
+    "value": 4,
+    "mustLose": true,
+    "cardsDeal": 8,
+    "playerCount": 3,
+    "expectError": false
+  },
+  {
+    "id": "must_lose_disabled_last_player_matching_total_ok",
+    "description": "must-lose is false: last player can make total equal cards_dealt",
+    "existingBids": {"0": 2, "1": 3},
+    "playerIndex": 2,
+    "value": 3,
+    "mustLose": false,
+    "cardsDeal": 8,
+    "playerCount": 3,
+    "expectError": false
+  },
+  {
+    "id": "must_lose_one_card_edge_case_rejects",
+    "description": "1-card round: last player cannot bid 1 when existing total is 0",
+    "existingBids": {"0": 0, "1": 0},
+    "playerIndex": 2,
+    "value": 1,
+    "mustLose": true,
+    "cardsDeal": 1,
+    "playerCount": 3,
+    "expectError": true
+  },
+  {
+    "id": "must_lose_one_card_edge_case_allows_zero",
+    "description": "1-card round: last player can bid 0 when existing total is 0 (total 0 != 1)",
+    "existingBids": {"0": 0, "1": 0},
+    "playerIndex": 2,
+    "value": 0,
+    "mustLose": true,
+    "cardsDeal": 1,
+    "playerCount": 3,
+    "expectError": false
+  },
+  {
+    "id": "duplicate_bid_rejected",
+    "description": "Player who already bid cannot bid again",
+    "existingBids": {"0": 2, "1": 3},
+    "playerIndex": 1,
+    "value": 1,
+    "mustLose": false,
+    "cardsDeal": 8,
+    "playerCount": 3,
+    "expectError": true
+  },
+  {
+    "id": "negative_bid_rejected",
+    "description": "Negative bid value is invalid",
+    "existingBids": {"0": 2},
+    "playerIndex": 1,
+    "value": -1,
+    "mustLose": false,
+    "cardsDeal": 8,
+    "playerCount": 3,
+    "expectError": true
+  }
+]

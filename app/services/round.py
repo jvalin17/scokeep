@@ -8,6 +8,49 @@ from app.services.scoring import calculate_round_scores
 from app.utils.trump import get_cards_for_round, get_trump_for_round
 
 
+def validate_bid(
+    existing_bids: dict,
+    player_index: int,
+    value: int,
+    *,
+    must_lose: bool = False,
+    cards_deal: int = 0,
+    player_count: int = 0,
+) -> str | None:
+    """Pure bid validation — no side effects.
+
+    Returns None if the bid is valid, or an error string describing the problem.
+
+    Args:
+        existing_bids: dict mapping str(player_index) -> bid value for bids already placed.
+        player_index:  index of the player submitting this bid.
+        value:         the bid value being submitted.
+        must_lose:     whether must-lose mode is active (last player cannot equalise total).
+        cards_deal:    number of cards dealt this round.
+        player_count:  total number of players in the game.
+    """
+    if value < 0:
+        return f"Bid {value} is invalid: bid cannot be negative"
+
+    player_key = str(player_index)
+    if player_key in existing_bids:
+        return f"Bid already submitted for player {player_index}"
+
+    if must_lose:
+        bids_so_far = len(existing_bids)
+        is_last_player = bids_so_far == player_count - 1
+        if is_last_player:
+            existing_total = sum(existing_bids.values())
+            if existing_total + value == cards_deal:
+                return (
+                    f"Bid {value} rejected: must-lose mode — "
+                    f"total bids ({existing_total + value}) "
+                    f"cannot equal cards dealt ({cards_deal})"
+                )
+
+    return None
+
+
 class RoundService:
     @staticmethod
     async def create_round(db: AsyncSession, game) -> Round:

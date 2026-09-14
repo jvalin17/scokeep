@@ -1,0 +1,155 @@
+[
+  {
+    "id": "single_round_three_players",
+    "description": "Single round, three players — totals equal round scores",
+    "rounds": [
+      {
+        "round_num": 1,
+        "cards_dealt": 8,
+        "trump_suit": "hearts",
+        "bids": {"0": 2, "1": 3, "2": 1},
+        "hands_won": {"0": 2, "1": 3, "2": 1},
+        "scores": {"0": 20, "1": 30, "2": 11}
+      }
+    ],
+    "player_count": 3,
+    "expected_totals": {"0": 20, "1": 30, "2": 11}
+  },
+  {
+    "id": "two_rounds_cumulative",
+    "description": "Two rounds — totals accumulate across rounds",
+    "rounds": [
+      {
+        "round_num": 1,
+        "cards_dealt": 8,
+        "trump_suit": "clubs",
+        "bids": {"0": 2, "1": 0},
+        "hands_won": {"0": 2, "1": 0},
+        "scores": {"0": 20, "1": 10}
+      },
+      {
+        "round_num": 2,
+        "cards_dealt": 7,
+        "trump_suit": "diamonds",
+        "bids": {"0": 3, "1": 2},
+        "hands_won": {"0": 1, "1": 2},
+        "scores": {"0": -30, "1": 20}
+      }
+    ],
+    "player_count": 2,
+    "expected_totals": {"0": -10, "1": 30}
+  },
+  {
+    "id": "missing_player_filled_zero",
+    "description": "player_count fills missing players with 0",
+    "rounds": [
+      {
+        "round_num": 1,
+        "cards_dealt": 3,
+        "trump_suit": "spades",
+        "bids": {"0": 1, "1": 1},
+        "hands_won": {"0": 1, "1": 1},
+        "scores": {"0": 11, "1": 11}
+      }
+    ],
+    "player_count": 4,
+    "expected_totals": {"0": 11, "1": 11, "2": 0, "3": 0}
+  },
+  {
+    "id": "empty_rounds_all_zeros",
+    "description": "No scored rounds — all players start at zero",
+    "rounds": [],
+    "player_count": 3,
+    "expected_totals": {"0": 0, "1": 0, "2": 0}
+  },
+  {
+    "id": "three_rounds_four_players",
+    "description": "Three rounds, four players — full multi-round game",
+    "rounds": [
+      {
+        "round_num": 1,
+        "cards_dealt": 8,
+        "trump_suit": "hearts",
+        "bids": {"0": 3, "1": 2, "2": 1, "3": 0},
+        "hands_won": {"0": 3, "1": 2, "2": 1, "3": 0},
+        "scores": {"0": 30, "1": 20, "2": 11, "3": 10}
+      },
+      {
+        "round_num": 2,
+        "cards_dealt": 7,
+        "trump_suit": "clubs",
+        "bids": {"0": 2, "1": 1, "2": 2, "3": 1},
+        "hands_won": {"0": 2, "1": 3, "2": 2, "3": 0},
+        "scores": {"0": 20, "1": -10, "2": 20, "3": -10}
+      },
+      {
+        "round_num": 3,
+        "cards_dealt": 6,
+        "trump_suit": "diamonds",
+        "bids": {"0": 0, "1": 2, "2": 3, "3": 1},
+        "hands_won": {"0": 0, "1": 2, "2": 3, "3": 1},
+        "scores": {"0": 10, "1": 20, "2": 30, "3": 11}
+      }
+    ],
+    "player_count": 4,
+    "expected_totals": {"0": 60, "1": 30, "2": 61, "3": 11}
+  },
+  {
+    "id": "negative_running_total",
+    "description": "Running total goes negative when player misses bids repeatedly",
+    "rounds": [
+      {
+        "round_num": 1,
+        "cards_dealt": 5,
+        "trump_suit": "hearts",
+        "bids": {"0": 3, "1": 1},
+        "hands_won": {"0": 1, "1": 1},
+        "scores": {"0": -30, "1": 11}
+      },
+      {
+        "round_num": 2,
+        "cards_dealt": 4,
+        "trump_suit": "spades",
+        "bids": {"0": 2, "1": 0},
+        "hands_won": {"0": 4, "1": 0},
+        "scores": {"0": -20, "1": 10}
+      }
+    ],
+    "player_count": 2,
+    "expected_totals": {"0": -50, "1": 21}
+  },
+  {
+    "id": "player_count_zero_no_fill",
+    "description": "player_count=0 — no fill, only players from scores dict",
+    "rounds": [
+      {
+        "round_num": 1,
+        "cards_dealt": 4,
+        "trump_suit": "clubs",
+        "bids": {"0": 1, "1": 2},
+        "hands_won": {"0": 1, "1": 2},
+        "scores": {"0": 11, "1": 20}
+      }
+    ],
+    "player_count": 0,
+    "expected_totals": {"0": 11, "1": 20}
+  },
+  {
+    "id": "rounds_data_passthrough",
+    "description": "rounds array in output contains each round's full data",
+    "rounds": [
+      {
+        "round_num": 5,
+        "cards_dealt": 3,
+        "trump_suit": "diamonds",
+        "bids": {"0": 1},
+        "hands_won": {"0": 1},
+        "scores": {"0": 11}
+      }
+    ],
+    "player_count": 1,
+    "expected_totals": {"0": 11},
+    "expected_rounds_count": 1,
+    "expected_round_num": 5
+  }
+]

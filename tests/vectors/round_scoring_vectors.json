@@ -1,0 +1,54 @@
+{
+  "kachuful_standard": [
+    {
+      "description": "four players mixed results",
+      "bids": {"0": 2, "1": 0, "2": 3, "3": 1},
+      "hands_won": {"0": 2, "1": 0, "2": 1, "3": 1},
+      "expected": {"0": 20, "1": 10, "2": -30, "3": 11}
+    },
+    {
+      "description": "all players make bids",
+      "bids": {"0": 3, "1": 2, "2": 1},
+      "hands_won": {"0": 3, "1": 2, "2": 1},
+      "expected": {"0": 30, "1": 20, "2": 11}
+    },
+    {
+      "description": "all players miss",
+      "bids": {"0": 3, "1": 0, "2": 2},
+      "hands_won": {"0": 1, "1": 2, "2": 0},
+      "expected": {"0": -30, "1": -10, "2": -20}
+    },
+    {
+      "description": "single player bid 0 made",
+      "bids": {"0": 0},
+      "hands_won": {"0": 0},
+      "expected": {"0": 10}
+    },
+    {
+      "description": "single player bid 1 made",
+      "bids": {"0": 1},
+      "hands_won": {"0": 1},
+      "expected": {"0": 11}
+    }
+  ],
+  "kachuful_zeros": [
+    {
+      "description": "zeros formula bid 1 made scores 10 not 11",
+      "bids": {"0": 2, "1": 0, "2": 1, "3": 1},
+      "hands_won": {"0": 2, "1": 0, "2": 1, "3": 0},
+      "expected": {"0": 20, "1": 10, "2": 10, "3": -10}
+    },
+    {
+      "description": "zeros: all bid 1 made",
+      "bids": {"0": 1, "1": 1, "2": 1},
+      "hands_won": {"0": 1, "1": 1, "2": 1},
+      "expected": {"0": 10, "1": 10, "2": 10}
+    },
+    {
+      "description": "zeros: bid 0 and 1 treated equally on miss",
+      "bids": {"0": 0, "1": 1},
+      "hands_won": {"0": 1, "1": 0},
+      "expected": {"0": -10, "1": -10}
+    }
+  ]
+}
