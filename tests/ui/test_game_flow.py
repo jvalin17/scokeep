@@ -5,6 +5,7 @@ import pytest
 from tests.ui.helpers import (
     confirm_bids,
     create_playground,
+    end_game,
     enter_bids_for_all,
     enter_hands_won,
     start_game,
@@ -66,6 +67,23 @@ class TestExpertGameFlow:
             page.wait_for_timeout(1000)
         url_hash = page.evaluate("() => location.hash")
         assert "scoreboard" in url_hash or "bid" in url_hash or "play" in url_hash
+
+    def test_end_game_from_playing_shows_review(self, playground_expert):
+        """End game during playing phase must show final screen, not blank."""
+        page = playground_expert
+        enter_bids_for_all(page, [2, 3, 1])
+        confirm_bids(page)
+        # Now in playing phase — end the game
+        end_game(page)
+        page.wait_for_timeout(500)
+        url_hash = page.evaluate("() => location.hash")
+        assert "scoreboard" in url_hash or "final" in url_hash, (
+            f"Expected scoreboard/final after end game, got: {url_hash}"
+        )
+        # Page should show game-over state (not blank/stuck)
+        content = page.content()
+        has_end_state = "Back to Room" in content or "No rounds" in content
+        assert has_end_state, "Page is blank — no end-game content visible"
 
 
 class TestFriendlyGameFlow:

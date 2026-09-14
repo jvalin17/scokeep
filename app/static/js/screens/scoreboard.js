@@ -11,8 +11,8 @@ export const scoreboardScreen = {
         const game = await getGame(gameId);
         // Scoreboard accepts both 'scoreboard' and 'final' phases
         if (game.phase !== 'scoreboard' && game.status !== 'finished') {
-            const { guardPhase: gp } = await import('../api.js');
-            await gp(gameId, game.phase); // will redirect
+            const { resyncGame } = await import('../api.js');
+            await resyncGame(gameId);
             return;
         }
         state.game = game;
