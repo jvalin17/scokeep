@@ -127,9 +127,9 @@ async def apple_touch_icon():
     return FileResponse(STATIC_DIR / "apple-touch-icon.png")
 
 
-@app.get("/google90ca41c797c60c6e.html")
+@app.get("/google58fff8f471367856.html")
 async def google_verification():
-    return FileResponse(STATIC_DIR / "google90ca41c797c60c6e.html")
+    return FileResponse(STATIC_DIR / "google58fff8f471367856.html")
 
 
 @app.get("/sitemap.xml")
