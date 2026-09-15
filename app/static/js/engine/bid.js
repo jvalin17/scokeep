@@ -26,6 +26,10 @@ export function validateBid(existingBids, playerIndex, value, { mustLose, cardsD
         return `Bid ${value} is invalid: bid cannot be negative`;
     }
 
+    if (cardsDeal > 0 && value > cardsDeal) {
+        return `Bid ${value} is invalid: bid cannot exceed cards dealt (${cardsDeal})`;
+    }
+
     const playerKey = String(playerIndex);
     if (Object.prototype.hasOwnProperty.call(existingBids, playerKey)) {
         return `Bid already submitted for player ${playerIndex}`;

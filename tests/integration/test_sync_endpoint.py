@@ -179,6 +179,40 @@ class TestSyncRoundValidatesGameOwnership:
         assert response.status_code == 403
 
 
+class TestSyncRoundRejectsWrongCardsDelt:
+    async def test_sync_round_rejects_wrong_cards_dealt(self, client: AsyncClient):
+        """cards_dealt must match server-derived value for round 1 (8 cards)."""
+        game = await _setup_game(client)
+        payload = _valid_sync_payload()
+        payload["cards_dealt"] = 5  # round 1 must be 8
+
+        response = await client.post(
+            f"/api/game/{game['id']}/sync-round",
+            json=payload,
+            cookies=game["cookies"],
+        )
+
+        assert response.status_code == 409
+        assert "cards_dealt" in response.json()["detail"].lower()
+
+
+class TestSyncRoundRejectsWrongTrumpSuit:
+    async def test_sync_round_rejects_wrong_trump_suit(self, client: AsyncClient):
+        """trump_suit must match server-derived suit for round 1 (spades)."""
+        game = await _setup_game(client)
+        payload = _valid_sync_payload()
+        payload["trump_suit"] = "hearts"  # round 1 must be spades
+
+        response = await client.post(
+            f"/api/game/{game['id']}/sync-round",
+            json=payload,
+            cookies=game["cookies"],
+        )
+
+        assert response.status_code == 409
+        assert "trump_suit" in response.json()["detail"].lower()
+
+
 class TestSyncGameState:
     async def test_sync_game_state(self, client: AsyncClient):
         """POST /api/game/{id}/sync-state updates game phase/round/dealer."""

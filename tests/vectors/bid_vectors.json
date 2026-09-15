@@ -86,5 +86,16 @@
     "cardsDeal": 8,
     "playerCount": 3,
     "expectError": true
+  },
+  {
+    "id": "bid_exceeds_cards_dealt",
+    "description": "bid exceeds cards dealt",
+    "existingBids": {},
+    "playerIndex": 0,
+    "value": 9,
+    "mustLose": false,
+    "cardsDeal": 8,
+    "playerCount": 3,
+    "expectError": true
   }
 ]

@@ -1,13 +1,15 @@
 // Final screen — game over standings
 
-import { getGame, getScoreboard } from '../api.js';
+import { getApi } from '../resolve-api.js';
 import { escapeHtml } from '../components/game-utils.js';
 
 export const finalScreen = {
     async mount(container, state, { navigate, params }) {
         const gameId = params[0];
-        const game = await getGame(gameId);
-        const scoreboard = await getScoreboard(gameId);
+        const api = await getApi(gameId);
+        const game = await api.getGame(gameId);
+        if (!game) { navigate(''); return; }
+        const scoreboard = await api.getScoreboard(gameId);
 
         const players = game.players;
         const totals = scoreboard.totals;

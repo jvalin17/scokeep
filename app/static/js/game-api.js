@@ -48,6 +48,17 @@ export async function loadGameFromServer(gameId) {
   const roundsResp = await fetch(`/api/game/${gameId}/history`, { credentials: 'same-origin' });
   const roundsData = roundsResp.ok ? await roundsResp.json() : [];
 
+  // Also fetch the current round (may be in bidding/playing — not in history)
+  try {
+    const bidsResp = await fetch(`/api/game/${gameId}/bids`, { credentials: 'same-origin' });
+    if (bidsResp.ok) {
+      const currentRound = await bidsResp.json();
+      if (currentRound && currentRound.round_num) {
+        roundsData.push(currentRound);
+      }
+    }
+  } catch { /* current round may not exist yet */ }
+
   await storeSaveGame(game);
   for (const round of roundsData) {
     await storeSaveRound(round);
@@ -103,14 +114,23 @@ export async function resyncGame(gameId) {
 // ─── re-score / review helpers ────────────────────────────────────────────────
 
 /**
- * Enter rescore mode: reset current round to round_end phase so hands can
- * be re-entered. Delegates to engine.enterRoundEnd to set phase.
+ * Enter rescore mode: reset current round scores and status back to round_end
+ * so hands can be re-entered, then transition the game phase to round_end.
  *
  * @param {string|number} gameId
  * @returns {Promise<Object>} Updated game.
  */
 export async function enterRescore(gameId) {
-  const game = await engine.enterRoundEnd(gameId);
+  const game = await engine.getGame(gameId);
+  if (!game) throw new Error(`Game not found: ${gameId}`);
+  const round = await storeGetRound(game.id, game.current_round);
+  if (round) {
+    round.scores = {};
+    round.status = 'round_end';
+    await storeSaveRound(round);
+  }
+  game.phase = 'round_end';
+  await storeSaveGame(game);
   syncGameState(gameId, game);
   return game;
 }
@@ -162,17 +182,25 @@ export async function enterReview(gameId) {
 // ─── read-only helpers ────────────────────────────────────────────────────────
 
 /**
- * Get a game by ID from IndexedDB.
- */
-export const getGame = engine.getGame;
-
-/**
- * Get bids for the current round.
- * Returns the full round object (with .bids and .hands_won) to match the
- * shape returned by the server's GET /game/:id/bids endpoint.
+ * Get a game by ID from IndexedDB, with server fallback if not found locally.
  *
  * @param {string|number} gameId
- * @returns {Promise<Object>} Round object with bids, hands_won, etc.
+ * @returns {Promise<Object|null>}
+ */
+export async function getGame(gameId) {
+  let game = await engine.getGame(gameId);
+  if (!game && navigator.onLine) {
+    game = await loadGameFromServer(gameId);
+  }
+  return game;
+}
+
+/**
+ * Get the current round data (bids, hands_won, cards_dealt, etc.).
+ * Named getBids for API compatibility with api.js; returns full round object.
+ *
+ * @param {string|number} gameId
+ * @returns {Promise<Object>} Round object with bids, hands_won, cards_dealt, etc.
  */
 export async function getBids(gameId) {
   const game = await engine.getGame(gameId);
@@ -183,9 +211,23 @@ export async function getBids(gameId) {
 }
 
 /**
- * Get the scoreboard (totals + per-round data).
+ * Get the scoreboard (totals + per-round data), with server fallback if local
+ * data is empty (game may not be in IndexedDB yet).
+ *
+ * @param {string|number} gameId
+ * @returns {Promise<{totals: Object, rounds: Array}>}
  */
-export const getScoreboard = engine.getScoreboard;
+export async function getScoreboard(gameId) {
+  let result = await engine.getScoreboard(gameId);
+  if ((!result || !result.rounds || result.rounds.length === 0) && navigator.onLine) {
+    // Try server — game might not be in IndexedDB yet
+    try {
+      const resp = await fetch(`/api/game/${gameId}/scoreboard`, { credentials: 'same-origin' });
+      if (resp.ok) return await resp.json();
+    } catch { /* fall through to local result */ }
+  }
+  return result || { totals: {}, rounds: [] };
+}
 
 /**
  * Create a new game and persist it locally.

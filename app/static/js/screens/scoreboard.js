@@ -1,6 +1,6 @@
 // Scoreboard screen — cumulative scores, next round / end game
 
-import { getGame, getScoreboard, undoRound, endGame, nextRound, enterRescore, extendGame } from '../api.js';
+import { getApi } from '../resolve-api.js';
 import { getTrump, escapeHtml } from '../components/game-utils.js';
 import { soundNextRound, soundEndGame, soundUndo } from '../components/sounds.js';
 import { renderScoresheetTable } from '../components/screen-parts.js';
@@ -8,16 +8,17 @@ import { renderScoresheetTable } from '../components/screen-parts.js';
 export const scoreboardScreen = {
     async mount(container, state, { navigate, params }) {
         const gameId = params[0];
-        const game = await getGame(gameId);
+        const api = await getApi(gameId);
+        const game = await api.getGame(gameId);
+        if (!game) { navigate(''); return; }
         // Scoreboard accepts both 'scoreboard' and 'final' phases
         if (game.phase !== 'scoreboard' && game.status !== 'finished') {
-            const { resyncGame } = await import('../api.js');
-            await resyncGame(gameId);
+            await api.resyncGame(gameId);
             return;
         }
         state.game = game;
 
-        const scoreboard = await getScoreboard(gameId);
+        const scoreboard = await api.getScoreboard(gameId);
         const players = game.players;
         const totals = scoreboard.totals;
         const rounds = scoreboard.rounds;
@@ -141,7 +142,7 @@ export const scoreboardScreen = {
             if (nextRoundBtn) {
                 nextRoundBtn.addEventListener('click', async () => {
                     try {
-                        const updated = await nextRound(gameId);
+                        const updated = await api.nextRound(gameId);
                         if (updated.phase === 'review') {
                             navigate(`review/${gameId}`);
                         } else {
@@ -158,7 +159,7 @@ export const scoreboardScreen = {
             if (editHandsBtn) {
                 editHandsBtn.addEventListener('click', async () => {
                     try {
-                        await enterRescore(gameId);
+                        await api.enterRescore(gameId);
                         state.rescore = true;
                         navigate(`roundend/${gameId}`);
                     } catch (error) {
@@ -171,7 +172,7 @@ export const scoreboardScreen = {
             if (endGameBtn) {
                 endGameBtn.addEventListener('click', async () => {
                     try {
-                        await endGame(gameId);
+                        await api.endGame(gameId);
                         navigate(`review/${gameId}`);
                     } catch (error) {
                         showError(error.message);
@@ -183,8 +184,8 @@ export const scoreboardScreen = {
             if (extendBtn) {
                 extendBtn.addEventListener('click', async () => {
                     try {
-                        await extendGame(gameId);
-                        await nextRound(gameId);
+                        await api.extendGame(gameId);
+                        await api.nextRound(gameId);
                         soundNextRound();
                         navigate(`bid/${gameId}`);
                     } catch (error) {
@@ -197,9 +198,9 @@ export const scoreboardScreen = {
             if (undoBtn) {
                 undoBtn.addEventListener('click', async () => {
                     try {
-                        await undoRound(gameId);
+                        await api.undoRound(gameId);
                         soundUndo();
-                        const updated = await getGame(gameId);
+                        const updated = await api.getGame(gameId);
                         if (updated.phase === 'bidding') {
                             navigate(`bid/${gameId}`);
                         } else {

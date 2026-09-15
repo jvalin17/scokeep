@@ -3,7 +3,7 @@
  * Each function does one thing — render HTML or attach a handler.
  */
 
-import { endGame } from '../api.js';
+import { getApi } from '../resolve-api.js';
 import { getRoundCards, getTrump, escapeHtml } from './game-utils.js';
 
 /**
@@ -22,9 +22,9 @@ export function setScreenContext(phase, game) {
 export function renderGameIsland(game, roundsPerSet) {
     const cardsDealt = getRoundCards(game.current_round, roundsPerSet);
     const dealerName = game.players[game.dealer_index];
-    const collapsed = localStorage.getItem('scokeep_island_collapsed') === '1';
-    const cls = collapsed ? 'game-island island-collapsed' : 'game-island';
-    const icon = collapsed ? '+' : '−';
+    const enlarged = localStorage.getItem('scokeep_island_enlarged') === '1';
+    const cls = enlarged ? 'game-island island-enlarged' : 'game-island';
+    const icon = enlarged ? '−' : '+';
     return `
         <div class="${cls}">
             <span>${escapeHtml(dealerName)} deals</span>
@@ -45,9 +45,9 @@ export function attachIslandToggle(container) {
     if (!toggle) return;
     toggle.addEventListener('click', () => {
         const island = container.querySelector('.game-island');
-        const isCollapsed = island.classList.toggle('island-collapsed');
-        toggle.textContent = isCollapsed ? '+' : '−';
-        localStorage.setItem('scokeep_island_collapsed', isCollapsed ? '1' : '0');
+        const isEnlarged = island.classList.toggle('island-enlarged');
+        toggle.textContent = isEnlarged ? '−' : '+';
+        localStorage.setItem('scokeep_island_enlarged', isEnlarged ? '1' : '0');
     });
 }
 
@@ -101,7 +101,8 @@ export function attachEndGameHandler(container, gameId, navigate, state) {
     if (!btn) return;
     btn.addEventListener('click', async () => {
         if (confirm('End this game? You can review scores before finalizing.')) {
-            await endGame(gameId);
+            const api = await getApi(gameId);
+            await api.endGame(gameId);
             navigate(`review/${gameId}`);
         }
     });

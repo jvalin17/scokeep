@@ -1,6 +1,6 @@
 // Review screen — edit any round's scores before finalizing
 
-import { getGame, getScoreboard, confirmFinal, rescoreRound, submitHands, endRound, guardPhase } from '../api.js';
+import { getApi } from '../resolve-api.js';
 import { escapeHtml } from '../components/game-utils.js';
 import { InlineKeypad } from '../components/keypad.js';
 import { renderScoresheetTable } from '../components/screen-parts.js';
@@ -9,11 +9,12 @@ import { soundEndGame } from '../components/sounds.js';
 export const reviewScreen = {
     async mount(container, state, { navigate, params }) {
         const gameId = params[0];
-        const game = await guardPhase(gameId, 'review');
+        const api = await getApi(gameId);
+        const game = await api.guardPhase(gameId, 'review');
         if (!game) return;
         state.game = game;
 
-        const scoreboard = await getScoreboard(gameId);
+        const scoreboard = await api.getScoreboard(gameId);
         const players = game.players;
         const totals = scoreboard.totals;
         const rounds = scoreboard.rounds;
@@ -27,9 +28,9 @@ export const reviewScreen = {
 
         async function finalizeGame() {
             try {
-                await confirmFinal(gameId);
+                await api.confirmFinal(gameId);
                 soundEndGame();
-                navigate(`scoreboard/${gameId}`);
+                navigate(`final/${gameId}`);
             } catch (error) {
                 showError(error.message);
             }
@@ -85,7 +86,7 @@ export const reviewScreen = {
 
         async function startEditingRound(roundNum) {
             try {
-                await rescoreRound(gameId, roundNum);
+                await api.rescoreRound(gameId, roundNum);
                 // Load the round's existing hands
                 const roundData = rounds.find(r => r.round_num === roundNum);
                 editingRoundNum = roundNum;
@@ -153,7 +154,7 @@ export const reviewScreen = {
                     disabled: [],
                     onSelect: async (value) => {
                         try {
-                            await submitHands(gameId, editingPlayerIndex, value);
+                            await api.submitHands(gameId, editingPlayerIndex, value);
                             editingHands[editKey] = value;
 
                             // Auto-adjust last player if needed
@@ -164,7 +165,7 @@ export const reviewScreen = {
                                     .reduce((sum, [, v]) => sum + v, 0);
                                 const lastValue = cardsDealt - newOthersTotal;
                                 if (lastValue >= 0 && Object.keys(editingHands).length === players.length) {
-                                    await submitHands(gameId, lastPlayerIdx, lastValue);
+                                    await api.submitHands(gameId, lastPlayerIdx, lastValue);
                                     editingHands[String(lastPlayerIdx)] = lastValue;
                                 }
                             }
@@ -187,9 +188,9 @@ export const reviewScreen = {
             if (rescoreBtn) {
                 rescoreBtn.addEventListener('click', async () => {
                     try {
-                        await endRound(gameId);
+                        await api.endRound(gameId);
                         // Refresh scoreboard data
-                        const updatedScoreboard = await getScoreboard(gameId);
+                        const updatedScoreboard = await api.getScoreboard(gameId);
                         rounds.length = 0;
                         rounds.push(...updatedScoreboard.rounds);
                         Object.assign(totals, updatedScoreboard.totals);
@@ -211,7 +212,7 @@ export const reviewScreen = {
             if (cancelBtn) {
                 cancelBtn.addEventListener('click', async () => {
                     try {
-                        await endRound(gameId);
+                        await api.endRound(gameId);
                     } catch { /* ignore — may already be scored */ }
                     editingRoundNum = null;
                     editingPlayerIndex = null;

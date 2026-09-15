@@ -15,6 +15,15 @@
 const DB_NAME = 'scokeep-local';
 const DB_VERSION = 1;
 
+/**
+ * Normalize a game ID — hash URLs give strings but server IDs are integers.
+ * IDB key lookup requires exact type match, so parse numeric strings to ints.
+ */
+function _normalizeId(id) {
+  if (typeof id === 'string' && /^\d+$/.test(id)) return parseInt(id, 10);
+  return id;
+}
+
 /** Cached DB connection (module-level singleton). */
 let _db = null;
 
@@ -113,7 +122,7 @@ export async function saveGame(game) {
 export async function getGame(id) {
   const db = await _open();
   const tx = db.transaction('games', 'readonly');
-  const result = await _wrap(tx.objectStore('games').get(id));
+  const result = await _wrap(tx.objectStore('games').get(_normalizeId(id)));
   return result ?? null;
 }
 
@@ -154,7 +163,7 @@ export async function saveRound(round) {
 export async function getRound(gameId, roundNum) {
   const db = await _open();
   const tx = db.transaction('rounds', 'readonly');
-  const result = await _wrap(tx.objectStore('rounds').get([gameId, roundNum]));
+  const result = await _wrap(tx.objectStore('rounds').get([_normalizeId(gameId), roundNum]));
   return result ?? null;
 }
 
@@ -167,7 +176,7 @@ export async function getRoundsForGame(gameId) {
   const db = await _open();
   const tx = db.transaction('rounds', 'readonly');
   const index = tx.objectStore('rounds').index('game_id');
-  const results = await _wrap(index.getAll(gameId));
+  const results = await _wrap(index.getAll(_normalizeId(gameId)));
   return (results ?? []).sort((a, b) => a.round_num - b.round_num);
 }
 
@@ -181,7 +190,7 @@ export async function deleteRound(gameId, roundNum) {
   const db = await _open();
   return new Promise((resolve, reject) => {
     const tx = db.transaction('rounds', 'readwrite');
-    const req = tx.objectStore('rounds').delete([gameId, roundNum]);
+    const req = tx.objectStore('rounds').delete([_normalizeId(gameId), roundNum]);
     req.onsuccess = () => resolve();
     req.onerror = () => reject(req.error);
     tx.onerror = () => reject(tx.error);
@@ -208,7 +217,7 @@ export async function getFinishedGames(limit = 20) {
     .slice(0, limit);
 }
 
-// ─── test helper ─────────────────────────────────────────────────────────────
+// ─── test helpers (no-op in production) ──────────────────────────────────────
 
 /**
  * Close and null the cached connection so the next call to _open() starts fresh.

@@ -93,14 +93,24 @@ describe('test_submit_bid_calls_engine_and_syncs', () => {
 describe('test_submit_bid_offline_still_works', () => {
   it('submitBid succeeds and skips sync when offline', async () => {
     setOnline(false);
+
+    // Override syncRound to enforce the offline guard: it must not be called
+    // (server-sync.syncRound bails out early when navigator.onLine is false).
+    serverSync.syncRound.mockImplementation(() => {
+      if (!navigator.onLine) return Promise.resolve();
+      throw new Error('syncRound called while offline');
+    });
+
     const game = await createGame(makePlayers(), makeSettings());
+    vi.clearAllMocks(); // reset call counts after createGame
 
     const round = await submitBid(game.id, 0, 2);
 
     expect(round.bids['0']).toBe(2);
-    // syncRound is called from game-api but server-sync.syncRound checks onLine internally
-    // The mock records the call; the real impl would be a no-op. Either way the
-    // game-api layer must not throw.
+    // syncRound was invoked by game-api but the implementation resolved without
+    // hitting the server (onLine guard). Verify the mock was called exactly once
+    // and did not throw.
+    expect(serverSync.syncRound).toHaveBeenCalledOnce();
   });
 });
 

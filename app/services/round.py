@@ -8,6 +8,32 @@ from app.services.scoring import calculate_round_scores
 from app.utils.trump import get_cards_for_round, get_trump_for_round
 
 
+def validate_hands(
+    existing_hands: dict,
+    player_index: int,
+    value: int,
+    cards_dealt: int,
+) -> str | None:
+    """Pure hands validation — no side effects.
+
+    Returns None if the entry is valid, or an error string describing the problem.
+
+    Args:
+        existing_hands: dict mapping str(player_index) -> hands_won for entries already submitted.
+        player_index:   index of the player submitting this entry.
+        value:          the hands_won value being submitted.
+        cards_dealt:    number of cards dealt this round.
+    """
+    if value < 0:
+        return f"Hands ({value}) cannot be negative"
+    player_key = str(player_index)
+    total_others = sum(v for k, v in existing_hands.items() if k != player_key)
+    remaining = cards_dealt - total_others
+    if value > remaining:
+        return f"Hands ({value}) exceeds remaining cards ({remaining})"
+    return None
+
+
 def validate_bid(
     existing_bids: dict,
     player_index: int,
@@ -31,6 +57,9 @@ def validate_bid(
     """
     if value < 0:
         return f"Bid {value} is invalid: bid cannot be negative"
+
+    if cards_deal > 0 and value > cards_deal:
+        return f"Bid {value} is invalid: bid cannot exceed cards dealt ({cards_deal})"
 
     player_key = str(player_index)
     if player_key in existing_bids:

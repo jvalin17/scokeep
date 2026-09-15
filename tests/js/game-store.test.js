@@ -79,11 +79,11 @@ describe('test_update_game_overwrites', () => {
     const game = makeGame({ phase: 'bidding' });
     await saveGame(game);
 
-    const updated = { ...game, phase: 'scoring' };
+    const updated = { ...game, phase: 'scoreboard' };
     await saveGame(updated);
 
     const retrieved = await getGame(game.id);
-    expect(retrieved.phase).toBe('scoring');
+    expect(retrieved.phase).toBe('scoreboard');
   });
 });
 

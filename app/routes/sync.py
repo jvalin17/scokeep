@@ -10,6 +10,7 @@ from app.schemas.round import RoundResponse
 from app.schemas.sync import SyncGameStateRequest, SyncRoundRequest
 from app.services.scoring import calculate_round_scores
 from app.utils.auth import get_game_with_auth, require_auth
+from app.utils.trump import get_cards_for_round, get_trump_for_round
 
 router = APIRouter(prefix="/api/game", tags=["sync"])
 
@@ -37,6 +38,21 @@ async def sync_round(
     """Receive a completed round from the client, re-derive scores and upsert."""
     # 1. Validate game exists and belongs to this playground
     game = await get_game_with_auth(db, game_id, playground_id)
+
+    # 1b. Validate cards_dealt and trump_suit match server-derived values
+    rounds_per_set = game.settings.get("rounds_per_set", 8)
+    expected_cards = get_cards_for_round(body.round_num, rounds_per_set)
+    expected_trump = get_trump_for_round(body.round_num)
+    if body.cards_dealt != expected_cards:
+        raise HTTPException(
+            status_code=409,
+            detail=f"cards_dealt mismatch: got {body.cards_dealt}, expected {expected_cards}",
+        )
+    if body.trump_suit != expected_trump:
+        raise HTTPException(
+            status_code=409,
+            detail=f"trump_suit mismatch: got {body.trump_suit}, expected {expected_trump}",
+        )
 
     # 2. Re-derive scores from bids + hands_won using server-side scoring
     formula = game.settings.get("scoring_formula", DEFAULT_SCORING_FORMULA)

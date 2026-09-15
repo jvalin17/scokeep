@@ -278,3 +278,50 @@ describe('test_full_2_round_game', () => {
     expect(scoreboard.totals['1']).toBe(-50);
   });
 });
+
+describe('test_end_game_sets_review_phase', () => {
+  it('endGame sets phase=review (not finished), status=finished', async () => {
+    const game = await createGame(makePlayers(), makeSettings());
+    const result = await endGame(game.id);
+
+    expect(result.phase).toBe('review');
+    expect(result.status).toBe('finished');
+    expect(result.finished_at).not.toBeNull();
+  });
+});
+
+describe('test_confirm_final_sets_final_phase', () => {
+  it('confirmFinal sets phase=final, status=finished independently of endGame', async () => {
+    const game = await createGame(makePlayers(), makeSettings());
+    const result = await confirmFinal(game.id);
+
+    expect(result.phase).toBe('final');
+    expect(result.status).toBe('finished');
+  });
+});
+
+describe('test_undo_round_at_round_1_sets_bidding', () => {
+  it('undoRound from round 1 sets phase=bidding', async () => {
+    const game = await createGame(makePlayers(), makeSettings());
+    await playRound(game.id, [1, 0], [1, 7]);
+    // Still on round 1 after endRound (scoring phase), undo it
+    const result = await undoRound(game.id);
+
+    expect(result.current_round).toBe(1);
+    expect(result.phase).toBe('bidding');
+  });
+});
+
+describe('test_undo_round_after_round_2_sets_scoreboard', () => {
+  it('undoRound from round 2 sets phase=scoreboard', async () => {
+    const game = await createGame(makePlayers(), makeSettings());
+    await playRound(game.id, [1, 0], [1, 7]);
+    await nextRound(game.id);
+    await playRound(game.id, [1, 0], [1, 6]);
+    // Now on round 2 (scoring phase), undo round 2
+    const result = await undoRound(game.id);
+
+    expect(result.current_round).toBe(1);
+    expect(result.phase).toBe('scoreboard');
+  });
+});

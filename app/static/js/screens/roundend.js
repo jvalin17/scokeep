@@ -1,6 +1,6 @@
 // Round end screen — hands won entry via keypad + back button
 
-import { submitHands, endRound, extendGame, nextRound, resyncGame, guardPhase, getBids } from '../api.js';
+import { getApi } from '../resolve-api.js';
 import { Keypad, InlineKeypad } from '../components/keypad.js';
 import { getRoundCards, escapeHtml } from '../components/game-utils.js';
 import { getEntryOrder } from '../components/entry-utils.js';
@@ -11,7 +11,8 @@ import { soundScoreRound, soundNextRound } from '../components/sounds.js';
 export const roundendScreen = {
     async mount(container, state, { navigate, params }) {
         const gameId = params[0];
-        const game = await guardPhase(gameId, 'round_end');
+        const api = await getApi(gameId);
+        const game = await api.guardPhase(gameId, 'round_end');
         if (!game) return;
         state.game = game;
 
@@ -29,7 +30,7 @@ export const roundendScreen = {
         // Rescore mode: load existing hands and skip to confirm
         if (state.rescore) {
             try {
-                const roundData = await getBids(gameId);
+                const roundData = await api.getBids(gameId);
                 const existingHands = roundData.hands_won || {};
                 for (const [key, value] of Object.entries(existingHands)) {
                     handsCollected[key] = value;
@@ -98,7 +99,7 @@ export const roundendScreen = {
                     entryPosition--;
                     const prevPi = currentPlayer();
                     // Reset previous player's hands on backend so remaining recalculates
-                    await submitHands(gameId, prevPi, 0);
+                    await api.submitHands(gameId, prevPi, 0);
                     delete handsCollected[String(prevPi)];
                     renderCollecting();
                 });
@@ -163,7 +164,7 @@ export const roundendScreen = {
                     disabled: [],
                     onSelect: async (value) => {
                         try {
-                            await submitHands(gameId, editingPi, value);
+                            await api.submitHands(gameId, editingPi, value);
                             handsCollected[editKey] = value;
 
                             // Auto-adjust last player to keep total = cards dealt
@@ -173,7 +174,7 @@ export const roundendScreen = {
                                     .reduce((sum, [, v]) => sum + v, 0);
                                 const lastValue = cardsDealt - newOthersTotal;
                                 if (lastValue >= 0) {
-                                    await submitHands(gameId, lastPi, lastValue);
+                                    await api.submitHands(gameId, lastPi, lastValue);
                                     handsCollected[String(lastPi)] = lastValue;
                                 }
                             }
@@ -192,7 +193,7 @@ export const roundendScreen = {
             if (scoreBtn) {
                 scoreBtn.addEventListener('click', async () => {
                     try {
-                        await endRound(gameId);
+                        await api.endRound(gameId);
                         soundScoreRound();
                         state.rescore = false;
                         const isFinalRound = game.current_round >= game.total_rounds;
@@ -202,7 +203,7 @@ export const roundendScreen = {
                             navigate(`scoreboard/${gameId}`);
                         }
                     } catch {
-                        await resyncGame(gameId);
+                        await api.resyncGame(gameId);
                     }
                 });
             }
@@ -233,9 +234,9 @@ export const roundendScreen = {
                 const count = parseInt(container.querySelector('#extend-count').value);
                 try {
                     for (let i = 0; i < count; i++) {
-                        await extendGame(gameId);
+                        await api.extendGame(gameId);
                     }
-                    await nextRound(gameId);
+                    await api.nextRound(gameId);
                     soundNextRound();
                     navigate(`bid/${gameId}`);
                 } catch {
@@ -251,7 +252,7 @@ export const roundendScreen = {
         async function handleHandsSelect(value) {
             const pi = currentPlayer();
             try {
-                await submitHands(gameId, pi, value);
+                await api.submitHands(gameId, pi, value);
                 handsCollected[String(pi)] = value;
                 entryPosition++;
                 renderCollecting();

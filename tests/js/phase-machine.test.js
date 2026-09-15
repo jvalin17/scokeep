@@ -46,7 +46,7 @@ describe('advanceRound — purity', () => {
             total_rounds: 8,
             dealer_index: 1,
             players: ['Alice', 'Bob', 'Carol'],
-            phase: 'scoring',
+            phase: 'scoreboard',
         };
         const snapshot = JSON.stringify(input);
         advanceRound(input);
@@ -59,7 +59,7 @@ describe('advanceRound — purity', () => {
             total_rounds: 8,
             dealer_index: 1,
             players: ['Alice', 'Bob', 'Carol'],
-            phase: 'scoring',
+            phase: 'scoreboard',
         };
         const result = advanceRound(input);
         expect(result).not.toBe(input);

@@ -100,11 +100,12 @@ export async function createGame(players, settings) {
     id: _generateId(),
     players,
     settings: {
-      formula: settings.formula ?? 'kachuful_standard',
+      mode: settings.mode ?? 'rookie',
+      appearance: settings.appearance ?? 'interactive',
+      scoring_formula: settings.scoring_formula ?? settings.formula ?? 'kachuful_standard',
       must_lose: settings.must_lose ?? true,
       rounds_per_set: roundsPerSet,
       num_sets: numSets,
-      ...settings,
     },
     current_round: 1,
     total_rounds: totalRounds,
@@ -113,14 +114,6 @@ export async function createGame(players, settings) {
     status: 'active',
     started_at: new Date().toISOString(),
     finished_at: null,
-  };
-
-  // Ensure settings fields are normalized (override spread above may duplicate)
-  game.settings = {
-    formula: settings.formula ?? 'kachuful_standard',
-    must_lose: settings.must_lose ?? true,
-    rounds_per_set: roundsPerSet,
-    num_sets: numSets,
   };
 
   await saveGame(game);
@@ -251,7 +244,7 @@ export async function submitHands(gameId, playerIndex, value) {
 
 /**
  * Score the current round and mark it complete.
- * Transitions game to 'scoring' phase.
+ * Transitions game to 'scoreboard' phase.
  *
  * @param {string} gameId
  * @returns {Promise<Object>} Updated round object with computed scores.
@@ -260,11 +253,11 @@ export async function endRound(gameId) {
   const game = await _requireGame(gameId);
   const round = await _requireRound(game);
 
-  const formula = game.settings.formula ?? 'kachuful_standard';
+  const formula = game.settings.scoring_formula ?? game.settings.formula ?? 'kachuful_standard';
   round.scores = calculateRoundScores(round.bids, round.hands_won, formula);
   round.status = 'complete';
 
-  game.phase = 'scoring';
+  game.phase = 'scoreboard';
 
   await saveRound(round);
   await saveGame(game);
@@ -293,7 +286,7 @@ export async function nextRound(gameId) {
 }
 
 /**
- * Finish the game: set status=finished and phase=finished.
+ * Finish the game: set status=finished and phase=review for score review.
  *
  * @param {string} gameId
  * @returns {Promise<Object>} Updated game object.
@@ -301,7 +294,7 @@ export async function nextRound(gameId) {
 export async function endGame(gameId) {
   const game = await _requireGame(gameId);
   game.status = 'finished';
-  game.phase = 'finished';
+  game.phase = 'review';
   game.finished_at = new Date().toISOString();
   await saveGame(game);
   return game;
@@ -357,11 +350,13 @@ export async function undoRound(gameId) {
   await deleteRound(gameId, roundToUndo);
 
   // Step back to the previous round (or stay at 1 if already round 1).
+  const wasAtRoundOne = game.current_round <= 1;
   if (game.current_round > 1) {
     game.current_round = game.current_round - 1;
   }
-  game.dealer_index = Math.max(0, game.dealer_index - 1);
-  game.phase = 'scoring';
+  game.dealer_index = (game.dealer_index - 1 + game.players.length) % game.players.length;
+  // Round 1 undo → back to bidding. Later rounds → scoreboard of previous round.
+  game.phase = wasAtRoundOne ? 'bidding' : 'scoreboard';
 
   await saveGame(game);
   return game;
@@ -374,5 +369,9 @@ export async function undoRound(gameId) {
  * @returns {Promise<Object>} Updated game object.
  */
 export async function confirmFinal(gameId) {
-  return endGame(gameId);
+  const game = await _requireGame(gameId);
+  game.phase = 'final';
+  game.status = 'finished';
+  await saveGame(game);
+  return game;
 }

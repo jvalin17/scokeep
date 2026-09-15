@@ -14,10 +14,10 @@ const vectors = JSON.parse(
 );
 
 describe("getTrumpForRound", () => {
-  it("returns a string suit name for each vector", () => {
-    for (const { round, trump } of vectors.trump_rotation) {
-      expect(getTrumpForRound(round)).toBe(trump);
-    }
+  vectors.trump_rotation.forEach(({ round, trump: expected }) => {
+    it(`round ${round} => ${expected}`, () => {
+      expect(getTrumpForRound(round)).toBe(expected);
+    });
   });
 
   it("round 1 is spades", () => {

@@ -3,6 +3,7 @@
 import { createPlayground, authPlayground, listRecentPlaygrounds, browsePlaygrounds, getPinHint } from '../api.js';
 import { createGame } from '../game-api.js';
 import { escapeHtml } from '../components/game-utils.js';
+import { renderSettingsGrid, readSettings, updateCardsDropdown } from '../components/game-settings.js';
 
 export const homeScreen = {
     mount(container, state, { navigate }) {
@@ -78,32 +79,8 @@ export const homeScreen = {
                     </div>
                     <button type="button" id="quick-add-player" class="btn-text">+ Add player</button>
 
-                    <div class="settings-grid" style="margin-top:12px;">
-                        <label>Mode</label>
-                        <select id="quick-setting-mode">
-                            <option value="expert">Expert</option>
-                            <option value="rookie" selected>Rookie</option>
-                            <option value="friendly">Friendly</option>
-                        </select>
-
-                        <label>Scoring</label>
-                        <select id="quick-setting-scoring">
-                            <option value="kachuful_standard" selected>Ones (bid 1 = 11)</option>
-                            <option value="kachuful_zeros">Zeros (bid 1 = 10)</option>
-                        </select>
-
-                        <label>Sets</label>
-                        <select id="quick-setting-sets">
-                            ${[1,2,3,4,5].map(n =>
-                                `<option value="${n}" ${n === 3 ? 'selected' : ''}>${n} set${n > 1 ? 's' : ''}</option>`
-                            ).join('')}
-                        </select>
-
-                        <label>Must-lose</label>
-                        <label class="toggle">
-                            <input type="checkbox" id="quick-setting-must-lose" checked>
-                            <span class="toggle-label">On</span>
-                        </label>
+                    <div style="margin-top:12px;">
+                        ${renderSettingsGrid({ prefix: 'quick-setting', playerCount: 2 })}
                     </div>
 
                     <button type="button" id="quick-start" class="btn btn-primary" style="margin-top:16px;">Start Game</button>
@@ -370,8 +347,10 @@ export const homeScreen = {
             row.querySelector('.btn-remove').addEventListener('click', () => {
                 row.remove();
                 quickPlayerCount--;
+                updateCardsDropdown(container, 'quick-setting', quickPlayerCount);
             });
             container.querySelector('#quick-player-list').appendChild(row);
+            updateCardsDropdown(container, 'quick-setting', quickPlayerCount);
         });
 
         // Quick Game — start
@@ -389,12 +368,10 @@ export const homeScreen = {
                 return;
             }
 
-            const mode = container.querySelector('#quick-setting-mode').value;
-            const formula = container.querySelector('#quick-setting-scoring').value;
-            const numSets = parseInt(container.querySelector('#quick-setting-sets').value);
-            const mustLose = container.querySelector('#quick-setting-must-lose').checked;
+            const settings = readSettings(container, 'quick-setting');
+            // Clamp cards to max for actual player count
             const maxCards = Math.floor(52 / Math.max(players.length, 2));
-            const roundsPerSet = Math.min(maxCards, 8);
+            settings.rounds_per_set = Math.min(settings.rounds_per_set, maxCards);
 
             const startBtn = container.querySelector('#quick-start');
             const originalText = startBtn.textContent;
@@ -402,13 +379,7 @@ export const homeScreen = {
             startBtn.disabled = true;
 
             try {
-                const game = await createGame(players, {
-                    mode,
-                    formula,
-                    num_sets: numSets,
-                    must_lose: mustLose,
-                    rounds_per_set: roundsPerSet,
-                });
+                const game = await createGame(players, settings);
                 navigate(`bid/${game.id}`);
             } catch (error) {
                 errorElement.textContent = error.message;
