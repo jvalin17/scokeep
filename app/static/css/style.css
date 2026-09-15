@@ -274,7 +274,7 @@ input::placeholder { color: var(--text-muted); }
     font-size: 1.1rem; font-weight: 700; color: var(--text-muted);
     padding: 0 4px; line-height: 1;
 }
-.game-island.island-enlarged { font-size: 1.5rem; padding: 18px 24px; gap: 16px; }
+.game-island.island-enlarged { font-size: 1.6rem; padding: 14px 20px; }
 .game-island.island-enlarged .island-toggle { font-size: 1.4rem; }
 
 /* Round info bar */

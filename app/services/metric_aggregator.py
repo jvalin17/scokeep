@@ -12,6 +12,7 @@ compatibility — these convert to GameMetrics internally.
 
 import math
 from dataclasses import dataclass, field
+from typing import Any
 
 from app.services.metrics import compute_game_metrics
 
@@ -55,8 +56,8 @@ def _normalize_tempo(raw_avg: float, cap: float = _TEMPO_CAP) -> float:
 
 @dataclass
 class CareerMetrics:
-    feature_vector: list  # list[float], length 10, all values in [0, 1]
-    extras: dict
+    feature_vector: list[float]  # length 10, all values in [0, 1]
+    extras: dict[str, Any]
     games_played: int
 
 
@@ -184,12 +185,12 @@ class _RoundAccumulator:
     biggest_round_score: int = 0
     zero_bid_streak: int = 0
     max_zero_streak: int = 0
-    bid_counts: dict = field(default_factory=dict)
-    trump_correct: dict = field(default_factory=dict)
-    trump_total: dict = field(default_factory=dict)
+    bid_counts: dict[int, int] = field(default_factory=dict)
+    trump_correct: dict[str, int] = field(default_factory=dict)
+    trump_total: dict[str, int] = field(default_factory=dict)
 
 
-def _accumulate_rounds(player_name: str, game_metrics_list: list) -> _RoundAccumulator:
+def _accumulate_rounds(player_name: str, game_metrics_list: list[Any]) -> _RoundAccumulator:
     """Single pass over all games/rounds for a player, collecting every field."""
     acc = _RoundAccumulator()
 
@@ -350,7 +351,7 @@ def _build_feature_vector(acc: "_RoundAccumulator") -> list[float]:
     ]
 
 
-def aggregate_career(player_name: str, game_metrics_list: list) -> CareerMetrics:
+def aggregate_career(player_name: str, game_metrics_list: list[Any]) -> CareerMetrics:
     """Aggregate a player's career stats from a list of GameMetrics.
 
     Returns CareerMetrics with:
@@ -378,7 +379,7 @@ def aggregate_career(player_name: str, game_metrics_list: list) -> CareerMetrics
     )
 
 
-def _empty_display_extras() -> dict:
+def _empty_display_extras() -> dict[str, Any]:
     """Return the zero-state display extras dict used when a player has no games."""
     return {
         "wins": 0,
@@ -402,7 +403,7 @@ def _empty_display_extras() -> dict:
 
 def _build_display_extras_dict(
     acc: "_RoundAccumulator", best_suit, best_pct, bidding_style, overbid_pct, favorite_bid
-) -> dict:
+) -> dict[str, Any]:
     """Assemble the full display extras dict from pre-computed fields."""
     return {
         "wins": acc.wins,
@@ -428,7 +429,7 @@ def _build_display_extras_dict(
     }
 
 
-def compute_display_extras(player_name: str, game_metrics_list: list) -> dict:
+def compute_display_extras(player_name: str, game_metrics_list: list[Any]) -> dict[str, Any]:
     """Compute full display extras for a player from GameMetrics objects."""
     acc = _accumulate_rounds(player_name, game_metrics_list)
     if acc.games_played == 0:
@@ -463,9 +464,11 @@ def _compute_halfway_scores(gm) -> dict:
     return result
 
 
-def compute_accuracy_by_cards_metrics(player_name: str, game_metrics_list: list) -> dict:
+def compute_accuracy_by_cards_metrics(
+    player_name: str, game_metrics_list: list[Any]
+) -> dict[str, dict[str, int]]:
     """Compute bid accuracy breakdown by card count from GameMetrics objects."""
-    by_cards: dict[int, dict] = {}
+    by_cards: dict[int, dict[str, int]] = {}
 
     for gm in game_metrics_list:
         if player_name not in gm.players:
@@ -497,7 +500,7 @@ def compute_accuracy_by_cards_metrics(player_name: str, game_metrics_list: list)
 # ── Bridge functions (accept game objects, convert to GameMetrics internally) ─
 
 
-def _games_to_metrics(games: list) -> list:
+def _games_to_metrics(games: list[Any]) -> list[Any]:
     """Convert game-like objects (with .players and .rounds) to GameMetrics."""
     result = []
     for g in games:
@@ -509,7 +512,7 @@ def _games_to_metrics(games: list) -> list:
     return result
 
 
-def compute_feature_vector(player_name: str, games: list) -> list[float]:
+def compute_feature_vector(player_name: str, games: list[Any]) -> list[float]:
     """Bridge: compute 10-d feature vector from game objects.
 
     Converts games → GameMetrics → aggregate_career → feature_vector.
@@ -517,11 +520,11 @@ def compute_feature_vector(player_name: str, games: list) -> list[float]:
     return aggregate_career(player_name, _games_to_metrics(games)).feature_vector
 
 
-def compute_player_extras(player_name: str, games: list) -> dict:
+def compute_player_extras(player_name: str, games: list[Any]) -> dict[str, Any]:
     """Bridge: compute display extras dict from game objects."""
     return compute_display_extras(player_name, _games_to_metrics(games))
 
 
-def compute_accuracy_by_cards(player_name: str, games: list) -> dict:
+def compute_accuracy_by_cards(player_name: str, games: list[Any]) -> dict[str, dict[str, int]]:
     """Compute accuracy-by-cards — accepts game objects or GameMetrics."""
     return compute_accuracy_by_cards_metrics(player_name, _games_to_metrics(games))

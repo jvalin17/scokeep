@@ -1,0 +1,39 @@
+{
+  "trump_rotation": [
+    {"round": 1, "trump": "spades"},
+    {"round": 2, "trump": "diamonds"},
+    {"round": 3, "trump": "clubs"},
+    {"round": 4, "trump": "hearts"},
+    {"round": 5, "trump": "spades"},
+    {"round": 8, "trump": "hearts"},
+    {"round": 9, "trump": "spades"},
+    {"round": 12, "trump": "hearts"},
+    {"round": 13, "trump": "spades"},
+    {"round": 24, "trump": "hearts"}
+  ],
+  "cards_per_round": [
+    {"round": 1, "rounds_per_set": 8, "cards": 8},
+    {"round": 2, "rounds_per_set": 8, "cards": 7},
+    {"round": 7, "rounds_per_set": 8, "cards": 2},
+    {"round": 8, "rounds_per_set": 8, "cards": 1},
+    {"round": 9, "rounds_per_set": 8, "cards": 1},
+    {"round": 10, "rounds_per_set": 8, "cards": 2},
+    {"round": 15, "rounds_per_set": 8, "cards": 7},
+    {"round": 16, "rounds_per_set": 8, "cards": 8},
+    {"round": 17, "rounds_per_set": 8, "cards": 8},
+    {"round": 24, "rounds_per_set": 8, "cards": 1},
+    {"round": 1, "rounds_per_set": 5, "cards": 5},
+    {"round": 5, "rounds_per_set": 5, "cards": 1},
+    {"round": 6, "rounds_per_set": 5, "cards": 1},
+    {"round": 10, "rounds_per_set": 5, "cards": 5}
+  ],
+  "max_cards": [
+    {"players": 2, "max_cards": 26},
+    {"players": 3, "max_cards": 17},
+    {"players": 4, "max_cards": 13},
+    {"players": 5, "max_cards": 10},
+    {"players": 6, "max_cards": 8},
+    {"players": 7, "max_cards": 7},
+    {"players": 8, "max_cards": 6}
+  ]
+}

@@ -86,6 +86,11 @@ class TestJSModules:
 
 class TestHealthEndpoint:
     async def test_health_returns_status(self, client: AsyncClient):
-        response = await client.get("/api/health")
+        from unittest.mock import patch
+
+        from tests.conftest import test_engine
+
+        with patch("app.main.engine", test_engine):
+            response = await client.get("/api/health")
         assert response.status_code == 200
         assert response.json()["status"] in ("healthy", "unhealthy")

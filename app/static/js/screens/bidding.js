@@ -1,6 +1,6 @@
 // Bidding screen — player queue + keypad + back button
 
-import { submitBid, getBids, editBid, startRound, resyncGame, guardPhase } from '../api.js';
+import { getApi } from '../resolve-api.js';
 import { Keypad, InlineKeypad } from '../components/keypad.js';
 import { getRoundCards, escapeHtml } from '../components/game-utils.js';
 import { getEntryOrder } from '../components/entry-utils.js';
@@ -11,7 +11,8 @@ import { soundStartRound } from '../components/sounds.js';
 export const biddingScreen = {
     async mount(container, state, { navigate, params }) {
         const gameId = params[0];
-        const game = await guardPhase(gameId, 'bidding');
+        const api = await getApi(gameId);
+        const game = await api.guardPhase(gameId, 'bidding');
         if (!game) return;
         state.game = game;
 
@@ -31,7 +32,7 @@ export const biddingScreen = {
 
         // Load existing bids
         try {
-            const roundData = await getBids(gameId);
+            const roundData = await api.getBids(gameId);
             bidsCollected = roundData.bids || {};
             bidPosition = Object.keys(bidsCollected).length;
             Object.keys(bidsCollected).forEach(key => backendHasBid.add(key));
@@ -172,7 +173,7 @@ export const biddingScreen = {
                     disabled: getMustLoseDisabledKeys(editingPi, cardsDealt),
                     onSelect: async (value) => {
                         try {
-                            await editBid(gameId, editingPi, value);
+                            await api.editBid(gameId, editingPi, value);
                             bidsCollected[String(editingPi)] = value;
                             editingPi = null;
                             checkMustLoseCascade(cardsDealt);
@@ -189,11 +190,11 @@ export const biddingScreen = {
             if (confirmBtn) {
                 confirmBtn.addEventListener('click', async () => {
                     try {
-                        await startRound(gameId);
+                        await api.startRound(gameId);
                         soundStartRound();
                         navigate(`play/${gameId}`);
                     } catch {
-                        await resyncGame(gameId);
+                        await api.resyncGame(gameId);
                     }
                 });
             }
@@ -204,9 +205,9 @@ export const biddingScreen = {
             try {
                 const playerKey = String(pi);
                 if (backendHasBid.has(playerKey)) {
-                    await editBid(gameId, pi, value);
+                    await api.editBid(gameId, pi, value);
                 } else {
-                    await submitBid(gameId, pi, value);
+                    await api.submitBid(gameId, pi, value);
                     backendHasBid.add(playerKey);
                 }
                 bidsCollected[playerKey] = value;

@@ -1,0 +1,172 @@
+{
+  "advance_round": [
+    {
+      "id": "mid_game",
+      "description": "Mid-game: current_round < total_rounds — increments round and advances dealer",
+      "input": {
+        "current_round": 3,
+        "total_rounds": 8,
+        "dealer_index": 1,
+        "players": ["Alice", "Bob", "Carol"],
+        "phase": "scoring"
+      },
+      "expected": {
+        "current_round": 4,
+        "total_rounds": 8,
+        "dealer_index": 2,
+        "players": ["Alice", "Bob", "Carol"],
+        "phase": "bidding"
+      }
+    },
+    {
+      "id": "last_round_to_review",
+      "description": "Last round: current_round == total_rounds — transitions to review phase, no round/dealer change",
+      "input": {
+        "current_round": 8,
+        "total_rounds": 8,
+        "dealer_index": 2,
+        "players": ["Alice", "Bob", "Carol"],
+        "phase": "scoring"
+      },
+      "expected": {
+        "current_round": 8,
+        "total_rounds": 8,
+        "dealer_index": 2,
+        "players": ["Alice", "Bob", "Carol"],
+        "phase": "review"
+      }
+    },
+    {
+      "id": "dealer_wrap",
+      "description": "Dealer wrap: dealer_index wraps around to 0 when it reaches player count",
+      "input": {
+        "current_round": 5,
+        "total_rounds": 24,
+        "dealer_index": 2,
+        "players": ["Alice", "Bob", "Carol"],
+        "phase": "scoring"
+      },
+      "expected": {
+        "current_round": 6,
+        "total_rounds": 24,
+        "dealer_index": 0,
+        "players": ["Alice", "Bob", "Carol"],
+        "phase": "bidding"
+      }
+    },
+    {
+      "id": "two_player_dealer_wrap",
+      "description": "Two-player game: dealer alternates between 0 and 1",
+      "input": {
+        "current_round": 2,
+        "total_rounds": 16,
+        "dealer_index": 1,
+        "players": ["Alice", "Bob"],
+        "phase": "scoring"
+      },
+      "expected": {
+        "current_round": 3,
+        "total_rounds": 16,
+        "dealer_index": 0,
+        "players": ["Alice", "Bob"],
+        "phase": "bidding"
+      }
+    },
+    {
+      "id": "beyond_last_round",
+      "description": "Beyond last round: current_round > total_rounds — also transitions to review",
+      "input": {
+        "current_round": 9,
+        "total_rounds": 8,
+        "dealer_index": 0,
+        "players": ["Alice", "Bob", "Carol"],
+        "phase": "scoring"
+      },
+      "expected": {
+        "current_round": 9,
+        "total_rounds": 8,
+        "dealer_index": 0,
+        "players": ["Alice", "Bob", "Carol"],
+        "phase": "review"
+      }
+    }
+  ],
+  "extend_game": [
+    {
+      "id": "default_extend",
+      "description": "Default extend: adds rounds_per_set (8) to total_rounds and increments num_sets",
+      "input": {
+        "current_round": 8,
+        "total_rounds": 24,
+        "dealer_index": 0,
+        "players": ["Alice", "Bob", "Carol"],
+        "phase": "review",
+        "settings": {
+          "rounds_per_set": 8,
+          "num_sets": 3
+        }
+      },
+      "expected": {
+        "current_round": 8,
+        "total_rounds": 32,
+        "dealer_index": 0,
+        "players": ["Alice", "Bob", "Carol"],
+        "phase": "review",
+        "settings": {
+          "rounds_per_set": 8,
+          "num_sets": 4
+        }
+      }
+    },
+    {
+      "id": "extend_missing_rounds_per_set",
+      "description": "Extend without rounds_per_set in settings — falls back to default of 8",
+      "input": {
+        "current_round": 8,
+        "total_rounds": 24,
+        "dealer_index": 1,
+        "players": ["Alice", "Bob"],
+        "phase": "review",
+        "settings": {
+          "num_sets": 3
+        }
+      },
+      "expected": {
+        "current_round": 8,
+        "total_rounds": 32,
+        "dealer_index": 1,
+        "players": ["Alice", "Bob"],
+        "phase": "review",
+        "settings": {
+          "num_sets": 4
+        }
+      }
+    },
+    {
+      "id": "extend_custom_rounds_per_set",
+      "description": "Extend with custom rounds_per_set of 6",
+      "input": {
+        "current_round": 12,
+        "total_rounds": 18,
+        "dealer_index": 2,
+        "players": ["Alice", "Bob", "Carol", "Dave"],
+        "phase": "review",
+        "settings": {
+          "rounds_per_set": 6,
+          "num_sets": 3
+        }
+      },
+      "expected": {
+        "current_round": 12,
+        "total_rounds": 24,
+        "dealer_index": 2,
+        "players": ["Alice", "Bob", "Carol", "Dave"],
+        "phase": "review",
+        "settings": {
+          "rounds_per_set": 6,
+          "num_sets": 4
+        }
+      }
+    }
+  ]
+}

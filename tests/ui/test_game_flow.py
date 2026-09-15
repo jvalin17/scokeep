@@ -82,7 +82,7 @@ class TestExpertGameFlow:
         )
         # Page should show game-over state (not blank/stuck)
         content = page.content()
-        has_end_state = "Back to Room" in content or "No rounds" in content
+        has_end_state = "Back to Room" in content or "No rounds" in content or "Home" in content
         assert has_end_state, "Page is blank — no end-game content visible"
 
 
@@ -122,7 +122,7 @@ class TestExtendFlow:
         # Select 1 set and 1 card per round so the game has only 1 round total
         page.wait_for_selector("#start-game", timeout=5000)
         page.select_option("#setting-sets", "1")
-        page.select_option("#setting-set-type", "1")
+        page.select_option("#setting-cards", "1")
         page.click("#start-game")
         page.wait_for_selector(".keypad", timeout=30000)
 

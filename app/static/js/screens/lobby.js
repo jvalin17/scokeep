@@ -3,6 +3,7 @@
 import { getPlayground, createGame, getActiveGame, endGame } from '../api.js';
 import { initDragReorder } from '../components/drag-reorder.js';
 import { escapeHtml } from '../components/game-utils.js';
+import { renderSettingsGrid, readSettings } from '../components/game-settings.js';
 import { isMuted, toggleMute, soundEndGame } from '../components/sounds.js';
 
 export const lobbyScreen = {
@@ -66,49 +67,7 @@ export const lobbyScreen = {
 
                     <section class="lobby-section">
                         <h3>Settings</h3>
-                        <div class="settings-grid">
-                            <label>Mode</label>
-                            <select id="setting-mode">
-                                <option value="expert">Expert</option>
-                                <option value="rookie" selected>Rookie</option>
-                                <option value="friendly">Friendly</option>
-                            </select>
-
-                            <label>Appearance</label>
-                            <select id="setting-appearance">
-                                <option value="standard">Standard</option>
-                                <option value="interactive" selected>Interactive</option>
-                            </select>
-
-                            <label>Cards per round</label>
-                            <select id="setting-set-type">
-                                ${(() => {
-                                    const maxCards = Math.floor(52 / Math.max(players.length, 2));
-                                    return Array.from({length: maxCards}, (_, i) => maxCards - i)
-                                        .map(n => `<option value="${n}" ${n === Math.min(maxCards, 8) ? 'selected' : ''}>${n} card${n > 1 ? 's' : ''}</option>`)
-                                        .join('');
-                                })()}
-                            </select>
-
-                            <label>Sets</label>
-                            <select id="setting-sets">
-                                ${[1,2,3,4,5].map(n =>
-                                    `<option value="${n}" ${n === 3 ? 'selected' : ''}>${n} set${n > 1 ? 's' : ''}</option>`
-                                ).join('')}
-                            </select>
-
-                            <label>Scoring</label>
-                            <select id="setting-scoring">
-                                <option value="kachuful_standard" selected>Ones (bid 1 = 11)</option>
-                                <option value="kachuful_zeros">Zeros (bid 1 = 10)</option>
-                            </select>
-
-                            <label>Must-lose</label>
-                            <label class="toggle">
-                                <input type="checkbox" id="setting-must-lose" checked>
-                                <span class="toggle-label">On</span>
-                            </label>
-                        </div>
+                        ${renderSettingsGrid({ prefix: 'setting', playerCount: players.length })}
 
                     </section>
 
@@ -208,16 +167,9 @@ export const lobbyScreen = {
                 const errorElement = container.querySelector('#lobby-error');
                 errorElement.classList.add('hidden');
 
-                const numSets = parseInt(container.querySelector('#setting-sets').value);
-                const roundsPerSet = parseInt(container.querySelector('#setting-set-type').value);
                 const settings = {
                     game_type: 'kachuful',
-                    mode: container.querySelector('#setting-mode').value,
-                    appearance: container.querySelector('#setting-appearance').value,
-                    scoring_formula: container.querySelector('#setting-scoring').value,
-                    num_sets: numSets,
-                    rounds_per_set: roundsPerSet,
-                    must_lose: container.querySelector('#setting-must-lose').checked,
+                    ...readSettings(container, 'setting'),
                 };
 
                 try {

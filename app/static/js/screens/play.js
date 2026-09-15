@@ -1,13 +1,14 @@
 // Play screen — trump display, round info, end round button
 
-import { getBids, enterRoundEnd, resyncGame, guardPhase } from '../api.js';
+import { getApi } from '../resolve-api.js';
 import { getRoundCards, escapeHtml } from '../components/game-utils.js';
 import { renderGameIsland, renderRoundInfoBar, renderTrumpDisplay, attachEndGameHandler, setScreenContext } from '../components/screen-parts.js';
 
 export const playScreen = {
     async mount(container, state, { navigate, params }) {
         const gameId = params[0];
-        const game = await guardPhase(gameId, 'playing');
+        const api = await getApi(gameId);
+        const game = await api.guardPhase(gameId, 'playing');
         if (!game) return;
         state.game = game;
 
@@ -21,7 +22,7 @@ export const playScreen = {
         let bidsHtml = '';
         if (mode === 'friendly') {
             try {
-                const roundData = await getBids(gameId);
+                const roundData = await api.getBids(gameId);
                 const bids = roundData.bids || {};
                 bidsHtml = `
                     <div class="play-bids">
@@ -52,10 +53,10 @@ export const playScreen = {
 
         container.querySelector('#end-round-btn').addEventListener('click', async () => {
             try {
-                await enterRoundEnd(gameId);
+                await api.enterRoundEnd(gameId);
                 navigate(`roundend/${gameId}`);
             } catch {
-                await resyncGame(gameId);
+                await api.resyncGame(gameId);
             }
         });
 

@@ -2,9 +2,12 @@ from unittest.mock import AsyncMock, patch
 
 from httpx import AsyncClient
 
+from tests.conftest import test_engine
+
 
 async def test_health_endpoint_returns_healthy(client: AsyncClient):
-    response = await client.get("/api/health")
+    with patch("app.main.engine", test_engine):
+        response = await client.get("/api/health")
 
     assert response.status_code == 200
     body = response.json()

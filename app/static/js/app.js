@@ -2,6 +2,7 @@
 
 import { escapeHtml } from './components/game-utils.js';
 import { logger } from './components/logger.js';
+import { isLocalGame } from './resolve-api.js';
 import { homeScreen } from './screens/home.js';
 import { lobbyScreen } from './screens/lobby.js';
 import { biddingScreen } from './screens/bidding.js';
@@ -67,7 +68,9 @@ async function render() {
         logger.error('screen', `error on ${screen}: ${error.message}`);
         // Try to resync if we have a game ID
         const gameId = params[0];
-        if (gameId && screen !== '' && screen !== 'playground' && screen !== 'stats') {
+        // Only attempt server resync for non-local game IDs
+        const isLocalId = isLocalGame(gameId);
+        if (gameId && !isLocalId && screen !== '' && screen !== 'playground' && screen !== 'stats') {
             try {
                 logger.warn('resync', `attempting resync for game ${gameId}`);
                 const resp = await fetch(`/api/game/${gameId}`, { credentials: 'same-origin' });
