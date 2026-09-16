@@ -1,6 +1,6 @@
 // Service worker — cache app shell for offline use
 
-const CACHE_NAME = 'scokeep-v69';
+const CACHE_NAME = 'scokeep-v70';
 const APP_SHELL = [
     '/',
     '/static/css/style.css',
@@ -36,6 +36,8 @@ const APP_SHELL = [
     '/static/js/engine/store.js',
     '/static/js/engine/game-engine.js',
     '/static/js/engine/server-sync.js',
+    '/static/js/resolve-api.js',
+    '/static/js/components/game-settings.js',
     '/static/manifest.json',
     '/static/icons/icon-192.png',
     '/static/icons/icon-512.png',
@@ -60,9 +62,16 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
 
-    // API calls: network only (need fresh data)
+    // API calls: network first, empty JSON fallback when offline
     if (url.pathname.startsWith('/api/')) {
-        event.respondWith(fetch(event.request));
+        event.respondWith(
+            fetch(event.request).catch(() =>
+                new Response(JSON.stringify({ offline: true, detail: 'You are offline' }), {
+                    status: 503,
+                    headers: { 'Content-Type': 'application/json' },
+                })
+            )
+        );
         return;
     }
 
