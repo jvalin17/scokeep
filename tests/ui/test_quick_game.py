@@ -101,9 +101,9 @@ def test_quick_game_end_game(qg_page):
     qg_page.locator("#confirm-final").wait_for(state="visible", timeout=10000)
     qg_page.locator("#confirm-final").click()
     qg_page.wait_for_function(
-        "() => location.hash.includes('final')",
+        "() => location.hash.includes('scoreboard')",
         timeout=10000,
     )
 
-    # Final screen shows trophy and standings
-    expect(qg_page.locator(".final-trophy, .final").first).to_be_visible(timeout=10000)
+    # Game over scoreboard shows celebration with confetti and trophy
+    expect(qg_page.locator(".final-celebration, .final-trophy").first).to_be_visible(timeout=10000)

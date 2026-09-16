@@ -604,7 +604,7 @@ input::placeholder { color: var(--text-muted); }
 .final-rank { width: 24px; font-weight: 700; color: var(--text-muted); }
 .final-name { flex: 1; }
 .final-pts { font-weight: 700; }
-.final-actions { margin-top: 16px; width: 100%; }
+.final-actions { margin-top: 16px; width: 100%; text-align: center; }
 
 /* Stats */
 .stats { display: flex; flex-direction: column; gap: 12px; }

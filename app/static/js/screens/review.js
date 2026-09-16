@@ -30,7 +30,7 @@ export const reviewScreen = {
             try {
                 await api.confirmFinal(gameId);
                 soundEndGame();
-                navigate(`final/${gameId}`);
+                navigate(`scoreboard/${gameId}`);
             } catch (error) {
                 showError(error.message);
             }
