@@ -23,5 +23,7 @@ class Game(Base):
     started_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
     finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    client_game_id: Mapped[str | None] = mapped_column(String(50), nullable=True, unique=True)
+    source: Mapped[str] = mapped_column(String(20), nullable=False, server_default="online")
 
     __table_args__ = (Index("ix_game_playground_status", "playground_id", "status"),)

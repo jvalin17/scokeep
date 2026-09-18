@@ -147,7 +147,7 @@ input::placeholder { color: var(--text-muted); }
     cursor: pointer;
     transition: all 0.15s;
 }
-.recent-item:active { background: var(--accent); color: #fff; }
+.recent-item:active, .recent-item.active { background: var(--accent); color: #fff; }
 /* Room finder panel */
 .room-finder {
     background: var(--bg-card); border: 1px solid var(--border);

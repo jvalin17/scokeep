@@ -1,6 +1,6 @@
 // Service worker — cache app shell for offline use
 
-const CACHE_NAME = 'scokeep-v70';
+const CACHE_NAME = 'scokeep-v71';
 const APP_SHELL = [
     '/',
     '/static/css/style.css',
@@ -36,6 +36,8 @@ const APP_SHELL = [
     '/static/js/engine/store.js',
     '/static/js/engine/game-engine.js',
     '/static/js/engine/server-sync.js',
+    '/static/js/engine/pin-verifier.js',
+    '/static/js/engine/sync-import.js',
     '/static/js/resolve-api.js',
     '/static/js/components/game-settings.js',
     '/static/manifest.json',

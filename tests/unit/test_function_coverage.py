@@ -79,14 +79,14 @@ def test_compute_display_extras():
 
 
 def test_compute_accuracy_by_cards_metrics():
-    from app.services.metric_aggregator import compute_accuracy_by_cards_metrics
+    from app.services.metric_bridges import compute_accuracy_by_cards_metrics
 
     r = compute_accuracy_by_cards_metrics("A", [_gm()])
     assert isinstance(r, dict)
 
 
 def test_compute_feature_vector():
-    from app.services.metric_aggregator import compute_feature_vector
+    from app.services.metric_bridges import compute_feature_vector
 
     class G:
         players = ["A"]
@@ -98,7 +98,7 @@ def test_compute_feature_vector():
 
 
 def test_compute_player_extras():
-    from app.services.metric_aggregator import compute_player_extras
+    from app.services.metric_bridges import compute_player_extras
 
     class G:
         players = ["A"]
@@ -110,7 +110,7 @@ def test_compute_player_extras():
 
 
 def test_compute_accuracy_by_cards():
-    from app.services.metric_aggregator import compute_accuracy_by_cards
+    from app.services.metric_bridges import compute_accuracy_by_cards
 
     class G:
         players = ["A"]
@@ -400,61 +400,61 @@ def test__closer():
 
 
 def test__conservative():
-    from app.services.title_patterns import _conservative
+    from app.services.title_patterns_extra import _conservative
 
     assert isinstance(_conservative(_ctx()), list)
 
 
 def test__daredevil():
-    from app.services.title_patterns import _daredevil
+    from app.services.title_patterns_extra import _daredevil
 
     assert isinstance(_daredevil(_ctx()), list)
 
 
 def test__rollercoaster():
-    from app.services.title_patterns import _rollercoaster
+    from app.services.title_patterns_extra import _rollercoaster
 
     assert isinstance(_rollercoaster(_ctx()), list)
 
 
 def test__metronome():
-    from app.services.title_patterns import _metronome
+    from app.services.title_patterns_extra import _metronome
 
     assert isinstance(_metronome(_ctx()), list)
 
 
 def test__trump_master():
-    from app.services.title_patterns import _trump_master
+    from app.services.title_patterns_extra import _trump_master
 
     assert isinstance(_trump_master(_ctx()), list)
 
 
 def test__minimalist():
-    from app.services.title_patterns import _minimalist
+    from app.services.title_patterns_extra import _minimalist
 
     assert isinstance(_minimalist(_ctx()), list)
 
 
 def test__mirror():
-    from app.services.title_patterns import _mirror
+    from app.services.title_patterns_extra import _mirror
 
     assert isinstance(_mirror(_ctx()), list)
 
 
 def test__lucky_seven():
-    from app.services.title_patterns import _lucky_seven
+    from app.services.title_patterns_extra import _lucky_seven
 
     assert isinstance(_lucky_seven(_ctx()), list)
 
 
 def test__last_laugh():
-    from app.services.title_patterns import _last_laugh
+    from app.services.title_patterns_extra import _last_laugh
 
     assert isinstance(_last_laugh(_ctx()), list)
 
 
 def test__survivor():
-    from app.services.title_patterns import _survivor
+    from app.services.title_patterns_extra import _survivor
 
     assert isinstance(_survivor(_ctx()), list)
 
@@ -500,7 +500,7 @@ def test__make_declarative_wrapper():
 
 
 def test__games_to_metrics():
-    from app.services.metric_aggregator import _games_to_metrics
+    from app.services.metric_bridges import _games_to_metrics
 
     class G:
         players = ["A"]

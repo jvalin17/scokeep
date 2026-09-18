@@ -19,6 +19,7 @@
 import * as engine from './engine/game-engine.js';
 import { saveGame as storeSaveGame, saveRound as storeSaveRound, getRound as storeGetRound } from './engine/store.js';
 import { syncRound, syncGameState } from './engine/server-sync.js';
+import { syncOneGame } from './engine/sync-import.js';
 
 const PHASE_ROUTES = {
   bidding: 'bid',
@@ -379,5 +380,13 @@ export async function undoRound(gameId) {
 export async function confirmFinal(gameId) {
   const game = await engine.confirmFinal(gameId);
   syncGameState(gameId, game);
+
+  // Auto-sync linked Quick Games to server when online
+  if (game.linked_room && game.sync_pending && navigator.onLine) {
+    syncOneGame(game).catch(error =>
+      console.warn('Auto-sync after confirmFinal failed:', error),
+    );
+  }
+
   return game;
 }

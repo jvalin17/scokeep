@@ -121,24 +121,15 @@ class RoundService:
         if round_obj.status != "bidding":
             raise ValueError(f"Round is not in bidding phase (current: {round_obj.status})")
 
-        player_key = str(player_index)
-        if player_key in round_obj.bids:
-            raise ValueError(f"Bid already submitted for player {player_index}")
-
-        if must_lose:
-            bids_so_far = len(round_obj.bids)
-            is_last_player = bids_so_far == player_count - 1
-            if is_last_player:
-                existing_total = sum(round_obj.bids.values())
-                if existing_total + value == cards_dealt:
-                    raise ValueError(
-                        f"Bid {value} rejected: must-lose mode — "
-                        f"total bids ({existing_total + value}) "
-                        f"cannot equal cards dealt ({cards_dealt})"
-                    )
+        error = validate_bid(
+            round_obj.bids, player_index, value,
+            must_lose=must_lose, cards_deal=cards_dealt, player_count=player_count,
+        )
+        if error:
+            raise ValueError(error)
 
         # SQLAlchemy needs a new dict to detect JSONB mutation
-        updated_bids = {**round_obj.bids, player_key: value}
+        updated_bids = {**round_obj.bids, str(player_index): value}
         round_obj.bids = updated_bids
         await db.commit()
         await db.refresh(round_obj)

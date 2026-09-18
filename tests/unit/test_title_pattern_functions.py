@@ -1,6 +1,7 @@
-"""Tests for each complex title pattern function in title_patterns.py.
+"""Tests for each complex title pattern function.
 
 Each pattern must return a list of valid candidate dicts when given a GameContext.
+Patterns live in title_patterns.py (core) and title_patterns_extra.py (bid style, streaks).
 """
 
 from app.services.title_patterns import (
@@ -9,8 +10,6 @@ from app.services.title_patterns import (
     _avg_bid_pattern,
     _closer,
     _comeback_king,
-    _conservative,
-    _daredevil,
     _fast_fade,
     _fortune_teller,
     _halfway,
@@ -18,24 +17,28 @@ from app.services.title_patterns import (
     _hot_streak,
     _ice_cold,
     _landslide,
-    _last_laugh,
-    _lucky_seven,
-    _metronome,
-    _minimalist,
-    _mirror,
     _nearly_perfect,
     _one_trick,
     _perfect_game,
     _photo_finish,
     _rank_at,
-    _rollercoaster,
     _scatterbrain,
     _slow_starter,
-    _survivor,
-    _trump_master,
     _underdog,
     _variance_pattern,
     _zero_hero,
+)
+from app.services.title_patterns_extra import (
+    _conservative,
+    _daredevil,
+    _last_laugh,
+    _lucky_seven,
+    _metronome,
+    _minimalist,
+    _mirror,
+    _rollercoaster,
+    _survivor,
+    _trump_master,
 )
 from tests.unit.conftest import MockRound
 

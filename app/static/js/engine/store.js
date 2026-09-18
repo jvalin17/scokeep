@@ -13,7 +13,7 @@
  */
 
 const DB_NAME = 'scokeep-local';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 /**
  * Normalize a game ID — hash URLs give strings but server IDs are integers.
@@ -50,20 +50,23 @@ function _open() {
 
     req.onupgradeneeded = (event) => {
       const db = event.target.result;
+      const oldVersion = event.oldVersion;
 
-      // games store
-      if (!db.objectStoreNames.contains('games')) {
+      // v1: games + rounds stores
+      if (oldVersion < 1) {
         const games = db.createObjectStore('games', { keyPath: 'id' });
         games.createIndex('status', 'status', { unique: false });
         games.createIndex('playground_id', 'playground_id', { unique: false });
-      }
 
-      // rounds store — compound key
-      if (!db.objectStoreNames.contains('rounds')) {
         const rounds = db.createObjectStore('rounds', {
           keyPath: ['game_id', 'round_num'],
         });
         rounds.createIndex('game_id', 'game_id', { unique: false });
+      }
+
+      // v2: rooms store for offline Quick Game
+      if (oldVersion < 2) {
+        db.createObjectStore('rooms', { keyPath: 'share_code' });
       }
     };
 
@@ -88,6 +91,40 @@ function _wrap(req) {
   });
 }
 
+/**
+ * Run a readwrite put on the named store.
+ * @param {string} storeName
+ * @param {any} value
+ * @returns {Promise<void>}
+ */
+async function _put(storeName, value) {
+  const db = await _open();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(storeName, 'readwrite');
+    const req = tx.objectStore(storeName).put(value);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+/**
+ * Run a readwrite delete on the named store.
+ * @param {string} storeName
+ * @param {any} key
+ * @returns {Promise<void>}
+ */
+async function _del(storeName, key) {
+  const db = await _open();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(storeName, 'readwrite');
+    const req = tx.objectStore(storeName).delete(key);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
 // ─── public API ──────────────────────────────────────────────────────────────
 
 /**
@@ -103,15 +140,8 @@ export async function openGameStore() {
  * @param {Object} game
  * @returns {Promise<void>}
  */
-export async function saveGame(game) {
-  const db = await _open();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction('games', 'readwrite');
-    const req = tx.objectStore('games').put(game);
-    req.onsuccess = () => resolve();
-    req.onerror = () => reject(req.error);
-    tx.onerror = () => reject(tx.error);
-  });
+export function saveGame(game) {
+  return _put('games', game);
 }
 
 /**
@@ -143,15 +173,8 @@ export async function getActiveGame() {
  * @param {Object} round  Must contain game_id and round_num.
  * @returns {Promise<void>}
  */
-export async function saveRound(round) {
-  const db = await _open();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction('rounds', 'readwrite');
-    const req = tx.objectStore('rounds').put(round);
-    req.onsuccess = () => resolve();
-    req.onerror = () => reject(req.error);
-    tx.onerror = () => reject(tx.error);
-  });
+export function saveRound(round) {
+  return _put('rounds', round);
 }
 
 /**
@@ -186,15 +209,8 @@ export async function getRoundsForGame(gameId) {
  * @param {number} roundNum
  * @returns {Promise<void>}
  */
-export async function deleteRound(gameId, roundNum) {
-  const db = await _open();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction('rounds', 'readwrite');
-    const req = tx.objectStore('rounds').delete([_normalizeId(gameId), roundNum]);
-    req.onsuccess = () => resolve();
-    req.onerror = () => reject(req.error);
-    tx.onerror = () => reject(tx.error);
-  });
+export function deleteRound(gameId, roundNum) {
+  return _del('rounds', [_normalizeId(gameId), roundNum]);
 }
 
 /**
@@ -215,6 +231,49 @@ export async function getFinishedGames(limit = 20) {
       return 0;
     })
     .slice(0, limit);
+}
+
+// ─── rooms store (v2) ────────────────────────────────────────────────────────
+
+/**
+ * Persist a room object (insert or overwrite).
+ * @param {Object} room — must have share_code as keyPath
+ * @returns {Promise<void>}
+ */
+export function saveRoom(room) {
+  return _put('rooms', room);
+}
+
+/**
+ * Retrieve a room by share_code.
+ * @param {string} shareCode
+ * @returns {Promise<Object|null>}
+ */
+export async function getRoom(shareCode) {
+  const db = await _open();
+  const tx = db.transaction('rooms', 'readonly');
+  const result = await _wrap(tx.objectStore('rooms').get(shareCode));
+  return result ?? null;
+}
+
+/**
+ * Return all cached rooms.
+ * @returns {Promise<Object[]>}
+ */
+export async function getAllRooms() {
+  const db = await _open();
+  const tx = db.transaction('rooms', 'readonly');
+  const results = await _wrap(tx.objectStore('rooms').getAll());
+  return results ?? [];
+}
+
+/**
+ * Delete a room by share_code.
+ * @param {string} shareCode
+ * @returns {Promise<void>}
+ */
+export function deleteRoom(shareCode) {
+  return _del('rooms', shareCode);
 }
 
 // ─── test helpers (no-op in production) ──────────────────────────────────────

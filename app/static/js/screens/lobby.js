@@ -5,6 +5,7 @@ import { initDragReorder } from '../components/drag-reorder.js';
 import { escapeHtml } from '../components/game-utils.js';
 import { renderSettingsGrid, readSettings } from '../components/game-settings.js';
 import { isMuted, toggleMute, soundEndGame } from '../components/sounds.js';
+import { getSyncPendingGames, syncOneGame } from '../engine/sync-import.js';
 
 export const lobbyScreen = {
     async mount(container, state, { navigate, params }) {
@@ -47,6 +48,11 @@ export const lobbyScreen = {
                         </div>
                     ` : ''}
 
+                    <div id="sync-banner" class="hidden" style="background:var(--bg-card);border:1px solid var(--accent);border-radius:8px;padding:12px;margin-bottom:12px;">
+                        <p id="sync-message" style="margin:0 0 8px;font-size:0.9rem;"></p>
+                        <button id="sync-now" class="btn btn-primary btn-small">Sync now</button>
+                    </div>
+
                     <section class="lobby-section">
                         <h3>Players</h3>
                         <div id="player-list" class="lobby-player-list">
@@ -81,6 +87,7 @@ export const lobbyScreen = {
             `;
 
             bindEvents();
+            checkPendingSyncs();
         }
 
         function bindEvents() {
@@ -192,6 +199,53 @@ export const lobbyScreen = {
                 container.querySelector('#toggle-sound').textContent = muted ? '🔇' : '🔊';
             });
 
+            // Sync banner — sync pending offline games
+            const syncBtn = container.querySelector('#sync-now');
+            if (syncBtn) {
+                syncBtn.addEventListener('click', async () => {
+                    const messageEl = container.querySelector('#sync-message');
+                    syncBtn.disabled = true;
+
+                    const pendingGames = await getSyncPendingGames(shareCode);
+                    const total = pendingGames.length;
+                    let synced = 0;
+                    let failed = 0;
+
+                    for (const game of pendingGames) {
+                        messageEl.textContent = `Syncing ${synced + 1} of ${total}...`;
+                        const result = await syncOneGame(game);
+                        if (result.success) { synced++; }
+                        else { failed++; }
+                    }
+
+                    if (failed === 0) {
+                        messageEl.textContent = `All ${synced} game${synced > 1 ? 's' : ''} synced!`;
+                        setTimeout(() => {
+                            container.querySelector('#sync-banner')?.classList.add('hidden');
+                        }, 2000);
+                    } else {
+                        messageEl.textContent = `${synced} synced, ${failed} failed. Retry later.`;
+                        syncBtn.disabled = false;
+                    }
+                });
+            }
+        }
+
+        async function checkPendingSyncs() {
+            try {
+                const pendingGames = await getSyncPendingGames(shareCode);
+                if (pendingGames.length > 0) {
+                    const banner = container.querySelector('#sync-banner');
+                    const messageEl = container.querySelector('#sync-message');
+                    if (banner && messageEl) {
+                        const count = pendingGames.length;
+                        messageEl.textContent = `You have ${count} unsynced offline game${count > 1 ? 's' : ''}. Sync now?`;
+                        banner.classList.remove('hidden');
+                    }
+                }
+            } catch (error) {
+                console.warn('Failed to check pending syncs:', error);
+            }
         }
 
         renderLobby();

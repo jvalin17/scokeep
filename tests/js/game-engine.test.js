@@ -325,3 +325,28 @@ describe('test_undo_round_after_round_2_sets_scoreboard', () => {
     expect(result.phase).toBe('scoreboard');
   });
 });
+
+// ─── sync fields (quick-game-sync) ──────────────────────────────────────────
+
+describe('test_create_game_has_client_game_id', () => {
+  it('createGame returns a game with client_game_id matching id', async () => {
+    const game = await createGame(makePlayers(), makeSettings());
+    expect(game.client_game_id).toBe(game.id);
+    expect(typeof game.client_game_id).toBe('string');
+    expect(game.client_game_id).toMatch(/^game-/);
+  });
+});
+
+describe('test_create_game_linked_room_defaults_null', () => {
+  it('createGame sets linked_room to null by default', async () => {
+    const game = await createGame(makePlayers(), makeSettings());
+    expect(game.linked_room).toBeNull();
+  });
+});
+
+describe('test_create_game_sync_pending_defaults_false', () => {
+  it('createGame sets sync_pending to false by default', async () => {
+    const game = await createGame(makePlayers(), makeSettings());
+    expect(game.sync_pending).toBe(false);
+  });
+});

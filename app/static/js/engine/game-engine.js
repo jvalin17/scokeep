@@ -96,8 +96,12 @@ export async function createGame(players, settings) {
   const numSets = settings.num_sets ?? 3;
   const totalRounds = roundsPerSet * numSets;
 
+  const gameId = _generateId();
   const game = {
-    id: _generateId(),
+    id: gameId,
+    client_game_id: gameId,
+    linked_room: settings.linked_room ?? null,
+    sync_pending: settings.linked_room ? true : false,
     players,
     settings: {
       mode: settings.mode ?? 'rookie',

@@ -11,6 +11,10 @@ import {
   getRoundsForGame,
   deleteRound,
   getFinishedGames,
+  saveRoom,
+  getRoom,
+  getAllRooms,
+  deleteRoom,
   resetForTesting,
   setIndexedDBForTesting,
 } from '../../app/static/js/engine/store.js';
@@ -158,5 +162,123 @@ describe('test_get_finished_games', () => {
     const results = await getFinishedGames(2);
     expect(results.length).toBe(2);
     expect(results.every((g) => g.status === 'finished')).toBe(true);
+  });
+});
+
+// ─── rooms store (v2) ─────────────────────────────────────────────────────
+
+function makeRoom(overrides = {}) {
+  return {
+    share_code: 'KLCC',
+    name: 'Besties',
+    players: ['Masood', 'Afeefa', 'Jj'],
+    pin_verifier: { salt: 'aabb', hash: 'ccdd', iterations: 600000 },
+    attempts: 0,
+    locked_until: null,
+    cached_at: '2026-09-17T00:00:00Z',
+    ...overrides,
+  };
+}
+
+describe('test_v2_migration_preserves_games', () => {
+  it('upgrading to v2 preserves existing game data', async () => {
+    const game = makeGame({ id: 99, status: 'active' });
+    await saveGame(game);
+
+    // Saving a room triggers v2 store access — games must survive
+    await saveRoom(makeRoom());
+
+    const retrieved = await getGame(99);
+    expect(retrieved).not.toBeNull();
+    expect(retrieved.id).toBe(99);
+    expect(retrieved.status).toBe('active');
+  });
+});
+
+describe('test_v2_creates_rooms_store', () => {
+  it('rooms store exists after opening v2 database', async () => {
+    await saveRoom(makeRoom());
+    const room = await getRoom('KLCC');
+    expect(room).not.toBeNull();
+    expect(room.share_code).toBe('KLCC');
+  });
+});
+
+describe('test_save_room', () => {
+  it('saveRoom stores room with share_code keyPath', async () => {
+    const room = makeRoom({ share_code: 'DEN8', name: 'Family' });
+    await saveRoom(room);
+    const retrieved = await getRoom('DEN8');
+    expect(retrieved.name).toBe('Family');
+    expect(retrieved.players).toEqual(['Masood', 'Afeefa', 'Jj']);
+  });
+});
+
+describe('test_get_room', () => {
+  it('getRoom returns null for non-existent share_code', async () => {
+    const result = await getRoom('NOPE');
+    expect(result).toBeNull();
+  });
+});
+
+describe('test_get_all_rooms', () => {
+  it('getAllRooms returns all cached rooms', async () => {
+    await saveRoom(makeRoom({ share_code: 'AAA1', name: 'Room A' }));
+    await saveRoom(makeRoom({ share_code: 'BBB2', name: 'Room B' }));
+    await saveRoom(makeRoom({ share_code: 'CCC3', name: 'Room C' }));
+
+    const rooms = await getAllRooms();
+    expect(rooms).toHaveLength(3);
+    const names = rooms.map(r => r.name).sort();
+    expect(names).toEqual(['Room A', 'Room B', 'Room C']);
+  });
+});
+
+describe('test_delete_room', () => {
+  it('deleteRoom removes a room by share_code', async () => {
+    await saveRoom(makeRoom({ share_code: 'DEL1' }));
+    await deleteRoom('DEL1');
+    const result = await getRoom('DEL1');
+    expect(result).toBeNull();
+  });
+});
+
+describe('test_new_game_fields_round_trip', () => {
+  it('client_game_id, linked_room, sync_pending survive save/get', async () => {
+    const game = makeGame({
+      id: 'game-123-abc',
+      client_game_id: 'game-123-abc',
+      linked_room: 'KLCC',
+      sync_pending: true,
+    });
+    await saveGame(game);
+
+    const retrieved = await getGame('game-123-abc');
+    expect(retrieved.client_game_id).toBe('game-123-abc');
+    expect(retrieved.linked_room).toBe('KLCC');
+    expect(retrieved.sync_pending).toBe(true);
+  });
+});
+
+describe('test_crud_round_trip_all_stores', () => {
+  it('save + retrieve + delete works for games, rounds, and rooms in one test', async () => {
+    // Games
+    const game = makeGame({ id: 77, status: 'finished' });
+    await saveGame(game);
+    expect(await getGame(77)).toEqual(game);
+
+    // Rounds
+    const round = makeRound({ game_id: 77, round_num: 1 });
+    await saveRound(round);
+    expect(await getRound(77, 1)).toEqual(round);
+    await deleteRound(77, 1);
+    expect(await getRound(77, 1)).toBeNull();
+
+    // Rooms
+    const room = makeRoom({ share_code: 'RT01', name: 'RoundTrip' });
+    await saveRoom(room);
+    expect((await getRoom('RT01')).name).toBe('RoundTrip');
+    await deleteRoom('RT01');
+    expect(await getRoom('RT01')).toBeNull();
   });
 });

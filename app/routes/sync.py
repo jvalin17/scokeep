@@ -20,12 +20,53 @@ DEFAULT_SCORING_FORMULA = "kachuful_standard"
 
 async def _get_round_for_game(db: AsyncSession, game_id: int, round_num: int) -> Round | None:
     result = await db.execute(
-        select(Round).where(
-            Round.game_id == game_id,
-            Round.round_num == round_num,
-        )
+        select(Round).where(Round.game_id == game_id, Round.round_num == round_num)
     )
     return result.scalar_one_or_none()
+
+
+def _validate_round_metadata(body: SyncRoundRequest, game) -> None:
+    """Raise 409 if cards_dealt or trump_suit don't match server-derived values."""
+    rounds_per_set = game.settings.get("rounds_per_set", 8)
+    expected_cards = get_cards_for_round(body.round_num, rounds_per_set)
+    expected_trump = get_trump_for_round(body.round_num)
+    if body.cards_dealt != expected_cards:
+        raise HTTPException(
+            409, detail=f"cards_dealt mismatch: got {body.cards_dealt}, expected {expected_cards}",
+        )
+    if body.trump_suit != expected_trump:
+        raise HTTPException(
+            409, detail=f"trump_suit mismatch: got {body.trump_suit}, expected {expected_trump}",
+        )
+
+
+def _validate_scores(body: SyncRoundRequest, formula: str) -> None:
+    """Raise 409/422 if client scores don't match server-derived scores."""
+    try:
+        derived = calculate_round_scores(body.bids, body.hands_won, formula)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    if derived != body.scores:
+        raise HTTPException(
+            409, detail=f"Score mismatch: client {body.scores} vs server {derived}",
+        )
+
+
+async def _upsert_round(db: AsyncSession, game_id: int, body: SyncRoundRequest) -> Round:
+    """Create or update a round row with fields from the sync body."""
+    round_obj = await _get_round_for_game(db, game_id, body.round_num)
+    if round_obj is None:
+        round_obj = Round(game_id=game_id, round_num=body.round_num)
+        db.add(round_obj)
+    round_obj.cards_dealt = body.cards_dealt
+    round_obj.trump_suit = body.trump_suit
+    round_obj.bids = body.bids
+    round_obj.hands_won = body.hands_won
+    round_obj.scores = body.scores
+    round_obj.status = body.status
+    await db.commit()
+    await db.refresh(round_obj)
+    return round_obj
 
 
 @router.post("/{game_id}/sync-round", response_model=RoundResponse)
@@ -36,67 +77,11 @@ async def sync_round(
     db: AsyncSession = Depends(get_db),
 ):
     """Receive a completed round from the client, re-derive scores and upsert."""
-    # 1. Validate game exists and belongs to this playground
     game = await get_game_with_auth(db, game_id, playground_id)
-
-    # 1b. Validate cards_dealt and trump_suit match server-derived values
-    rounds_per_set = game.settings.get("rounds_per_set", 8)
-    expected_cards = get_cards_for_round(body.round_num, rounds_per_set)
-    expected_trump = get_trump_for_round(body.round_num)
-    if body.cards_dealt != expected_cards:
-        raise HTTPException(
-            status_code=409,
-            detail=f"cards_dealt mismatch: got {body.cards_dealt}, expected {expected_cards}",
-        )
-    if body.trump_suit != expected_trump:
-        raise HTTPException(
-            status_code=409,
-            detail=f"trump_suit mismatch: got {body.trump_suit}, expected {expected_trump}",
-        )
-
-    # 2. Re-derive scores from bids + hands_won using server-side scoring
+    _validate_round_metadata(body, game)
     formula = game.settings.get("scoring_formula", DEFAULT_SCORING_FORMULA)
-    try:
-        derived_scores = calculate_round_scores(body.bids, body.hands_won, formula)
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-
-    # 3. Compare with client-submitted scores — reject on mismatch
-    if derived_scores != body.scores:
-        raise HTTPException(
-            status_code=409,
-            detail=(
-                f"Score mismatch: client sent {body.scores} but server derived {derived_scores}"
-            ),
-        )
-
-    # 4. Upsert Round row
-    round_obj = await _get_round_for_game(db, game_id, body.round_num)
-    if round_obj is None:
-        round_obj = Round(
-            game_id=game_id,
-            round_num=body.round_num,
-            cards_dealt=body.cards_dealt,
-            trump_suit=body.trump_suit,
-            bids=body.bids,
-            hands_won=body.hands_won,
-            scores=body.scores,
-            status=body.status,
-        )
-        db.add(round_obj)
-    else:
-        round_obj.cards_dealt = body.cards_dealt
-        round_obj.trump_suit = body.trump_suit
-        round_obj.bids = body.bids
-        round_obj.hands_won = body.hands_won
-        round_obj.scores = body.scores
-        round_obj.status = body.status
-
-    await db.commit()
-    await db.refresh(round_obj)
-
-    # 5. Return 200 with round data
-    return round_obj
+    _validate_scores(body, formula)
+    return await _upsert_round(db, game_id, body)
 
 
 @router.post("/{game_id}/sync-state")

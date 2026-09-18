@@ -14,8 +14,6 @@ import math
 from dataclasses import dataclass, field
 from typing import Any
 
-from app.services.metrics import compute_game_metrics
-
 # Card-count weights (shared with metrics.py)
 _CARD_COUNT_WEIGHTS = {1: 0.2, 2: 0.5}
 
@@ -464,67 +462,11 @@ def _compute_halfway_scores(gm) -> dict:
     return result
 
 
-def compute_accuracy_by_cards_metrics(
-    player_name: str, game_metrics_list: list[Any]
-) -> dict[str, dict[str, int]]:
-    """Compute bid accuracy breakdown by card count from GameMetrics objects."""
-    by_cards: dict[int, dict[str, int]] = {}
-
-    for gm in game_metrics_list:
-        if player_name not in gm.players:
-            continue
-
-        pm = gm.player_metrics.get(player_name)
-        if pm is None:
-            continue
-
-        n = min(len(pm.bid_sequence), len(gm.cards_per_round))
-        for i in range(n):
-            bid, hand = pm.bid_sequence[i]
-            cards = gm.cards_per_round[i]
-            if cards not in by_cards:
-                by_cards[cards] = {"correct": 0, "total": 0}
-            by_cards[cards]["total"] += 1
-            if bid == hand:
-                by_cards[cards]["correct"] += 1
-
-    return {
-        str(cards): {
-            "pct": round(data["correct"] / data["total"] * 100) if data["total"] > 0 else 0,
-            "rounds": data["total"],
-        }
-        for cards, data in sorted(by_cards.items())
-    }
-
-
-# ── Bridge functions (accept game objects, convert to GameMetrics internally) ─
-
-
-def _games_to_metrics(games: list[Any]) -> list[Any]:
-    """Convert game-like objects (with .players and .rounds) to GameMetrics."""
-    result = []
-    for g in games:
-        gm = compute_game_metrics(g.players, g.rounds)
-        # Preserve winner from the game object if set
-        if hasattr(g, "winner") and g.winner is not None:
-            gm.winner = g.winner
-        result.append(gm)
-    return result
-
-
-def compute_feature_vector(player_name: str, games: list[Any]) -> list[float]:
-    """Bridge: compute 10-d feature vector from game objects.
-
-    Converts games → GameMetrics → aggregate_career → feature_vector.
-    """
-    return aggregate_career(player_name, _games_to_metrics(games)).feature_vector
-
-
-def compute_player_extras(player_name: str, games: list[Any]) -> dict[str, Any]:
-    """Bridge: compute display extras dict from game objects."""
-    return compute_display_extras(player_name, _games_to_metrics(games))
-
-
-def compute_accuracy_by_cards(player_name: str, games: list[Any]) -> dict[str, dict[str, int]]:
-    """Compute accuracy-by-cards — accepts game objects or GameMetrics."""
-    return compute_accuracy_by_cards_metrics(player_name, _games_to_metrics(games))
+# Re-export bridge functions for backward compatibility (moved to metric_bridges.py)
+from app.services.metric_bridges import (  # noqa: F401, E402
+    _games_to_metrics,
+    compute_accuracy_by_cards,
+    compute_accuracy_by_cards_metrics,
+    compute_feature_vector,
+    compute_player_extras,
+)

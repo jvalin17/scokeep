@@ -253,3 +253,35 @@ class TestSyncGameState:
         )
 
         assert response.status_code == 401
+
+
+async def test_validate_round_metadata_rejects_wrong_cards(client: AsyncClient):
+    """_validate_round_metadata raises 409 on cards_dealt mismatch (via endpoint)."""
+    game = await _setup_game(client)
+    payload = {
+        "round_num": 1, "cards_dealt": 3, "trump_suit": "spades",
+        "bids": {"0": 1, "1": 1, "2": 0}, "hands_won": {"0": 1, "1": 1, "2": 0},
+        "scores": {"0": 11, "1": 11, "2": 10}, "status": "scored",
+    }
+    response = await client.post(
+        f"/api/game/{game['id']}/sync-round",
+        json=payload, cookies=game["cookies"],
+    )
+    assert response.status_code == 409
+    assert "cards_dealt mismatch" in response.json()["detail"]
+
+
+async def test_validate_scores_rejects_mismatch(client: AsyncClient):
+    """_validate_scores raises 409 on score mismatch (via endpoint)."""
+    game = await _setup_game(client)
+    payload = {
+        "round_num": 1, "cards_dealt": 8, "trump_suit": "spades",
+        "bids": {"0": 2, "1": 1, "2": 0}, "hands_won": {"0": 2, "1": 1, "2": 0},
+        "scores": {"0": 999, "1": 0, "2": 0}, "status": "scored",
+    }
+    response = await client.post(
+        f"/api/game/{game['id']}/sync-round",
+        json=payload, cookies=game["cookies"],
+    )
+    assert response.status_code == 409
+    assert "Score mismatch" in response.json()["detail"]

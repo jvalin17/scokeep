@@ -31,5 +31,6 @@ class GameResponse(BaseModel):
     phase: str
     dealer_index: int
     status: str
+    source: str = "online"
 
     model_config = {"from_attributes": True}
