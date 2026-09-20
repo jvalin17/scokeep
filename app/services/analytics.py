@@ -254,13 +254,13 @@ def _process_game_for_career(game, rounds_by_game, career):
 
 
 def _apply_games_won(game_totals, career):
-    """Award games_won to the sole winner; skip on a tie."""
+    """Award games_won to all players with the top score (including ties)."""
     if not game_totals:
         return
     top = max(game_totals.values())
-    winners = [n for n, s in game_totals.items() if s == top]
-    if len(winners) == 1:
-        career[winners[0]]["games_won"] += 1
+    for name, score in game_totals.items():
+        if score == top:
+            career[name]["games_won"] += 1
 
 
 def _apply_biggest_comeback(players, cumulative, career):

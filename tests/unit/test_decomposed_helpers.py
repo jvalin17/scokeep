@@ -229,17 +229,17 @@ def test__phase1_coverage():
 
     cands = [{"key": "a", "player": "A", "score": 10.0}]
     used = set()
-    r = _phase1_coverage(["A"], cands, used)
+    r = _phase1_coverage(["A"], cands, cands, used)
     assert len(r) == 1
 
 
-def test__phase2_fill():
-    from app.services.game_titles import _phase2_fill
+def test__phase2_random_fill():
+    from app.services.game_titles import _phase2_random_fill
 
     cands = [{"key": "a", "player": "A", "score": 10.0}, {"key": "b", "player": "B", "score": 5.0}]
     used = {"a"}
     result = []
-    _phase2_fill(cands, used, result, 1)
+    _phase2_random_fill(cands, used, result, 1)
     assert len(result) == 1
 
 

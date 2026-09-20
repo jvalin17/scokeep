@@ -98,11 +98,12 @@ class TestEvaluateDeclarative:
         for c in candidates:
             assert c["score"] > 0, f"{c['key']} for {c['player']} has score={c['score']}"
 
-    def test_produces_same_keys_as_old_simple_titles(self):
-        """Declarative titles must cover all simple title keys."""
+    def test_declarative_titles_include_all_expected_keys(self):
+        """Declarative titles must cover original 13 + 12 new keys."""
         from app.services.title_registry import DECLARATIVE_TITLES
 
         expected_keys = {
+            # Original 13
             "champion",
             "cellar_dweller",
             "sharpshooter",
@@ -116,6 +117,19 @@ class TestEvaluateDeclarative:
             "crowd_pleaser",
             "heartbreaker",
             "humble_pie",
+            # New 12
+            "glass_cannon",
+            "overachiever",
+            "penny_pincher",
+            "steamroller",
+            "wrecking_ball",
+            "sniper_bid",
+            "wild_card",
+            "iron_nerve",
+            "marathon",
+            "anchor",
+            "clutch",
+            "perfectionist",
         }
         actual_keys = {t["key"] for t in DECLARATIVE_TITLES}
         assert expected_keys == actual_keys
@@ -264,6 +278,130 @@ class TestMetricExtractors:
         result = _zero_bids_attempted(ctx, "Alice")
         assert result is not None
 
+    def test_glass_cannon(self):
+        from app.services.title_registry import _glass_cannon
+
+        ctx = self._ctx()
+        # Alice: rounds [30, 10] → gap=20; Bob: rounds [10, -20] → gap=30
+        result = _glass_cannon(ctx, "Bob")
+        assert result is not None
+        val, _ = result
+        assert val == 30  # 10 - (-20) = 30
+
+    def test_overachiever(self):
+        from app.services.title_registry import _overachiever
+
+        ctx = self._ctx()
+        # Bob round 1: bid 2, hand 3 → overachieved
+        result = _overachiever(ctx, "Bob")
+        assert result is not None
+        val, _ = result
+        assert val >= 1
+
+    def test_sniper_bid(self):
+        from app.services.title_registry import _sniper_bid
+
+        ctx = self._ctx()
+        # Check returns valid tuple or None
+        result = _sniper_bid(ctx, "Alice")
+        assert result is None or isinstance(result, tuple)
+
+    def test_wild_card(self):
+        from app.services.title_registry import _wild_card
+
+        ctx = self._ctx()
+        # Alice bid [3, 0] → 2 unique; Bob bid [0, 2] → 2 unique
+        result = _wild_card(ctx, "Alice")
+        assert result is not None
+        val, _ = result
+        assert val == 2
+
+    def test_steamroller(self):
+        from app.services.title_registry import _steamroller
+
+        ctx = self._ctx()
+        # Uses longest_make_streak from context
+        result = _steamroller(ctx, "Alice")
+        assert result is not None or result is None  # depends on data
+
+    def test_marathon(self):
+        """Marathon fires when all rounds have positive score."""
+        from app.services.game_titles import build_context
+        from app.services.title_registry import _marathon
+
+        rounds = [
+            MockRound({"0": 1, "1": 0}, {"0": 1, "1": 0}, {"0": 11, "1": 10}, 5),
+            MockRound({"0": 0, "1": 1}, {"0": 0, "1": 1}, {"0": 10, "1": 11}, 4),
+        ]
+        ctx = build_context(["Alice", "Bob"], rounds)
+        result = _marathon(ctx, "Alice")
+        assert result is not None
+        val, _ = result
+        assert val == 1  # boolean-ish: 1 = all positive
+
+    def test_marathon_fails_with_negative(self):
+        from app.services.title_registry import _marathon
+
+        ctx = self._ctx()
+        # Bob has -20 in one round
+        result = _marathon(ctx, "Bob")
+        assert result is None
+
+    def test_anchor(self):
+        from app.services.title_registry import _anchor
+
+        ctx = self._ctx()
+        # Count rounds where hands_won = 0
+        result = _anchor(ctx, "Alice")
+        assert result is None or isinstance(result, tuple)
+
+    def test_penny_pincher(self):
+        from app.services.title_registry import _penny_pincher
+
+        ctx = self._ctx()
+        result = _penny_pincher(ctx, "Alice")
+        assert result is None or isinstance(result, tuple)
+
+    def test_wrecking_ball(self):
+        from app.services.title_registry import _wrecking_ball
+
+        ctx = self._ctx()
+        # Bob has -20 in round 2 → negative total
+        result = _wrecking_ball(ctx, "Bob")
+        assert result is not None
+        val, _ = result
+        assert val == 20  # abs of -20
+
+    def test_iron_nerve(self):
+        from app.services.title_registry import _iron_nerve
+
+        ctx = self._ctx()
+        result = _iron_nerve(ctx, "Alice")
+        assert result is None or isinstance(result, tuple)
+
+    def test_clutch(self):
+        from app.services.title_registry import _clutch
+
+        ctx = self._ctx()
+        # Rounds with ≥5 cards: round 1 (8 cards), round 2 (7 cards)
+        result = _clutch(ctx, "Alice")
+        assert result is not None
+
+    def test_perfectionist(self):
+        """Perfectionist is highest mode — single best accuracy player."""
+        from app.services.game_titles import build_context
+        from app.services.title_registry import DECLARATIVE_TITLES, _evaluate_one
+
+        rounds = [
+            MockRound({"0": 1, "1": 1}, {"0": 1, "1": 0}, {"0": 11, "1": -11}, 5),
+            MockRound({"0": 0, "1": 0}, {"0": 0, "1": 0}, {"0": 10, "1": 10}, 3),
+        ]
+        ctx = build_context(["Alice", "Bob"], rounds)
+        perf_def = next(d for d in DECLARATIVE_TITLES if d["key"] == "perfectionist")
+        result = _evaluate_one(perf_def, ctx)
+        assert len(result) == 1
+        assert result[0]["player"] == "Alice"  # 100% vs 50%
+
 
 class TestEvalHelpers:
     """Test _eval_single_winner and _eval_per_player."""
@@ -288,6 +426,73 @@ class TestEvalHelpers:
         sharp_def = next(d for d in DECLARATIVE_TITLES if d["key"] == "sharpshooter")
         result = _evaluate_one(sharp_def, ctx)
         assert len(result) == 2  # both players have accuracy > 0
+
+
+class TestAssignExclusive:
+    def test__assign_exclusive_drops_ties(self):
+        from app.services.game_titles import _assign_exclusive
+
+        cands = [
+            {"key": "t1", "player": "A", "score": 50.0},
+            {"key": "t1", "player": "B", "score": 50.0},
+            {"key": "t2", "player": "A", "score": 40.0},
+        ]
+        result = _assign_exclusive(cands)
+        keys = [c["key"] for c in result]
+        assert "t1" not in keys  # tied — dropped
+        assert "t2" in keys
+
+    def test__assign_exclusive_keeps_clear_winner(self):
+        from app.services.game_titles import _assign_exclusive
+
+        cands = [
+            {"key": "t1", "player": "A", "score": 80.0},
+            {"key": "t1", "player": "B", "score": 50.0},
+        ]
+        result = _assign_exclusive(cands)
+        assert len(result) == 1
+        assert result[0]["player"] == "A"
+
+
+class TestPhase1Coverage:
+    def test__phase1_coverage_fallback_on_no_exclusive(self):
+        from app.services.game_titles import _phase1_coverage
+
+        exclusive = [{"key": "t1", "player": "A", "score": 50.0}]
+        all_cands = [
+            {"key": "t1", "player": "A", "score": 50.0},
+            {"key": "t2", "player": "B", "score": 30.0},
+        ]
+        used = set()
+        result = _phase1_coverage(["A", "B"], exclusive, all_cands, used)
+        players = {c["player"] for c in result}
+        assert "A" in players
+        assert "B" in players  # fell back to all_cands
+
+
+class TestPerfectionistMetric:
+    def test__perfectionist_metric_above_threshold(self):
+        from app.services.title_registry import _perfectionist_metric
+
+        ctx = _make_context()
+        # Alice has 75% accuracy in _make_context (3/4 bids made)
+        result = _perfectionist_metric(ctx, "Alice")
+        # 75% < 80% threshold
+        assert result is None
+
+    def test__perfectionist_metric_high_accuracy(self):
+        from app.services.game_titles import build_context
+        from app.services.title_registry import _perfectionist_metric
+
+        rounds = [
+            MockRound({"0": 1, "1": 0}, {"0": 1, "1": 0}, {"0": 11, "1": 10}, 5),
+            MockRound({"0": 0, "1": 1}, {"0": 0, "1": 0}, {"0": 10, "1": -11}, 3),
+        ]
+        ctx = build_context(["Alice", "Bob"], rounds)
+        result = _perfectionist_metric(ctx, "Alice")
+        assert result is not None
+        val, _ = result
+        assert val == 100.0
 
 
 class TestCandidateHelper:

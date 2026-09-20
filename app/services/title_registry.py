@@ -121,6 +121,82 @@ def _zero_bids_attempted(ctx, p):
     return (count, f"bid 0: {count}×") if count > 0 else None
 
 
+def _glass_cannon(ctx, p):
+    scores = ctx.round_scores[p]
+    if len(scores) < 2:
+        return None
+    gap = max(scores) - min(scores)
+    return (gap, f"spread {gap} pts") if gap > 0 else None
+
+
+def _overachiever(ctx, p):
+    count = sum(1 for bid, hand in ctx.bid_sequence[p] if hand > bid)
+    return (count, f"{count} rounds won more than bid") if count > 0 else None
+
+
+def _sniper_bid(ctx, p):
+    count = sum(1 for bid, hand in ctx.bid_sequence[p] if bid == 1 and hand == 1)
+    return (count, f"{count} bid-1 nailed") if count > 0 else None
+
+
+def _wild_card(ctx, p):
+    unique_bids = len({bid for bid, _ in ctx.bid_sequence[p]})
+    return (unique_bids, f"{unique_bids} different bids") if unique_bids > 1 else None
+
+
+def _steamroller(ctx, p):
+    streak = ctx.longest_make_streak[p]
+    return (streak, f"{streak} bids made in a row") if streak >= 2 else None
+
+
+def _marathon(ctx, p):
+    scores = ctx.round_scores[p]
+    if not scores or len(scores) < 2:
+        return None
+    if all(s > 0 for s in scores):
+        return (1, "positive every round")
+    return None
+
+
+def _anchor(ctx, p):
+    count = sum(1 for _, hand in ctx.bid_sequence[p] if hand == 0)
+    return (count, f"{count} rounds with 0 wins") if count >= 2 else None
+
+
+def _penny_pincher(ctx, p):
+    scores = ctx.round_scores[p]
+    if not scores or ctx.totals[p] <= 0:
+        return None
+    avg = ctx.totals[p] / len(scores)
+    return (1.0 / (avg + 0.01), f"avg {avg:.1f} per round") if 0 < avg < 15 else None
+
+
+def _wrecking_ball(ctx, p):
+    neg_total = sum(s for s in ctx.round_scores[p] if s < 0)
+    return (abs(neg_total), f"{neg_total} pts lost") if neg_total < 0 else None
+
+
+def _iron_nerve(ctx, p):
+    bids = [bid for bid, _ in ctx.bid_sequence[p]]
+    if len(bids) < 3:
+        return None
+    bid_range = max(bids) - min(bids)
+    return (1.0 / (bid_range + 0.01), f"bid range: {bid_range}") if bid_range <= 2 else None
+
+
+def _clutch(ctx, p):
+    made = sum(
+        1 for (bid, hand), cards in zip(ctx.bid_sequence[p], ctx.cards_per_round, strict=False)
+        if cards >= 5 and bid == hand
+    )
+    return (made, f"{made} bids made on 5+ card rounds") if made > 0 else None
+
+
+def _perfectionist_metric(ctx, p):
+    acc = ctx.accuracy[p]
+    return (acc * 100, f"{acc * 100:.0f}%") if acc >= 0.8 else None
+
+
 # ── Declarative title definitions ─────────────────────────────────────────────
 
 DECLARATIVE_TITLES = [
@@ -240,6 +316,115 @@ DECLARATIVE_TITLES = [
         "metric": _zero_bids_attempted,
         "mode": "per_player",
         "score_weight": 8,
+    },
+    # ── New declarative titles ────────────────────────────────────────────────
+    {
+        "key": "glass_cannon",
+        "emoji": "💥",
+        "title": "Glass Cannon",
+        "desc": "Biggest gap between best and worst round",
+        "metric": _glass_cannon,
+        "mode": "per_player",
+        "score_weight": 1,
+    },
+    {
+        "key": "overachiever",
+        "emoji": "📈",
+        "title": "Overachiever",
+        "desc": "Most rounds winning more than bid",
+        "metric": _overachiever,
+        "mode": "per_player",
+        "score_weight": 12,
+    },
+    {
+        "key": "sniper_bid",
+        "emoji": "🔫",
+        "title": "Sniper",
+        "desc": "Most bid-1 nailed",
+        "metric": _sniper_bid,
+        "mode": "per_player",
+        "score_weight": 15,
+    },
+    {
+        "key": "wild_card",
+        "emoji": "🃏",
+        "title": "Wild Card",
+        "desc": "Most unique bid values used",
+        "metric": _wild_card,
+        "mode": "per_player",
+        "score_weight": 5,
+    },
+    {
+        "key": "steamroller",
+        "emoji": "🚂",
+        "title": "Steamroller",
+        "desc": "Longest streak of bids made",
+        "metric": _steamroller,
+        "mode": "per_player",
+        "score_weight": 10,
+    },
+    {
+        "key": "marathon",
+        "emoji": "🏃",
+        "title": "Marathon Runner",
+        "desc": "Positive score every round",
+        "metric": _marathon,
+        "mode": "per_player",
+        "score_weight": 60,
+    },
+    {
+        "key": "anchor",
+        "emoji": "⚓",
+        "title": "The Anchor",
+        "desc": "Most rounds with 0 wins",
+        "metric": _anchor,
+        "mode": "per_player",
+        "score_weight": 8,
+    },
+    {
+        "key": "penny_pincher",
+        "emoji": "🪙",
+        "title": "Penny Pincher",
+        "desc": "Lowest avg score per round (positive total)",
+        "metric": _penny_pincher,
+        "mode": "per_player",
+        "score_weight": 15,
+    },
+    {
+        "key": "wrecking_ball",
+        "emoji": "🏗️",
+        "title": "Wrecking Ball",
+        "desc": "Most total negative points",
+        "metric": _wrecking_ball,
+        "mode": "per_player",
+        "score_weight": 0.5,
+    },
+    {
+        "key": "iron_nerve",
+        "emoji": "🧊",
+        "title": "Iron Nerve",
+        "desc": "Smallest bid range — most consistent bidding",
+        "metric": _iron_nerve,
+        "mode": "per_player",
+        "score_weight": 20,
+    },
+    {
+        "key": "clutch",
+        "emoji": "🎪",
+        "title": "Clutch Player",
+        "desc": "Most bids made on 5+ card rounds",
+        "metric": _clutch,
+        "mode": "per_player",
+        "score_weight": 12,
+    },
+    {
+        "key": "perfectionist",
+        "emoji": "💎",
+        "title": "Perfectionist",
+        "desc": "Highest accuracy (≥80%)",
+        "metric": _perfectionist_metric,
+        "mode": "highest",
+        "score_weight": 90,
     },
 ]
 
