@@ -139,7 +139,7 @@ async def sitemap():
     xml = """<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://scokeep.onrender.com/</loc>
+    <loc>https://scokeep.com/</loc>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
@@ -153,7 +153,7 @@ async def sitemap():
 async def robots():
     content = """User-agent: *
 Allow: /
-Sitemap: https://scokeep.onrender.com/sitemap.xml"""
+Sitemap: https://scokeep.com/sitemap.xml"""
     from starlette.responses import Response as StarletteResponse
 
     return StarletteResponse(content=content, media_type="text/plain")
