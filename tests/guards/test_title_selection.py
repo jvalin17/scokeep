@@ -57,10 +57,12 @@ class TestSelectionInvariants:
         keys = [t["key"] for t in titles]
         assert len(keys) == len(set(keys))
 
-    def test_deterministic(self):
-        r1 = evaluate_titles(PLAYERS_4, full_game_4p())
-        r2 = evaluate_titles(PLAYERS_4, full_game_4p())
-        assert r1 == r2
+    def test_all_players_always_covered(self):
+        """Run multiple times — coverage must hold despite random fill."""
+        for _ in range(5):
+            titles = evaluate_titles(PLAYERS_4, full_game_4p())
+            for p in PLAYERS_4:
+                assert p in {t["player"] for t in titles}, f"'{p}' missing"
 
     def test_count_respects_target(self):
         titles = evaluate_titles(PLAYERS_4, full_game_4p())
@@ -97,6 +99,47 @@ class TestSelectAlgorithm:
     def test_fewer_than_target(self):
         result = select_titles([_make_candidate("t1", "Alice", 100)], ["Alice"], target=10)
         assert len(result) == 1
+
+    def test_tied_title_dropped(self):
+        """When two players tie on a per_player title, it should be dropped."""
+        candidates = [
+            _make_candidate("tied_key", "Alice", 50),
+            _make_candidate("tied_key", "Bob", 50),
+            _make_candidate("unique_a", "Alice", 40),
+            _make_candidate("unique_b", "Bob", 30),
+        ]
+        result = select_titles(candidates, ["Alice", "Bob"], target=4)
+        result_keys = {t["key"] for t in result}
+        # tied_key should not appear — both had same score
+        assert "tied_key" not in result_keys
+        assert "unique_a" in result_keys
+        assert "unique_b" in result_keys
+
+    def test_exclusive_assignment(self):
+        """Each title goes to exactly one player — the best scorer for it."""
+        candidates = [
+            _make_candidate("t1", "Alice", 100),
+            _make_candidate("t1", "Bob", 80),
+            _make_candidate("t2", "Bob", 90),
+            _make_candidate("t2", "Alice", 70),
+        ]
+        result = select_titles(candidates, ["Alice", "Bob"], target=2)
+        # t1 → Alice (100 > 80), t2 → Bob (90 > 70)
+        t1 = next(t for t in result if t["key"] == "t1")
+        t2 = next(t for t in result if t["key"] == "t2")
+        assert t1["player"] == "Alice"
+        assert t2["player"] == "Bob"
+
+    def test_random_fill_respects_coverage(self):
+        """Even with random fill, every player must have ≥1 title."""
+        candidates = [
+            _make_candidate(f"a_{i}", "Alice", 90 - i) for i in range(8)
+        ] + [
+            _make_candidate("b_only", "Bob", 10),
+        ]
+        result = select_titles(candidates, ["Alice", "Bob"], target=4)
+        players_in_result = {t["player"] for t in result}
+        assert "Bob" in players_in_result
 
 
 class TestHypothesisInvariants:

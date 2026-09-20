@@ -327,7 +327,7 @@ export const statsScreen = {
                                 <span>${expandedGameId === g.game_id ? '▲' : '▼'}</span>
                             </div>
                             <div class="stats-game-scores">
-                                ${g.players.map(name => `
+                                ${[...g.players].sort((a, b) => (g.scores[b] || 0) - (g.scores[a] || 0)).map(name => `
                                     <div class="stats-game-player ${name === g.winner ? 'stats-game-winner' : ''}">
                                         <span>${escapeHtml(name)}</span>
                                         <span>${g.scores[name]}${name === g.winner ? ' 👑' : ''}</span>

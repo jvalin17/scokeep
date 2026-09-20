@@ -8,6 +8,8 @@ Complex evaluators: title_patterns.py (27 complex titles).
 
 from __future__ import annotations
 
+import random
+
 from app.services.round_utils import _iter_round_bids
 from app.services.title_patterns import (
     COMPLEX_PATTERNS,
@@ -154,26 +156,65 @@ def _finalize_context(players: list[str], state: dict) -> GameContext:
 # ── Selection ────────────────────────────────────────────────────────────────
 
 
-def _phase1_coverage(players: list[str], sorted_cands: list[dict], used_keys: set) -> list[dict]:
-    """Give every player at least one title (coverage pass)."""
+def _assign_exclusive(candidates: list[dict]) -> list[dict]:
+    """Assign each title to the best player. Drop ties (same score for same key)."""
+    by_key: dict[str, list[dict]] = {}
+    for cand in candidates:
+        by_key.setdefault(cand["key"], []).append(cand)
+
+    exclusive: list[dict] = []
+    for _key, cands in by_key.items():
+        cands.sort(key=lambda c: -c["score"])
+        best_score = cands[0]["score"]
+        winners = [c for c in cands if c["score"] == best_score]
+        if len(winners) == 1:
+            exclusive.append(winners[0])
+        # else: tie — drop this title entirely
+    return exclusive
+
+
+def _phase1_coverage(
+    players: list[str], exclusive: list[dict], all_candidates: list[dict], used_keys: set
+) -> list[dict]:
+    """Give every player at least one title (coverage pass).
+
+    Prefer exclusive titles; fall back to any candidate if player has none exclusive.
+    """
     result = []
-    for p in players:
-        player_cands = [c for c in sorted_cands if c["player"] == p and c["key"] not in used_keys]
-        if player_cands:
-            best = player_cands[0]
+    for player in players:
+        player_excl = sorted(
+            [c for c in exclusive if c["player"] == player and c["key"] not in used_keys],
+            key=lambda c: -c["score"],
+        )
+        if player_excl:
+            best = player_excl[0]
             result.append(best)
             used_keys.add(best["key"])
+        else:
+            # Fallback: pick best available from all candidates for this player
+            fallback = sorted(
+                [c for c in all_candidates if c["player"] == player and c["key"] not in used_keys],
+                key=lambda c: -c["score"],
+            )
+            if fallback:
+                best = fallback[0]
+                result.append(best)
+                used_keys.add(best["key"])
     return result
 
 
-def _phase2_fill(sorted_cands: list[dict], used_keys: set, result: list[dict], target: int) -> None:
-    """Fill remaining slots up to target by score descending."""
-    for c in sorted_cands:
+def _phase2_random_fill(
+    exclusive: list[dict], used_keys: set, result: list[dict], target: int
+) -> None:
+    """Fill remaining slots randomly from exclusive pool."""
+    remaining = [c for c in exclusive if c["key"] not in used_keys]
+    random.shuffle(remaining)
+    for cand in remaining:
         if len(result) >= target:
             break
-        if c["key"] not in used_keys:
-            result.append(c)
-            used_keys.add(c["key"])
+        if cand["key"] not in used_keys:
+            result.append(cand)
+            used_keys.add(cand["key"])
 
 
 def select_titles(
@@ -182,14 +223,10 @@ def select_titles(
     if target is None:
         target = max(4, min(2 * len(players), 14))
 
-    def sort_key(c):
-        idx = players.index(c["player"]) if c["player"] in players else 9999
-        return (-c["score"], idx)
-
-    sorted_cands = sorted(candidates, key=sort_key)
+    exclusive = _assign_exclusive(candidates)
     used_keys: set = set()
-    result = _phase1_coverage(players, sorted_cands, used_keys)
-    _phase2_fill(sorted_cands, used_keys, result, target)
+    result = _phase1_coverage(players, exclusive, candidates, used_keys)
+    _phase2_random_fill(exclusive, used_keys, result, target)
     return result
 
 

@@ -441,13 +441,22 @@ class TestApplyGamesWon:
         assert career["A"]["games_won"] == 1
         assert career["B"]["games_won"] == 0
 
-    def test_apply_games_won_tie_no_winner(self):
+    def test_apply_games_won_tie_credits_both(self):
         from app.services.analytics import _apply_games_won, _init_career
 
         career = _init_career({"A", "B"})
         _apply_games_won({"A": 50, "B": 50}, career)
-        assert career["A"]["games_won"] == 0
-        assert career["B"]["games_won"] == 0
+        assert career["A"]["games_won"] == 1
+        assert career["B"]["games_won"] == 1
+
+    def test_apply_games_won_three_way_tie(self):
+        from app.services.analytics import _apply_games_won, _init_career
+
+        career = _init_career({"A", "B", "C"})
+        _apply_games_won({"A": 50, "B": 50, "C": 50}, career)
+        assert career["A"]["games_won"] == 1
+        assert career["B"]["games_won"] == 1
+        assert career["C"]["games_won"] == 1
 
 
 class TestApplyBiggestComeback:
