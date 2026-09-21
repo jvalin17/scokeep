@@ -156,12 +156,12 @@ def test_build_game_returns_game_with_correct_fields():
         _make_import_round(round_num=2),
         _make_import_round(round_num=3),
     ]
-    body = _make_import_request(rounds, players=["Alice", "Bob", "Carlos"])
+    body = _make_import_request(rounds, players=["Alice", "Bob"])
     game = _build_game(body, playground_id=42)
 
     assert isinstance(game, Game)
     assert game.playground_id == 42
-    assert game.players == ["Alice", "Bob", "Carlos"]
+    assert game.players == ["Alice", "Bob"]
     assert game.settings == body.settings
     assert game.current_round == 3
     assert game.total_rounds == 3

@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Index, Integer, String, func
+from sqlalchemy import JSON, DateTime, ForeignKey, Index, Integer, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -23,7 +23,10 @@ class Game(Base):
     started_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
     finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    client_game_id: Mapped[str | None] = mapped_column(String(50), nullable=True, unique=True)
+    client_game_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
     source: Mapped[str] = mapped_column(String(20), nullable=False, server_default="online")
 
-    __table_args__ = (Index("ix_game_playground_status", "playground_id", "status"),)
+    __table_args__ = (
+        Index("ix_game_playground_status", "playground_id", "status"),
+        UniqueConstraint("client_game_id", "playground_id", name="uq_game_client_id_playground"),
+    )
