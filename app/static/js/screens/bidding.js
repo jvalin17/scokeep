@@ -26,6 +26,7 @@ export const biddingScreen = {
         let bidPosition = 0;
         let bidsCollected = {};
         let editingPi = null;
+        let isSubmitting = false;
         const backendHasBid = new Set();
 
         setScreenContext('bidding', game);
@@ -201,6 +202,8 @@ export const biddingScreen = {
         }
 
         async function handleBidSelect(value) {
+            if (isSubmitting) return;
+            isSubmitting = true;
             const pi = currentPlayer();
             try {
                 const playerKey = String(pi);
@@ -215,6 +218,8 @@ export const biddingScreen = {
                 renderCollecting();
             } catch (error) {
                 showError(container, 'bid-error', error.message);
+            } finally {
+                isSubmitting = false;
             }
         }
 

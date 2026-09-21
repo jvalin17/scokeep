@@ -24,6 +24,7 @@ export const roundendScreen = {
         let entryPosition = 0;
         let handsCollected = {};
         let editingPi = null;
+        let isSubmitting = false;
 
         setScreenContext('roundend', game);
 
@@ -250,6 +251,8 @@ export const roundendScreen = {
         }
 
         async function handleHandsSelect(value) {
+            if (isSubmitting) return;
+            isSubmitting = true;
             const pi = currentPlayer();
             try {
                 await api.submitHands(gameId, pi, value);
@@ -258,6 +261,8 @@ export const roundendScreen = {
                 renderCollecting();
             } catch (error) {
                 showError(container, 'hands-error', error.message);
+            } finally {
+                isSubmitting = false;
             }
         }
 
