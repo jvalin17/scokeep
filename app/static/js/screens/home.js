@@ -162,7 +162,7 @@ export const homeScreen = {
                             <p id="quick-room-selected" style="font-weight:600;margin-bottom:6px;"></p>
                             <div style="display:flex;gap:8px;align-items:center;">
                                 <input type="password" id="quick-room-pin" placeholder="Enter room PIN"
-                                    maxlength="4" inputmode="numeric" autocomplete="off" style="flex:1;">
+                                    maxlength="4" inputmode="numeric" pattern="[0-9]*" autocomplete="off" style="flex:1;">
                                 <button type="button" id="quick-room-verify" class="btn btn-primary" style="padding:8px 16px;">Verify</button>
                             </div>
                             <p id="quick-room-error" class="error hidden" style="margin-top:4px;"></p>
@@ -248,11 +248,13 @@ export const homeScreen = {
 
         // Quick Game — room selection handler
         let selectedRoomCode = null;
+        let selectedRoomName = null;
         let linkedRoom = null;
         let allCachedRooms = [];
 
         function selectQuickRoom(shareCode, label) {
             selectedRoomCode = shareCode;
+            selectedRoomName = label;
             linkedRoom = null;
             // Highlight selected across both lists
             container.querySelectorAll('.quick-room-item').forEach(b =>
@@ -335,6 +337,7 @@ export const homeScreen = {
         // Clear room selection
         container.querySelector('#quick-room-clear').addEventListener('click', () => {
             selectedRoomCode = null;
+            selectedRoomName = null;
             linkedRoom = null;
             container.querySelector('#quick-room-pin-section').classList.add('hidden');
             container.querySelectorAll('.quick-room-item').forEach(b => b.classList.remove('active'));
@@ -352,11 +355,19 @@ export const homeScreen = {
             if (!shareCode || !pin) return;
 
             try {
-                const room = await getRoom(shareCode);
+                let room = await getRoom(shareCode);
+
+                // Room not cached — try online auth and cache it
                 if (!room || !room.pin_verifier) {
-                    errorEl.textContent = 'Room data not available — join online first';
-                    errorEl.classList.remove('hidden');
-                    return;
+                    try {
+                        const serverRoom = await authPlayground(selectedRoomName, pin);
+                        await _cacheRoom(serverRoom, pin);
+                        room = await getRoom(shareCode);
+                    } catch {
+                        errorEl.textContent = 'Room not cached — connect to internet to verify';
+                        errorEl.classList.remove('hidden');
+                        return;
+                    }
                 }
 
                 if (isLocked(room)) {

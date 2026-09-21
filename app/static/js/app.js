@@ -23,6 +23,25 @@ const state = {
 const appElement = document.getElementById('app');
 let currentScreen = null;
 
+// Keep-alive: ping /api/health every 10 min on game screens to prevent Render spin-down
+const KEEP_ALIVE_INTERVAL_MS = 10 * 60 * 1000;
+const GAME_SCREENS = new Set(['bid', 'play', 'roundend', 'scoreboard', 'review']);
+let keepAliveTimer = null;
+
+function startKeepAlive() {
+    if (keepAliveTimer) return;
+    keepAliveTimer = setInterval(() => {
+        fetch('/api/health', { credentials: 'same-origin' }).catch(() => {});
+    }, KEEP_ALIVE_INTERVAL_MS);
+}
+
+function stopKeepAlive() {
+    if (keepAliveTimer) {
+        clearInterval(keepAliveTimer);
+        keepAliveTimer = null;
+    }
+}
+
 const routes = {
     '': homeScreen,
     'playground': lobbyScreen,
@@ -54,6 +73,12 @@ async function render() {
     const screenModule = routes[screen] || routes[''];
 
     logger.navigate(screen, params);
+
+    if (GAME_SCREENS.has(screen)) {
+        startKeepAlive();
+    } else {
+        stopKeepAlive();
+    }
 
     if (currentScreen && currentScreen.unmount) {
         currentScreen.unmount();
