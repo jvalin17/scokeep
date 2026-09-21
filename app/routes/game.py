@@ -1,9 +1,11 @@
 """Game API routes — create, get state, end game, review phase."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.constants import GAME_RATE_LIMIT
 from app.database import get_db
+from app.routes.playground import limiter
 from app.schemas.game import GameCreate, GameResponse
 from app.services.game import GameService
 from app.utils.auth import get_game_with_auth, require_auth
@@ -12,7 +14,9 @@ router = APIRouter(prefix="/api/game", tags=["game"])
 
 
 @router.post("", status_code=201, response_model=GameResponse)
+@limiter.limit(GAME_RATE_LIMIT)
 async def create_game(
+    request: Request,
     data: GameCreate,
     playground_id: int = Depends(require_auth),
     db: AsyncSession = Depends(get_db),

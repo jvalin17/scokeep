@@ -72,6 +72,7 @@ function _open() {
 
     req.onsuccess = (event) => {
       _db = event.target.result;
+      _db.onversionchange = () => { _db.close(); _db = null; };
       resolve(_db);
     };
 

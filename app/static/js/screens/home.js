@@ -244,7 +244,7 @@ export const homeScreen = {
                 }
             } catch (error) { console.warn('Badge update failed:', error); }
         }
-        updateSyncBadge();
+        updateSyncBadge().catch(() => {});
 
         // Quick Game — room selection handler
         let selectedRoomCode = null;

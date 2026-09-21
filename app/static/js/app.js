@@ -31,7 +31,9 @@ let keepAliveTimer = null;
 function startKeepAlive() {
     if (keepAliveTimer) return;
     keepAliveTimer = setInterval(() => {
-        fetch('/api/health', { credentials: 'same-origin' }).catch(() => {});
+        const controller = new AbortController();
+        setTimeout(() => controller.abort(), 10000);
+        fetch('/api/health', { credentials: 'same-origin', signal: controller.signal }).catch(() => {});
     }, KEEP_ALIVE_INTERVAL_MS);
 }
 

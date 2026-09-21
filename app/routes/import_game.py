@@ -10,13 +10,15 @@ POST /api/game/{share_code}/import
 
 import logging
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.constants import GAME_RATE_LIMIT
 from app.database import get_db
 from app.models.game import Game
 from app.models.round import Round
+from app.routes.playground import limiter
 from app.schemas.import_game import ImportGameRequest, ImportGameResponse
 from app.services.playground import PlaygroundService
 from app.services.scoring import calculate_round_scores
@@ -115,7 +117,9 @@ def _schedule_insights_recompute(background_tasks: BackgroundTasks, playground_i
 
 
 @router.post("/{share_code}/import", response_model=ImportGameResponse)
+@limiter.limit(GAME_RATE_LIMIT)
 async def import_game(
+    request: Request,
     share_code: str,
     body: ImportGameRequest,
     background_tasks: BackgroundTasks,

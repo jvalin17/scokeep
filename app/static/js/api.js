@@ -3,19 +3,34 @@
 import { logger } from './components/logger.js';
 
 const BASE = '/api';
+const REQUEST_TIMEOUT_MS = 15000;
 
 async function request(method, path, body = null) {
     logger.apiCall(method, path, body);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     const options = {
         method,
         headers: {},
         credentials: 'same-origin',
+        signal: controller.signal,
     };
     if (body) {
         options.headers['Content-Type'] = 'application/json';
         options.body = JSON.stringify(body);
     }
-    const response = await fetch(`${BASE}${path}`, options);
+    let response;
+    try {
+        response = await fetch(`${BASE}${path}`, options);
+    } catch (error) {
+        clearTimeout(timeoutId);
+        if (error.name === 'AbortError') {
+            logger.apiError(method, path, 0, 'Request timed out');
+            throw new Error('Request timed out — check your connection');
+        }
+        throw error;
+    }
+    clearTimeout(timeoutId);
     if (response.status === 401 && path !== '/playground/auth' && path !== '/playground') {
         logger.apiError(method, path, 401, 'Session expired');
         window.location.hash = '';

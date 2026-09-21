@@ -32,6 +32,7 @@ SHARE_CODE_LENGTH = 4
 
 # --- Rate Limiting ---
 AUTH_RATE_LIMIT = "5/minute"
+GAME_RATE_LIMIT = "30/minute"
 
 # --- High Roller Threshold (for awards) ---
 HIGH_ROLLER_MIN_BID = 3

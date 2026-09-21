@@ -32,6 +32,15 @@ const PHASE_ROUTES = {
   finished: 'scoreboard',
 };
 
+const FETCH_TIMEOUT_MS = 15000;
+
+function fetchWithTimeout(url, options = {}) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    return fetch(url, { ...options, signal: controller.signal })
+        .finally(() => clearTimeout(timeoutId));
+}
+
 // ─── server bridge ────────────────────────────────────────────────────────────
 
 /**
@@ -42,16 +51,16 @@ const PHASE_ROUTES = {
  * @returns {Promise<Object>} The game object.
  */
 export async function loadGameFromServer(gameId) {
-  const resp = await fetch(`/api/game/${gameId}`, { credentials: 'same-origin' });
+  const resp = await fetchWithTimeout(`/api/game/${gameId}`, { credentials: 'same-origin' });
   if (!resp.ok) throw new Error('Failed to load game from server');
   const game = await resp.json();
 
-  const roundsResp = await fetch(`/api/game/${gameId}/history`, { credentials: 'same-origin' });
+  const roundsResp = await fetchWithTimeout(`/api/game/${gameId}/history`, { credentials: 'same-origin' });
   const roundsData = roundsResp.ok ? await roundsResp.json() : [];
 
   // Also fetch the current round (may be in bidding/playing — not in history)
   try {
-    const bidsResp = await fetch(`/api/game/${gameId}/bids`, { credentials: 'same-origin' });
+    const bidsResp = await fetchWithTimeout(`/api/game/${gameId}/bids`, { credentials: 'same-origin' });
     if (bidsResp.ok) {
       const currentRound = await bidsResp.json();
       if (currentRound && currentRound.round_num) {
@@ -223,7 +232,7 @@ export async function getScoreboard(gameId) {
   if ((!result || !result.rounds || result.rounds.length === 0) && navigator.onLine) {
     // Try server — game might not be in IndexedDB yet
     try {
-      const resp = await fetch(`/api/game/${gameId}/scoreboard`, { credentials: 'same-origin' });
+      const resp = await fetchWithTimeout(`/api/game/${gameId}/scoreboard`, { credentials: 'same-origin' });
       if (resp.ok) return await resp.json();
     } catch { /* fall through to local result */ }
   }
