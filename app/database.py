@@ -47,11 +47,13 @@ async def create_tables() -> None:
     import contextlib
 
     from sqlalchemy import text
-    from sqlalchemy.exc import ProgrammingError
+    from sqlalchemy.exc import OperationalError, ProgrammingError
 
     # Add columns if missing (no migration tool).
     # Each ALTER runs in its own transaction — if one fails (column exists),
     # it doesn't abort subsequent ALTERs.
+    # ProgrammingError = PostgreSQL "column already exists"
+    # OperationalError = SQLite "duplicate column name"
     for statement in [
         "ALTER TABLE game ADD COLUMN updated_at TIMESTAMP DEFAULT NOW()",
         "ALTER TABLE game ADD COLUMN client_game_id VARCHAR(50) DEFAULT NULL",
@@ -60,5 +62,5 @@ async def create_tables() -> None:
         "ALTER TABLE playground ADD COLUMN pin_hint VARCHAR(100) DEFAULT NULL",
     ]:
         async with engine.begin() as conn:
-            with contextlib.suppress(ProgrammingError):
+            with contextlib.suppress(ProgrammingError, OperationalError):
                 await conn.execute(text(statement))

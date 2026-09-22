@@ -32,9 +32,11 @@ class TestMigrationCoverage:
 
 class TestDatabaseErrorHandling:
     def test_alter_table_suppress_is_narrow(self):
-        """ALTER TABLE migrations must suppress ProgrammingError, not bare Exception."""
+        """ALTER TABLE migrations must suppress only DB-specific errors, not bare Exception."""
         source = inspect.getsource(db_module.create_tables)
         assert "suppress(Exception)" not in source, (
             "init_db uses suppress(Exception) which swallows connection errors — "
-            "must use suppress(ProgrammingError) instead"
+            "must use suppress(ProgrammingError, OperationalError) instead"
         )
+        assert "ProgrammingError" in source, "Must suppress ProgrammingError (PostgreSQL)"
+        assert "OperationalError" in source, "Must suppress OperationalError (SQLite)"
