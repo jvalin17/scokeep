@@ -16,6 +16,7 @@ from app.services.scoreboard import _round_to_dict
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_import_round(
     round_num=1,
     bids=None,
@@ -74,6 +75,7 @@ def _make_game_mock(settings=None):
 # ---------------------------------------------------------------------------
 # _validate_round_scores
 # ---------------------------------------------------------------------------
+
 
 def test_validate_round_scores_passes_when_no_scores_provided():
     """No scores field — server re-derives; must not raise."""
@@ -147,6 +149,7 @@ def test_validate_round_scores_zeros_formula_passes():
 # _build_game
 # ---------------------------------------------------------------------------
 
+
 def test_build_game_returns_game_with_correct_fields():
     """_build_game must populate all Game fields from the request body."""
     from app.models.game import Game
@@ -187,6 +190,7 @@ def test_build_game_total_rounds_matches_round_count():
 # ---------------------------------------------------------------------------
 # _validate_round_metadata
 # ---------------------------------------------------------------------------
+
 
 def test_validate_round_metadata_passes_for_valid_round_1():
     """Round 1 with 8 rounds_per_set: cards=8, trump=spades — must not raise."""
@@ -237,6 +241,7 @@ def test_validate_round_metadata_second_round_descends():
 # ---------------------------------------------------------------------------
 # _validate_scores
 # ---------------------------------------------------------------------------
+
 
 def test_validate_scores_passes_when_scores_match():
     """Client scores that match server-derived scores — must not raise."""
@@ -297,6 +302,7 @@ def test_validate_scores_standard_formula_bid_1_made_equals_11():
 # ---------------------------------------------------------------------------
 # _round_to_dict
 # ---------------------------------------------------------------------------
+
 
 def test_round_to_dict_projects_orm_fields():
     """_round_to_dict must map all ORM attributes to a plain dict."""
@@ -493,49 +499,59 @@ def _make_ctx():
 
 def test_conservative():
     from app.services.title_patterns_extra import _conservative
+
     assert isinstance(_conservative(_make_ctx()), list)
 
 
 def test_daredevil():
     from app.services.title_patterns_extra import _daredevil
+
     assert isinstance(_daredevil(_make_ctx()), list)
 
 
 def test_rollercoaster():
     from app.services.title_patterns_extra import _rollercoaster
+
     assert isinstance(_rollercoaster(_make_ctx()), list)
 
 
 def test_metronome():
     from app.services.title_patterns_extra import _metronome
+
     assert isinstance(_metronome(_make_ctx()), list)
 
 
 def test_trump_master():
     from app.services.title_patterns_extra import _trump_master
+
     assert isinstance(_trump_master(_make_ctx()), list)
 
 
 def test_minimalist():
     from app.services.title_patterns_extra import _minimalist
+
     assert isinstance(_minimalist(_make_ctx()), list)
 
 
 def test_mirror():
     from app.services.title_patterns_extra import _mirror
+
     assert isinstance(_mirror(_make_ctx()), list)
 
 
 def test_lucky_seven():
     from app.services.title_patterns_extra import _lucky_seven
+
     assert isinstance(_lucky_seven(_make_ctx()), list)
 
 
 def test_last_laugh():
     from app.services.title_patterns_extra import _last_laugh
+
     assert isinstance(_last_laugh(_make_ctx()), list)
 
 
 def test_survivor():
     from app.services.title_patterns_extra import _survivor
+
     assert isinstance(_survivor(_make_ctx()), list)

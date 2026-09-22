@@ -186,7 +186,8 @@ def _iron_nerve(ctx, p):
 
 def _clutch(ctx, p):
     made = sum(
-        1 for (bid, hand), cards in zip(ctx.bid_sequence[p], ctx.cards_per_round, strict=False)
+        1
+        for (bid, hand), cards in zip(ctx.bid_sequence[p], ctx.cards_per_round, strict=False)
         if cards >= 5 and bid == hand
     )
     return (made, f"{made} bids made on 5+ card rounds") if made > 0 else None

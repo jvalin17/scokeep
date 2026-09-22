@@ -110,9 +110,7 @@ class TestEndRoundMultiRound:
             )
             # Advance to next round
             if round_num < 4:
-                next_resp = await client.post(
-                    f"/api/game/{game_id}/next-round", cookies=cookies
-                )
+                next_resp = await client.post(f"/api/game/{game_id}/next-round", cookies=cookies)
                 assert next_resp.status_code == 200
 
     async def test_end_round_succeeds_all_rounds_3_players(self, client: AsyncClient):
@@ -126,7 +124,5 @@ class TestEndRoundMultiRound:
                 f"end-round FAILED on round {round_num}: {end_resp.status_code} {end_resp.text}"
             )
             if round_num < 4:
-                next_resp = await client.post(
-                    f"/api/game/{game_id}/next-round", cookies=cookies
-                )
+                next_resp = await client.post(f"/api/game/{game_id}/next-round", cookies=cookies)
                 assert next_resp.status_code == 200

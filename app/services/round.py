@@ -122,8 +122,12 @@ class RoundService:
             raise ValueError(f"Round is not in bidding phase (current: {round_obj.status})")
 
         error = validate_bid(
-            round_obj.bids, player_index, value,
-            must_lose=must_lose, cards_deal=cards_dealt, player_count=player_count,
+            round_obj.bids,
+            player_index,
+            value,
+            must_lose=must_lose,
+            cards_deal=cards_dealt,
+            player_count=player_count,
         )
         if error:
             raise ValueError(error)

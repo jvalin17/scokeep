@@ -32,11 +32,13 @@ def _validate_round_metadata(body: SyncRoundRequest, game) -> None:
     expected_trump = get_trump_for_round(body.round_num)
     if body.cards_dealt != expected_cards:
         raise HTTPException(
-            409, detail=f"cards_dealt mismatch: got {body.cards_dealt}, expected {expected_cards}",
+            409,
+            detail=f"cards_dealt mismatch: got {body.cards_dealt}, expected {expected_cards}",
         )
     if body.trump_suit != expected_trump:
         raise HTTPException(
-            409, detail=f"trump_suit mismatch: got {body.trump_suit}, expected {expected_trump}",
+            409,
+            detail=f"trump_suit mismatch: got {body.trump_suit}, expected {expected_trump}",
         )
 
 
@@ -48,7 +50,8 @@ def _validate_scores(body: SyncRoundRequest, formula: str) -> None:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     if derived != body.scores:
         raise HTTPException(
-            409, detail=f"Score mismatch: client {body.scores} vs server {derived}",
+            409,
+            detail=f"Score mismatch: client {body.scores} vs server {derived}",
         )
 
 

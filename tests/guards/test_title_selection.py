@@ -132,9 +132,7 @@ class TestSelectAlgorithm:
 
     def test_random_fill_respects_coverage(self):
         """Even with random fill, every player must have ≥1 title."""
-        candidates = [
-            _make_candidate(f"a_{i}", "Alice", 90 - i) for i in range(8)
-        ] + [
+        candidates = [_make_candidate(f"a_{i}", "Alice", 90 - i) for i in range(8)] + [
             _make_candidate("b_only", "Bob", 10),
         ]
         result = select_titles(candidates, ["Alice", "Bob"], target=4)

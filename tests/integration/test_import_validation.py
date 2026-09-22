@@ -60,13 +60,15 @@ def test_validate_round_data_rejects_bad_keys():
             finished_at="2026-09-20T13:00:00",
             players=["A", "B"],
             settings={"scoring_formula": "kachuful_standard"},
-            rounds=[{
-                "round_num": 1,
-                "bids": {"0": 1, "99": 1},
-                "hands_won": {"0": 1, "1": 1},
-                "cards_dealt": 8,
-                "trump_suit": "spades",
-            }],
+            rounds=[
+                {
+                    "round_num": 1,
+                    "bids": {"0": 1, "99": 1},
+                    "hands_won": {"0": 1, "1": 1},
+                    "cards_dealt": 8,
+                    "trump_suit": "spades",
+                }
+            ],
         )
 
 
@@ -78,97 +80,135 @@ class TestImportValidation:
         pg_id, share_code, cookies = await _setup_playground(client)
         body = _valid_import_body()
         resp = await client.post(
-            f"/api/game/{share_code}/import", json=body, cookies=cookies,
+            f"/api/game/{share_code}/import",
+            json=body,
+            cookies=cookies,
         )
         assert resp.status_code == 200, f"Valid import failed: {resp.text}"
 
     async def test_import_rejects_mismatched_bid_keys(self, client: AsyncClient):
         """Bids keys must match player indices {0, 1, 2} for 3 players."""
         pg_id, share_code, cookies = await _setup_playground(client)
-        body = _valid_import_body(rounds=[{
-            "round_num": 1,
-            "bids": {"0": 2, "1": 3, "99": 1},  # key "99" doesn't match any player
-            "hands_won": {"0": 2, "1": 3, "2": 3},
-            "cards_dealt": 8,
-            "trump_suit": "spades",
-        }])
+        body = _valid_import_body(
+            rounds=[
+                {
+                    "round_num": 1,
+                    "bids": {"0": 2, "1": 3, "99": 1},  # key "99" doesn't match any player
+                    "hands_won": {"0": 2, "1": 3, "2": 3},
+                    "cards_dealt": 8,
+                    "trump_suit": "spades",
+                }
+            ]
+        )
         resp = await client.post(
-            f"/api/game/{share_code}/import", json=body, cookies=cookies,
+            f"/api/game/{share_code}/import",
+            json=body,
+            cookies=cookies,
         )
         assert resp.status_code == 422, f"Expected 422 for bad bid keys, got {resp.status_code}"
 
     async def test_import_rejects_mismatched_hands_keys(self, client: AsyncClient):
         """Hands_won keys must match player indices."""
         pg_id, share_code, cookies = await _setup_playground(client)
-        body = _valid_import_body(rounds=[{
-            "round_num": 1,
-            "bids": {"0": 2, "1": 3, "2": 1},
-            "hands_won": {"0": 2, "1": 3, "X": 3},  # key "X" invalid
-            "cards_dealt": 8,
-            "trump_suit": "spades",
-        }])
+        body = _valid_import_body(
+            rounds=[
+                {
+                    "round_num": 1,
+                    "bids": {"0": 2, "1": 3, "2": 1},
+                    "hands_won": {"0": 2, "1": 3, "X": 3},  # key "X" invalid
+                    "cards_dealt": 8,
+                    "trump_suit": "spades",
+                }
+            ]
+        )
         resp = await client.post(
-            f"/api/game/{share_code}/import", json=body, cookies=cookies,
+            f"/api/game/{share_code}/import",
+            json=body,
+            cookies=cookies,
         )
         assert resp.status_code == 422, f"Expected 422 for bad hands keys, got {resp.status_code}"
 
     async def test_import_rejects_hands_sum_exceeds_cards(self, client: AsyncClient):
         """sum(hands_won) must not exceed cards_dealt."""
         pg_id, share_code, cookies = await _setup_playground(client)
-        body = _valid_import_body(rounds=[{
-            "round_num": 1,
-            "bids": {"0": 2, "1": 3, "2": 1},
-            "hands_won": {"0": 5, "1": 5, "2": 5},  # sum=15, cards=8
-            "cards_dealt": 8,
-            "trump_suit": "spades",
-        }])
+        body = _valid_import_body(
+            rounds=[
+                {
+                    "round_num": 1,
+                    "bids": {"0": 2, "1": 3, "2": 1},
+                    "hands_won": {"0": 5, "1": 5, "2": 5},  # sum=15, cards=8
+                    "cards_dealt": 8,
+                    "trump_suit": "spades",
+                }
+            ]
+        )
         resp = await client.post(
-            f"/api/game/{share_code}/import", json=body, cookies=cookies,
+            f"/api/game/{share_code}/import",
+            json=body,
+            cookies=cookies,
         )
         assert resp.status_code == 422, f"Expected 422 for hands sum, got {resp.status_code}"
 
     async def test_import_rejects_bid_out_of_range(self, client: AsyncClient):
         """Each bid must be 0 <= bid <= cards_dealt."""
         pg_id, share_code, cookies = await _setup_playground(client)
-        body = _valid_import_body(rounds=[{
-            "round_num": 1,
-            "bids": {"0": 2, "1": 99, "2": 1},  # bid 99 > cards_dealt 8
-            "hands_won": {"0": 2, "1": 3, "2": 3},
-            "cards_dealt": 8,
-            "trump_suit": "spades",
-        }])
+        body = _valid_import_body(
+            rounds=[
+                {
+                    "round_num": 1,
+                    "bids": {"0": 2, "1": 99, "2": 1},  # bid 99 > cards_dealt 8
+                    "hands_won": {"0": 2, "1": 3, "2": 3},
+                    "cards_dealt": 8,
+                    "trump_suit": "spades",
+                }
+            ]
+        )
         resp = await client.post(
-            f"/api/game/{share_code}/import", json=body, cookies=cookies,
+            f"/api/game/{share_code}/import",
+            json=body,
+            cookies=cookies,
         )
         assert resp.status_code == 422, f"Expected 422 for bid out of range, got {resp.status_code}"
 
     async def test_import_rejects_negative_bid(self, client: AsyncClient):
         """Negative bids are invalid."""
         pg_id, share_code, cookies = await _setup_playground(client)
-        body = _valid_import_body(rounds=[{
-            "round_num": 1,
-            "bids": {"0": -1, "1": 3, "2": 1},
-            "hands_won": {"0": 2, "1": 3, "2": 3},
-            "cards_dealt": 8,
-            "trump_suit": "spades",
-        }])
+        body = _valid_import_body(
+            rounds=[
+                {
+                    "round_num": 1,
+                    "bids": {"0": -1, "1": 3, "2": 1},
+                    "hands_won": {"0": 2, "1": 3, "2": 3},
+                    "cards_dealt": 8,
+                    "trump_suit": "spades",
+                }
+            ]
+        )
         resp = await client.post(
-            f"/api/game/{share_code}/import", json=body, cookies=cookies,
+            f"/api/game/{share_code}/import",
+            json=body,
+            cookies=cookies,
         )
         assert resp.status_code == 422, f"Expected 422 for negative bid, got {resp.status_code}"
 
     async def test_import_rejects_negative_hands_won(self, client: AsyncClient):
         """Negative hands_won values are invalid."""
         pg_id, share_code, cookies = await _setup_playground(client)
-        body = _valid_import_body(rounds=[{
-            "round_num": 1,
-            "bids": {"0": 2, "1": 3, "2": 1},
-            "hands_won": {"0": -1, "1": 3, "2": 3},
-            "cards_dealt": 8,
-            "trump_suit": "spades",
-        }])
+        body = _valid_import_body(
+            rounds=[
+                {
+                    "round_num": 1,
+                    "bids": {"0": 2, "1": 3, "2": 1},
+                    "hands_won": {"0": -1, "1": 3, "2": 3},
+                    "cards_dealt": 8,
+                    "trump_suit": "spades",
+                }
+            ]
+        )
         resp = await client.post(
-            f"/api/game/{share_code}/import", json=body, cookies=cookies,
+            f"/api/game/{share_code}/import",
+            json=body,
+            cookies=cookies,
         )
         assert resp.status_code == 422, f"Expected 422 for negative hands, got {resp.status_code}"
 
@@ -179,19 +219,25 @@ class TestImportValidation:
         body["started_at"] = "2026-09-20T14:00:00"
         body["finished_at"] = "2026-09-20T12:00:00"  # before started
         resp = await client.post(
-            f"/api/game/{share_code}/import", json=body, cookies=cookies,
+            f"/api/game/{share_code}/import",
+            json=body,
+            cookies=cookies,
         )
         assert resp.status_code == 422, f"Expected 422 for bad timestamps, got {resp.status_code}"
 
     async def test_import_rejects_duplicate_round_nums(self, client: AsyncClient):
         """Round numbers must be unique."""
         pg_id, share_code, cookies = await _setup_playground(client)
-        body = _valid_import_body(rounds=[
-            _valid_round(round_num=1),
-            _valid_round(round_num=1),  # duplicate
-        ])
+        body = _valid_import_body(
+            rounds=[
+                _valid_round(round_num=1),
+                _valid_round(round_num=1),  # duplicate
+            ]
+        )
         body["client_game_id"] = "test-dup-rounds-001"
         resp = await client.post(
-            f"/api/game/{share_code}/import", json=body, cookies=cookies,
+            f"/api/game/{share_code}/import",
+            json=body,
+            cookies=cookies,
         )
         assert resp.status_code == 422, f"Expected 422 for dup round_nums, got {resp.status_code}"

@@ -33,7 +33,10 @@ ALLOWED_FORMULAS = {"kachuful_standard", "kachuful_zeros"}
 
 
 async def _check_duplicate(
-    db: AsyncSession, client_game_id: str, playground_id: int, round_count: int,
+    db: AsyncSession,
+    client_game_id: str,
+    playground_id: int,
+    round_count: int,
 ) -> ImportGameResponse | None:
     """Return an idempotent response if this game was already imported."""
     result = await db.execute(
@@ -45,7 +48,9 @@ async def _check_duplicate(
     existing = result.scalar_one_or_none()
     if existing:
         return ImportGameResponse(
-            game_id=existing.id, rounds_imported=round_count, already_existed=True,
+            game_id=existing.id,
+            rounds_imported=round_count,
+            already_existed=True,
         )
     return None
 
@@ -54,7 +59,9 @@ def _validate_round_scores(rounds, formula: str) -> None:
     """Raise 422 if any round has tampered scores."""
     for round_data in rounds:
         expected = calculate_round_scores(
-            round_data.bids, round_data.hands_won, formula,
+            round_data.bids,
+            round_data.hands_won,
+            formula,
         )
         if round_data.scores and round_data.scores != expected:
             raise HTTPException(
@@ -68,15 +75,26 @@ def _build_game(body: ImportGameRequest, playground_id: int) -> Game:
     """Create a Game model from import payload."""
     total = len(body.rounds)
     return Game(
-        playground_id=playground_id, players=body.players, settings=body.settings,
-        current_round=total, total_rounds=total, phase="finished", dealer_index=0,
-        status="finished", started_at=body.started_at, finished_at=body.finished_at,
-        client_game_id=body.client_game_id, source="offline_import",
+        playground_id=playground_id,
+        players=body.players,
+        settings=body.settings,
+        current_round=total,
+        total_rounds=total,
+        phase="finished",
+        dealer_index=0,
+        status="finished",
+        started_at=body.started_at,
+        finished_at=body.finished_at,
+        client_game_id=body.client_game_id,
+        source="offline_import",
     )
 
 
 async def _create_game_with_rounds(
-    db: AsyncSession, body: ImportGameRequest, playground_id: int, formula: str,
+    db: AsyncSession,
+    body: ImportGameRequest,
+    playground_id: int,
+    formula: str,
 ) -> Game:
     """Insert Game + Round records in one transaction, return the Game."""
     game = _build_game(body, playground_id)
@@ -84,11 +102,18 @@ async def _create_game_with_rounds(
     await db.flush()
     for rd in body.rounds:
         scores = calculate_round_scores(rd.bids, rd.hands_won, formula)
-        db.add(Round(
-            game_id=game.id, round_num=rd.round_num, cards_dealt=rd.cards_dealt,
-            trump_suit=rd.trump_suit, bids=rd.bids, hands_won=rd.hands_won,
-            scores=scores, status="complete",
-        ))
+        db.add(
+            Round(
+                game_id=game.id,
+                round_num=rd.round_num,
+                cards_dealt=rd.cards_dealt,
+                trump_suit=rd.trump_suit,
+                bids=rd.bids,
+                hands_won=rd.hands_won,
+                scores=scores,
+                status="complete",
+            )
+        )
     await db.commit()
     return game
 
@@ -105,14 +130,17 @@ async def _resolve_playground(db: AsyncSession, share_code: str, playground_id: 
 
 def _schedule_insights_recompute(background_tasks: BackgroundTasks, playground_id: int):
     """Schedule fire-and-forget insights recompute."""
+
     async def _run():
         try:
             from app.database import async_session_factory
             from app.services.insights import compute_insights
+
             async with async_session_factory() as fresh_db:
                 await compute_insights(fresh_db, playground_id)
         except Exception:
             logger.warning("Insights recompute failed after import (non-fatal)", exc_info=True)
+
     background_tasks.add_task(_run)
 
 

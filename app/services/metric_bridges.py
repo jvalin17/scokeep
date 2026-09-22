@@ -36,7 +36,8 @@ def compute_player_extras(player_name: str, games: list[Any]) -> dict[str, Any]:
 
 
 def compute_accuracy_by_cards_metrics(
-    player_name: str, game_metrics_list: list[Any],
+    player_name: str,
+    game_metrics_list: list[Any],
 ) -> dict[str, dict[str, int]]:
     """Compute bid accuracy breakdown by card count from GameMetrics objects."""
     by_cards: dict[int, dict[str, int]] = {}
@@ -68,7 +69,8 @@ def compute_accuracy_by_cards_metrics(
 
 
 def compute_accuracy_by_cards(
-    player_name: str, games: list[Any],
+    player_name: str,
+    games: list[Any],
 ) -> dict[str, dict[str, int]]:
     """Bridge: compute accuracy-by-cards from game objects."""
     return compute_accuracy_by_cards_metrics(player_name, _games_to_metrics(games))

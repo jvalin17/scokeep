@@ -186,8 +186,16 @@ async def test_import_game_min_players(client: AsyncClient):
 async def test_import_game_max_players(client: AsyncClient):
     """Import with exactly 8 players (maximum) succeeds."""
     pg = await _setup_playground(client)
-    players = ["Player1", "Player2", "Player3", "Player4",
-               "Player5", "Player6", "Player7", "Player8"]
+    players = [
+        "Player1",
+        "Player2",
+        "Player3",
+        "Player4",
+        "Player5",
+        "Player6",
+        "Player7",
+        "Player8",
+    ]
     payload = _valid_import_payload(client_game_id="game-max-players")
     payload["players"] = players
     bids = {str(i): 0 for i in range(8)}
@@ -257,7 +265,9 @@ async def test_validate_round_scores_rejects_mismatch(client: AsyncClient):
     payload = _valid_import_payload(client_game_id="game-validate-scores")
     payload["rounds"][0]["scores"] = {"0": 999, "1": 0, "2": 0}
     response = await client.post(
-        f"/api/game/{pg['share_code']}/import", json=payload, cookies=pg["cookies"],
+        f"/api/game/{pg['share_code']}/import",
+        json=payload,
+        cookies=pg["cookies"],
     )
     assert response.status_code == 422
     assert "score mismatch" in response.json()["detail"].lower()
@@ -268,7 +278,9 @@ async def test_build_game_sets_offline_source(client: AsyncClient):
     pg = await _setup_playground(client)
     payload = _valid_import_payload(client_game_id="game-build-check")
     response = await client.post(
-        f"/api/game/{pg['share_code']}/import", json=payload, cookies=pg["cookies"],
+        f"/api/game/{pg['share_code']}/import",
+        json=payload,
+        cookies=pg["cookies"],
     )
     assert response.status_code == 200
     game_id = response.json()["game_id"]
@@ -281,7 +293,9 @@ async def test_schedule_insights_recompute_does_not_block(client: AsyncClient):
     pg = await _setup_playground(client)
     payload = _valid_import_payload(client_game_id="game-insights-bg")
     response = await client.post(
-        f"/api/game/{pg['share_code']}/import", json=payload, cookies=pg["cookies"],
+        f"/api/game/{pg['share_code']}/import",
+        json=payload,
+        cookies=pg["cookies"],
     )
     assert response.status_code == 200
     assert response.json()["rounds_imported"] == 1

@@ -37,9 +37,7 @@ class ImportGameRequest(BaseModel):
         valid_keys = {str(i) for i in range(len(self.players))}
         for round_data in self.rounds:
             if set(round_data.bids.keys()) != valid_keys:
-                raise ValueError(
-                    f"Round {round_data.round_num}: bids keys must be {valid_keys}"
-                )
+                raise ValueError(f"Round {round_data.round_num}: bids keys must be {valid_keys}")
             if set(round_data.hands_won.keys()) != valid_keys:
                 raise ValueError(
                     f"Round {round_data.round_num}: hands_won keys must be {valid_keys}"
@@ -52,13 +50,9 @@ class ImportGameRequest(BaseModel):
                     )
             for hands in round_data.hands_won.values():
                 if hands < 0:
-                    raise ValueError(
-                        f"Round {round_data.round_num}: hands_won cannot be negative"
-                    )
+                    raise ValueError(f"Round {round_data.round_num}: hands_won cannot be negative")
             if sum(round_data.hands_won.values()) > round_data.cards_dealt:
-                raise ValueError(
-                    f"Round {round_data.round_num}: hands_won sum exceeds cards_dealt"
-                )
+                raise ValueError(f"Round {round_data.round_num}: hands_won sum exceeds cards_dealt")
         return self
 
 

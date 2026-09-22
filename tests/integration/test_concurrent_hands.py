@@ -147,9 +147,7 @@ class TestConcurrentHandsSubmission:
             )
 
             if round_num < 4:
-                next_resp = await client.post(
-                    f"/api/game/{game_id}/next-round", cookies=cookies
-                )
+                next_resp = await client.post(f"/api/game/{game_id}/next-round", cookies=cookies)
                 assert next_resp.status_code == 200
 
                 # Re-setup: bid + start-round + enter-round-end
