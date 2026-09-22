@@ -178,6 +178,9 @@ def test_locked_personality_card(page, server):
 
     navigate_to_stats(page, server, name, "1234")
 
+    # Wait for personality cards to render (insights computation can be slow on CI)
+    page.wait_for_selector(".personality-card", timeout=15000)
+
     # MIN_GAMES_FOR_PERSONALITY=1, so after 1 game cards should be unlocked
     unlocked_card = page.locator(".personality-card:not(.personality-card-locked)")
     assert unlocked_card.count() > 0, "Expected unlocked personality cards after 1 game"
