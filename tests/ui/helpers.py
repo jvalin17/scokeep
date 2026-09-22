@@ -130,16 +130,14 @@ def play_one_round(page: Page, bids: list[int], hands: list[int]):
 def end_game(page: Page):
     """End the game — clicks End Game, handles confirm dialog if present, waits for navigation."""
     current_hash = page.evaluate("() => location.hash")
+    # Bidding/play screens show a confirm overlay; scoreboard navigates directly
+    needs_confirm = "bid" in current_hash or "play" in current_hash
     end_btn = page.locator('#end-game, #end-game-btn, button:has-text("End Game")')
     end_btn.first.wait_for(state="visible", timeout=60000)
     end_btn.first.click()
-    # Some screens (bidding/play) show a confirm overlay; scoreboard navigates directly.
-    # Wait briefly for the dialog — if it appears, click Confirm; otherwise proceed.
-    # Bidding/play show a confirm overlay; scoreboard navigates directly.
-    # Brief wait for the dialog to render, then click if present.
-    page.wait_for_timeout(500)
-    confirm_ok = page.locator(".confirm-ok")
-    if confirm_ok.is_visible():
+    if needs_confirm:
+        confirm_ok = page.locator(".confirm-ok")
+        confirm_ok.wait_for(state="visible", timeout=5000)
         confirm_ok.click()
     page.wait_for_function(
         f"() => location.hash !== '{current_hash}'",
