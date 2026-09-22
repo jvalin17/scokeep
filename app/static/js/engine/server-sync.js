@@ -8,13 +8,24 @@
 import { saveSyncQueueItem, getSyncQueue, deleteSyncQueueItem } from './store.js';
 
 /**
+ * Check if a game ID is a local Quick Game (not on the server).
+ * Local IDs start with "game-" (e.g. "game-1790064782456-z3is1lp").
+ * Server IDs are integers or numeric strings (e.g. 42 or "42").
+ */
+function isLocalGameId(gameId) {
+  return typeof gameId === 'string' && gameId.startsWith('game-');
+}
+
+/**
  * Sync a completed round to the server.
  * On failure, queues the round in IDB for retry.
+ * Skips local Quick Game IDs — they sync via the import endpoint instead.
  *
  * @param {string} gameId
  * @param {Object} round  Full round object (round_num, bids, hands_won, scores, …)
  */
 export function syncRound(gameId, round) {
+  if (isLocalGameId(gameId)) return;
   if (!navigator.onLine) {
     saveSyncQueueItem(gameId, round).catch(() => {});
     return;
@@ -36,6 +47,7 @@ export function syncRound(gameId, round) {
  * @param {Object} game  Game object with phase, current_round, dealer_index, status.
  */
 export function syncGameState(gameId, game) {
+  if (isLocalGameId(gameId)) return;
   if (!navigator.onLine) return;
   fetch(`/api/game/${gameId}/sync-state`, {
     method: 'POST',

@@ -47,6 +47,27 @@ def _valid_import_body(rounds=None):
     }
 
 
+def test_strip_tzinfo_removes_timezone():
+    """_strip_tzinfo strips tzinfo for PostgreSQL TIMESTAMP WITHOUT TIME ZONE."""
+    from datetime import UTC, datetime
+
+    from app.routes.import_game import _strip_tzinfo
+
+    # UTC (Z suffix in ISO)
+    aware_utc = datetime(2026, 9, 22, 8, 13, 2, tzinfo=UTC)
+    result = _strip_tzinfo(aware_utc)
+    assert result.tzinfo is None
+    assert result.year == 2026
+    assert result.hour == 8
+
+    # Naive passthrough
+    naive = datetime(2026, 9, 22, 8, 13, 2)
+    assert _strip_tzinfo(naive) is naive
+
+    # None passthrough
+    assert _strip_tzinfo(None) is None
+
+
 def test_validate_round_data_rejects_bad_keys():
     """Direct test for the model_validator function."""
     from pydantic import ValidationError
@@ -289,6 +310,44 @@ class TestImportValidation:
             cookies=cookies,
         )
         assert resp.status_code == 422, f"Expected 422 for dup round_nums, got {resp.status_code}"
+
+    async def test_import_accepts_tz_aware_timestamps(self, client: AsyncClient):
+        """Import with timezone-aware ISO timestamps (Z suffix) must succeed.
+
+        JS clients send new Date().toISOString() which always includes Z.
+        This caused a 500 on PostgreSQL: 'can't subtract offset-naive and
+        offset-aware datetimes' because the DB column is TIMESTAMP WITHOUT
+        TIME ZONE but Pydantic parses Z as tzinfo=UTC.
+        """
+        pg_id, share_code, cookies = await _setup_playground(client)
+        body = _valid_import_body()
+        body["client_game_id"] = "test-tz-aware-001"
+        body["started_at"] = "2026-09-22T08:13:02.456Z"
+        body["finished_at"] = "2026-09-22T08:13:26.009Z"
+        resp = await client.post(
+            f"/api/game/{share_code}/import",
+            json=body,
+            cookies=cookies,
+        )
+        assert resp.status_code == 200, (
+            f"TZ-aware import failed with {resp.status_code}: {resp.text}"
+        )
+
+    async def test_import_accepts_tz_offset_timestamps(self, client: AsyncClient):
+        """Import with explicit timezone offset (+05:30) must also succeed."""
+        pg_id, share_code, cookies = await _setup_playground(client)
+        body = _valid_import_body()
+        body["client_game_id"] = "test-tz-offset-001"
+        body["started_at"] = "2026-09-22T13:43:02.456+05:30"
+        body["finished_at"] = "2026-09-22T14:13:26.009+05:30"
+        resp = await client.post(
+            f"/api/game/{share_code}/import",
+            json=body,
+            cookies=cookies,
+        )
+        assert resp.status_code == 200, (
+            f"TZ-offset import failed with {resp.status_code}: {resp.text}"
+        )
 
     async def test_concurrent_import_returns_200_not_500(self, client: AsyncClient):
         """Two imports with same client_game_id must not cause unhandled 500."""

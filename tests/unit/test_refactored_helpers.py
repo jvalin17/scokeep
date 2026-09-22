@@ -173,8 +173,8 @@ def test_build_game_returns_game_with_correct_fields():
     assert game.dealer_index == 0
     assert game.source == "offline_import"
     assert game.client_game_id == "game-abc-001"
-    assert game.started_at == body.started_at
-    assert game.finished_at == body.finished_at
+    assert game.started_at == body.started_at.replace(tzinfo=None)
+    assert game.finished_at == body.finished_at.replace(tzinfo=None)
 
 
 def test_build_game_total_rounds_matches_round_count():

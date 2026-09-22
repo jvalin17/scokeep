@@ -74,6 +74,13 @@ def _validate_round_scores(rounds, formula: str) -> None:
             ) from exc
 
 
+def _strip_tzinfo(dt):
+    """Strip timezone info from datetime for PostgreSQL TIMESTAMP WITHOUT TIME ZONE columns."""
+    if dt is not None and dt.tzinfo is not None:
+        return dt.replace(tzinfo=None)
+    return dt
+
+
 def _build_game(body: ImportGameRequest, playground_id: int) -> Game:
     """Create a Game model from import payload."""
     total = len(body.rounds)
@@ -86,8 +93,8 @@ def _build_game(body: ImportGameRequest, playground_id: int) -> Game:
         phase="finished",
         dealer_index=0,
         status="finished",
-        started_at=body.started_at,
-        finished_at=body.finished_at,
+        started_at=_strip_tzinfo(body.started_at),
+        finished_at=_strip_tzinfo(body.finished_at),
         client_game_id=body.client_game_id,
         source="offline_import",
     )

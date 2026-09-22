@@ -52,14 +52,14 @@ describe('test_sync_round_sends_correct_payload', () => {
       status: 'scored',
     };
 
-    syncRound('game-42', round);
+    syncRound('42', round);
 
     // fire-and-forget: give the microtask queue a tick to flush
     await Promise.resolve();
 
     expect(fetchSpy).toHaveBeenCalledOnce();
     const [url, options] = fetchSpy.mock.calls[0];
-    expect(url).toBe('/api/game/game-42/sync-round');
+    expect(url).toBe('/api/game/42/sync-round');
     expect(options.method).toBe('POST');
     expect(options.credentials).toBe('same-origin');
     expect(options.headers['Content-Type']).toBe('application/json');
@@ -72,7 +72,7 @@ describe('test_sync_round_silent_on_network_error', () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('network down'))));
 
     // Must not throw
-    expect(() => syncRound('game-1', { round_num: 1 })).not.toThrow();
+    expect(() => syncRound('1', { round_num: 1 })).not.toThrow();
 
     // Wait for the rejected promise to settle — no unhandled rejection
     await new Promise((resolve) => setTimeout(resolve, 10));
@@ -84,10 +84,42 @@ describe('test_sync_round_skipped_when_offline', () => {
     setOnline(false);
     const fetchSpy = makeFetchSpy();
 
-    syncRound('game-1', { round_num: 1 });
+    syncRound('1', { round_num: 1 });
     await Promise.resolve();
 
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('test_sync_round_skips_local_game_ids', () => {
+  it('does not call fetch when gameId starts with "game-" (local Quick Game)', async () => {
+    const fetchSpy = makeFetchSpy();
+    const round = { round_num: 1, bids: { '0': 2 }, hands_won: { '0': 2 }, scores: { '0': 20 }, status: 'complete' };
+
+    syncRound('game-1790064782456-z3is1lp', round);
+    await Promise.resolve();
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('still calls fetch for server game IDs (numeric)', async () => {
+    const fetchSpy = makeFetchSpy();
+    const round = { round_num: 1, bids: { '0': 2 }, hands_won: { '0': 2 }, scores: { '0': 20 }, status: 'complete' };
+
+    syncRound(42, round);
+    await Promise.resolve();
+
+    expect(fetchSpy).toHaveBeenCalledOnce();
+  });
+
+  it('still calls fetch for server game IDs (numeric string)', async () => {
+    const fetchSpy = makeFetchSpy();
+    const round = { round_num: 1, bids: { '0': 2 }, hands_won: { '0': 2 }, scores: { '0': 20 }, status: 'complete' };
+
+    syncRound('42', round);
+    await Promise.resolve();
+
+    expect(fetchSpy).toHaveBeenCalledOnce();
   });
 });
 
@@ -103,12 +135,12 @@ describe('test_sync_game_state_sends_correct_payload', () => {
       status: 'active',
     };
 
-    syncGameState('game-99', game);
+    syncGameState('99', game);
     await Promise.resolve();
 
     expect(fetchSpy).toHaveBeenCalledOnce();
     const [url, options] = fetchSpy.mock.calls[0];
-    expect(url).toBe('/api/game/game-99/sync-state');
+    expect(url).toBe('/api/game/99/sync-state');
     expect(options.method).toBe('POST');
     const body = JSON.parse(options.body);
     expect(body.phase).toBe('playing');
@@ -123,10 +155,32 @@ describe('test_sync_game_state_skipped_when_offline', () => {
     setOnline(false);
     const fetchSpy = makeFetchSpy();
 
-    syncGameState('game-1', { phase: 'bidding', current_round: 1, dealer_index: 0, status: 'active' });
+    syncGameState('1', { phase: 'bidding', current_round: 1, dealer_index: 0, status: 'active' });
     await Promise.resolve();
 
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('test_sync_game_state_skips_local_game_ids', () => {
+  it('does not call fetch when gameId starts with "game-" (local Quick Game)', async () => {
+    const fetchSpy = makeFetchSpy();
+    const game = { phase: 'bidding', current_round: 1, dealer_index: 0, status: 'active' };
+
+    syncGameState('game-1790064782456-z3is1lp', game);
+    await Promise.resolve();
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('still calls fetch for server game IDs (numeric)', async () => {
+    const fetchSpy = makeFetchSpy();
+    const game = { phase: 'bidding', current_round: 1, dealer_index: 0, status: 'active' };
+
+    syncGameState(42, game);
+    await Promise.resolve();
+
+    expect(fetchSpy).toHaveBeenCalledOnce();
   });
 });
 
@@ -137,14 +191,14 @@ describe('test_sync_round_queues_on_failure', () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('network down'))));
 
     const round = { round_num: 3, bids: { '0': 2 }, hands_won: { '0': 2 } };
-    syncRound('game-42', round);
+    syncRound('42', round);
 
     // Wait for the async queue write
     await new Promise(r => setTimeout(r, 50));
 
     const queue = await getSyncQueue();
     expect(queue.length).toBe(1);
-    expect(queue[0].game_id).toBe('game-42');
+    expect(queue[0].game_id).toBe('42');
     expect(queue[0].round.round_num).toBe(3);
   });
 });
@@ -157,7 +211,7 @@ describe('test_sync_round_retries_queued_rounds', () => {
       .mockResolvedValueOnce({ ok: true }));
 
     const round = { round_num: 1, bids: { '0': 1 }, hands_won: { '0': 1 } };
-    syncRound('game-10', round);
+    syncRound('10', round);
     await new Promise(r => setTimeout(r, 50));
 
     // Queue should have 1 item
