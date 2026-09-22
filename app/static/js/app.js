@@ -3,6 +3,8 @@
 import { escapeHtml } from './components/game-utils.js';
 import { logger } from './components/logger.js';
 import { isLocalGame } from './resolve-api.js';
+import { banner } from './components/connection-banner.js';
+import { attemptSyncBack } from './engine/sync-back.js';
 import { homeScreen } from './screens/home.js';
 import { lobbyScreen } from './screens/lobby.js';
 import { biddingScreen } from './screens/bidding.js';
@@ -130,6 +132,23 @@ async function render() {
 
 window.addEventListener('hashchange', render);
 render();
+
+// Sync-back: attempt on startup and online event
+async function runSyncBack() {
+    try {
+        const result = await attemptSyncBack();
+        if (result.synced > 0) {
+            banner.showSynced();
+        } else if (result.failed > 0) {
+            banner.showSyncFailed(() => runSyncBack());
+        }
+    } catch {
+        // Sync-back is best-effort — don't break the app
+    }
+}
+
+runSyncBack();
+window.addEventListener('online', () => runSyncBack());
 
 // Export for screens to use
 window.scokeep = { state, navigate };

@@ -234,6 +234,36 @@ export async function getFinishedGames(limit = 20) {
     .slice(0, limit);
 }
 
+/**
+ * Atomically save a game and a round in a single IDB transaction.
+ * Prevents ghost games if the browser crashes between writes.
+ * @param {Object} game
+ * @param {Object} round  Must contain game_id and round_num.
+ * @returns {Promise<void>}
+ */
+export async function saveGameAndRound(game, round) {
+  const db = await _open();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(['games', 'rounds'], 'readwrite');
+    tx.objectStore('games').put(game);
+    tx.objectStore('rounds').put(round);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error || new Error('Transaction aborted'));
+  });
+}
+
+/**
+ * Return all games with sync_pending=true.
+ * @returns {Promise<Object[]>}
+ */
+export async function getSyncPendingGames() {
+  const db = await _open();
+  const tx = db.transaction('games', 'readonly');
+  const all = await _wrap(tx.objectStore('games').getAll());
+  return (all ?? []).filter(g => g.sync_pending === true);
+}
+
 // ─── rooms store (v2) ────────────────────────────────────────────────────────
 
 /**

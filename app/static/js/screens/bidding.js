@@ -6,6 +6,8 @@ import { getRoundCards, escapeHtml } from '../components/game-utils.js';
 import { getEntryOrder } from '../components/entry-utils.js';
 import { renderGameIsland, renderRoundInfoBar, renderTrumpDisplay, attachEndGameHandler, showError, setScreenContext } from '../components/screen-parts.js';
 import { soundStartRound } from '../components/sounds.js';
+import { isNetworkError, transferToOffline } from '../engine/offline-failover.js';
+import { banner } from '../components/connection-banner.js';
 
 
 export const biddingScreen = {
@@ -217,6 +219,13 @@ export const biddingScreen = {
                 bidPosition++;
                 renderCollecting();
             } catch (error) {
+                if (isNetworkError(error)) {
+                    const roundData = { bids: bidsCollected, round_num: game.current_round, cards_dealt: getRoundCards(game.current_round, rps), trump_suit: null };
+                    const localId = await transferToOffline(game, roundData, state.playground?.share_code || null);
+                    banner.showOffline();
+                    navigate(`bid/${localId}`);
+                    return;
+                }
                 showError(container, 'bid-error', error.message);
             } finally {
                 isSubmitting = false;
