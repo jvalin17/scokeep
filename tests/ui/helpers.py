@@ -128,15 +128,17 @@ def play_one_round(page: Page, bids: list[int], hands: list[int]):
 
 
 def end_game(page: Page):
-    """End the game — clicks End Game, confirms via custom dialog, waits for navigation."""
+    """End the game — clicks End Game, handles confirm dialog if present, waits for navigation."""
     current_hash = page.evaluate("() => location.hash")
     end_btn = page.locator('#end-game, #end-game-btn, button:has-text("End Game")')
     end_btn.first.wait_for(state="visible", timeout=60000)
     end_btn.first.click()
-    # App uses custom confirm overlay (not native confirm())
+    # Some screens (bidding/play) show a confirm overlay; scoreboard navigates directly.
+    # Wait briefly for the dialog — if it appears, click Confirm; otherwise proceed.
+    # Some screens (bidding/play) show a confirm overlay; scoreboard navigates directly.
     confirm_ok = page.locator(".confirm-ok")
-    confirm_ok.wait_for(state="visible", timeout=5000)
-    confirm_ok.click()
+    if confirm_ok.is_visible():
+        confirm_ok.click()
     page.wait_for_function(
         f"() => location.hash !== '{current_hash}'",
         timeout=10000,
