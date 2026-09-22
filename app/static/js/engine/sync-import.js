@@ -46,7 +46,7 @@ export async function syncOneGame(game) {
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      return { success: false, error: `Server returned ${response.status}` };
+      return { success: false, error: `Server returned ${response.status}`, status: response.status };
     }
 
     // Mark as synced in IDB

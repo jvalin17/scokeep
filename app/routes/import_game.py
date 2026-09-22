@@ -21,8 +21,10 @@ from app.models.round import Round
 from app.routes.playground import limiter
 from app.schemas.import_game import ImportGameRequest, ImportGameResponse
 from app.services.playground import PlaygroundService
-from app.services.scoring import calculate_round_scores
+from app.services.scoring import assert_scores_match, calculate_round_scores
 from app.utils.auth import require_auth
+from app.utils.sanitize import sanitize_player_names
+from app.utils.trump import get_cards_for_round
 
 logger = logging.getLogger("scokeep.import")
 
@@ -58,17 +60,18 @@ async def _check_duplicate(
 def _validate_round_scores(rounds, formula: str) -> None:
     """Raise 422 if any round has tampered scores."""
     for round_data in rounds:
-        expected = calculate_round_scores(
-            round_data.bids,
-            round_data.hands_won,
-            formula,
-        )
-        if round_data.scores and round_data.scores != expected:
+        try:
+            assert_scores_match(
+                round_data.bids,
+                round_data.hands_won,
+                formula,
+                round_data.scores,
+            )
+        except ValueError as exc:
             raise HTTPException(
                 status_code=422,
-                detail=f"Score mismatch in round {round_data.round_num}: "
-                f"expected {expected}, got {round_data.scores}",
-            )
+                detail=f"Round {round_data.round_num}: {exc}",
+            ) from exc
 
 
 def _build_game(body: ImportGameRequest, playground_id: int) -> Game:
@@ -76,7 +79,7 @@ def _build_game(body: ImportGameRequest, playground_id: int) -> Game:
     total = len(body.rounds)
     return Game(
         playground_id=playground_id,
-        players=body.players,
+        players=sanitize_player_names(body.players),
         settings=body.settings,
         current_round=total,
         total_rounds=total,
@@ -164,6 +167,15 @@ async def import_game(
     formula = body.settings.get("scoring_formula", DEFAULT_FORMULA)
     if formula not in ALLOWED_FORMULAS:
         raise HTTPException(status_code=422, detail=f"Unknown scoring formula: {formula}")
+    rounds_per_set = body.settings.get("rounds_per_set", 8)
+    for rd in body.rounds:
+        expected_cards = get_cards_for_round(rd.round_num, rounds_per_set)
+        if rd.cards_dealt != expected_cards:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Round {rd.round_num}: cards_dealt="
+                f"{rd.cards_dealt}, expected {expected_cards}",
+            )
     _validate_round_scores(body.rounds, formula)
     game = await _create_game_with_rounds(db, body, playground.id, formula)
 

@@ -108,6 +108,36 @@ class TestPhaseEnforcement:
         assert response.status_code == 409
 
 
+class TestSubmitNegativeHands:
+    async def test_submit_negative_hands_returns_400(self, client: AsyncClient):
+        """Negative hands_won values must be rejected."""
+        game = await _setup_game(client)
+        game_id = game["id"]
+        cookies = game["cookies"]
+
+        # Submit all 4 bids then confirm to get to playing phase
+        for i in range(4):
+            await client.post(
+                f"/api/game/{game_id}/bid",
+                json={"player_index": i, "value": 1},
+                cookies=cookies,
+            )
+        await client.post(f"/api/game/{game_id}/start-round", cookies=cookies)
+
+        # Advance to round_end phase
+        await client.post(f"/api/game/{game_id}/enter-round-end", cookies=cookies)
+
+        # Submit negative hands — must be rejected
+        response = await client.post(
+            f"/api/game/{game_id}/hands",
+            json={"player_index": 0, "value": -1},
+            cookies=cookies,
+        )
+        assert response.status_code in (400, 422), (
+            f"Expected 400/422 for negative hands, got {response.status_code}: {response.text}"
+        )
+
+
 class TestConfirmBids:
     async def test_confirm_bids_starts_round(self, client: AsyncClient):
         game = await _setup_game(client)
@@ -243,3 +273,39 @@ class TestGetBids:
         assert response.status_code == 200
         body = response.json()
         assert body["bids"] == {"0": 3, "1": 1}
+
+
+class TestPhaseTransitionAtomic:
+    """L5: Phase transitions must be atomic — round status and game phase change together."""
+
+    async def test_phase_transition_is_atomic(self, client: AsyncClient):
+        """enter-round-end changes both round.status and game.phase in one commit."""
+        game = await _setup_game(client)
+
+        # Submit all bids to get to playing phase
+        for i in range(4):
+            await client.post(
+                f"/api/game/{game['id']}/bid",
+                json={"player_index": i, "value": 1},
+                cookies=game["cookies"],
+            )
+        await client.post(
+            f"/api/game/{game['id']}/start-round",
+            cookies=game["cookies"],
+        )
+
+        # Verify we're in playing phase
+        resp = await client.get(f"/api/game/{game['id']}", cookies=game["cookies"])
+        assert resp.json()["phase"] == "playing"
+
+        # Enter round end
+        resp = await client.post(
+            f"/api/game/{game['id']}/enter-round-end",
+            cookies=game["cookies"],
+        )
+        assert resp.status_code == 200
+        assert resp.json()["phase"] == "round_end"
+
+        # Verify game phase is also round_end (both changed atomically)
+        resp = await client.get(f"/api/game/{game['id']}", cookies=game["cookies"])
+        assert resp.json()["phase"] == "round_end"

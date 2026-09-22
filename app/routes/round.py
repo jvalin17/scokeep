@@ -119,7 +119,7 @@ async def enter_round_end(
         raise HTTPException(status_code=409, detail=f"Game is in '{game.phase}', not 'playing'")
 
     round_obj.status = "round_end"
-    await db.commit()
+    await db.flush()
     await GameService.update_phase(db, game, "round_end")
     return {"phase": game.phase}
 
@@ -195,7 +195,7 @@ async def enter_rescore(
 
     round_obj.status = "round_end"
     round_obj.scores = {}
-    await db.commit()
+    await db.flush()
 
     await GameService.update_phase(db, game, "round_end")
     return {"phase": game.phase}

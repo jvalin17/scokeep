@@ -33,8 +33,13 @@ class TestDoubleTapBidding:
         first_player = name_el.text_content()
 
         # Double-click the "1" key as fast as possible
+        escaped_first = (first_player or "").replace("'", "\\'")
         page.locator(".keypad-key:has-text('1')").dblclick()
-        page.wait_for_timeout(1500)
+        page.wait_for_function(
+            "() => { const el = document.querySelector('.bid-player-name');"
+            f" return !el || el.textContent !== '{escaped_first}'; }}",
+            timeout=10000,
+        )
 
         # After a single bid, the SECOND player should show — not the third
         current_name = page.locator(".bid-player-name")
@@ -45,8 +50,13 @@ class TestDoubleTapBidding:
             # the second should be the next one, not the one after
             # If double-tap skipped, we'd jump two positions
             # Check we're on position 1 (not position 2)
+            escaped_second = (second_player or "").replace("'", "\\'")
             page.locator(".keypad-key:has-text('1')").click()
-            page.wait_for_timeout(1500)
+            page.wait_for_function(
+                "() => { const el = document.querySelector('.bid-player-name');"
+                f" return !el || el.textContent !== '{escaped_second}'; }}",
+                timeout=10000,
+            )
             third = page.locator(".bid-player-name")
             if third.is_visible():
                 third_player = third.text_content()
@@ -61,11 +71,16 @@ class TestDoubleTapBidding:
         first_player = name_el.text_content()
 
         # Click 3 times rapidly
+        escaped_first = (first_player or "").replace("'", "\\'")
         key = page.locator(".keypad-key:has-text('1')")
         key.click()
         key.click(delay=0)
         key.click(delay=0)
-        page.wait_for_timeout(2000)
+        page.wait_for_function(
+            "() => { const el = document.querySelector('.bid-player-name');"
+            f" return !el || el.textContent !== '{escaped_first}'; }}",
+            timeout=10000,
+        )
 
         # Should have advanced exactly once — second player showing
         current = page.locator(".bid-player-name")
@@ -118,8 +133,13 @@ class TestDoubleTapRoundEnd:
         first_player = name_el.text_content()
 
         # Double-click "1" on hands keypad
+        escaped_first = (first_player or "").replace("'", "\\'")
         page.locator(".keypad-key:has-text('1')").dblclick()
-        page.wait_for_timeout(1500)
+        page.wait_for_function(
+            "() => { const el = document.querySelector('.bid-player-name');"
+            f" return !el || el.textContent !== '{escaped_first}'; }}",
+            timeout=10000,
+        )
 
         # Second player should be showing — not third
         current = page.locator(".bid-player-name")

@@ -18,7 +18,7 @@ def offline_page(page, server):
     page.route("**/api/**", lambda route: route.abort())
     # Navigate to home (hash change, no network needed for cached shell)
     page.evaluate("() => location.hash = ''")
-    page.wait_for_timeout(500)
+    page.wait_for_function("() => location.hash === '' || location.hash === '#'", timeout=3000)
     yield page
 
 

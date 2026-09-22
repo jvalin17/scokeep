@@ -35,7 +35,11 @@ def test_island_toggle_plus_enlarges_text(page, server):
 
     # Click + to enlarge
     toggle.click()
-    page.wait_for_timeout(300)
+    js_bigger = (
+        f"() => parseFloat(getComputedStyle("
+        f"document.querySelector('.game-island')).fontSize) > {normal_size}"
+    )
+    page.wait_for_function(js_bigger, timeout=3000)
 
     enlarged_size = island.evaluate("el => parseFloat(getComputedStyle(el).fontSize)")
     assert enlarged_size > normal_size, (
@@ -59,9 +63,17 @@ def test_island_toggle_minus_returns_to_normal(page, server):
 
     # Click + to enlarge, then - to return
     toggle.click()
-    page.wait_for_timeout(300)
+    js_bigger = (
+        f"() => parseFloat(getComputedStyle("
+        f"document.querySelector('.game-island')).fontSize) > {normal_size}"
+    )
+    page.wait_for_function(js_bigger, timeout=3000)
     toggle.click()
-    page.wait_for_timeout(300)
+    js_equal = (
+        f"() => parseFloat(getComputedStyle("
+        f"document.querySelector('.game-island')).fontSize) === {normal_size}"
+    )
+    page.wait_for_function(js_equal, timeout=3000)
 
     restored_size = island.evaluate("el => parseFloat(getComputedStyle(el).fontSize)")
     assert restored_size == normal_size, (

@@ -164,3 +164,29 @@ class TestBug005AuthRateLimiting:
         assert resp.status_code == 429, (
             f"6th join must be rate-limited (429), got {resp.status_code}"
         )
+
+    async def test_browse_endpoint_blocks_on_31st_request(self, rate_limit_client):
+        """GET /api/playground/browse must 429 on the 31st call (GAME_RATE_LIMIT=30/min)."""
+        client = rate_limit_client
+
+        for attempt in range(1, 31):
+            resp = await client.get("/api/playground/browse")
+            assert resp.status_code != 429, f"Browse #{attempt} should not be rate-limited, got 429"
+
+        resp = await client.get("/api/playground/browse")
+        assert resp.status_code == 429, (
+            f"31st browse must be rate-limited (429), got {resp.status_code}"
+        )
+
+    async def test_recent_endpoint_blocks_on_31st_request(self, rate_limit_client):
+        """GET /api/playground/recent must 429 on the 31st call."""
+        client = rate_limit_client
+
+        for attempt in range(1, 31):
+            resp = await client.get("/api/playground/recent")
+            assert resp.status_code != 429, f"Recent #{attempt} should not be rate-limited, got 429"
+
+        resp = await client.get("/api/playground/recent")
+        assert resp.status_code == 429, (
+            f"31st recent must be rate-limited (429), got {resp.status_code}"
+        )

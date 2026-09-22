@@ -117,18 +117,11 @@ describe('test_transfer_to_offline_stores_linked_room', () => {
 });
 
 describe('test_transfer_to_offline_handles_idb_failure', () => {
-  it('throws descriptive error when IDB is unavailable', async () => {
-    // Break IDB by setting it to a factory that throws
-    setIndexedDBForTesting({
-      open: () => {
-        const req = {};
-        setTimeout(() => {
-          if (req.onerror) req.onerror(new Error('IDB blocked'));
-        }, 0);
-        return req;
-      },
-    });
-    resetForTesting();
+  it('throws descriptive error when IDB save fails', async () => {
+    const storeModule = await import('../../app/static/js/engine/store.js');
+    vi.spyOn(storeModule, 'saveGameAndRound').mockRejectedValueOnce(
+      new Error('IDB blocked')
+    );
 
     const serverGame = makeServerGame();
     const roundData = makeRoundData();
@@ -184,5 +177,36 @@ describe('test_is_network_error_rejects_other_errors', () => {
   it('returns false for general errors', () => {
     expect(isNetworkError(new Error('Something went wrong'))).toBe(false);
     expect(isNetworkError(new RangeError('out of bounds'))).toBe(false);
+  });
+});
+
+// ─── L8: IDB error message distinguishes quota vs private browsing ──────────
+
+describe('test_transfer_to_offline_quota_error_message', () => {
+  it('throws "storage full" for QuotaExceededError, not "private browsing"', async () => {
+    // Mock saveGameAndRound to throw QuotaExceededError
+    const storeModule = await import('../../app/static/js/engine/store.js');
+    const quotaError = new DOMException('Quota exceeded', 'QuotaExceededError');
+    vi.spyOn(storeModule, 'saveGameAndRound').mockRejectedValueOnce(quotaError);
+
+    const gameState = {
+      id: 99,
+      players: ['A', 'B'],
+      settings: { variant: 'standard' },
+      current_round: 1,
+      total_rounds: 7,
+      dealer_index: 0,
+      phase: 'bidding',
+    };
+    const roundData = {
+      round_num: 1,
+      bids: {},
+      hands_won: {},
+      cards_dealt: 3,
+      trump_suit: 'hearts',
+    };
+
+    await expect(transferToOffline(gameState, roundData))
+      .rejects.toThrow(/storage full/i);
   });
 });

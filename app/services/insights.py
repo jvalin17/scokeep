@@ -22,9 +22,7 @@ from app.services.metric_aggregator import (
 )
 from app.services.metrics import compute_game_metrics
 from app.services.personality_engine import (
-    EMA_ALPHA,
     GROWTH_TEMPLATES,
-    MIN_CONFIDENCE_GAP,
     PERSONALITY_CENTROIDS,
     PERSONALITY_META,
     STRENGTH_TEMPLATES,
@@ -60,32 +58,23 @@ FEATURE_DIMENSIONS = [
 # Re-export for backward compatibility with tests
 __all__ = [
     "CARD_COUNT_WEIGHTS",
-    "EMA_ALPHA",
     "FEATURE_DIMENSIONS",
     "GROWTH_TEMPLATES",
-    "MIN_CONFIDENCE_GAP",
     "MIN_GAMES_FOR_PERSONALITY",
     "PERSONALITY_CENTROIDS",
-    "PERSONALITY_META",
     "STRENGTH_TEMPLATES",
-    "adaptive_z_normalize",
-    "aggregate_career",
     "assign_personalities_unique",
     "assign_personality",
     "backfill_meta",
     "bayesian_shrink",
     "compute_accuracy_by_cards",
-    "compute_accuracy_by_cards_metrics",
-    "compute_display_extras",
     "compute_feature_vector",
-    "compute_game_metrics",
     "compute_insights",
     "compute_player_extras",
     "cosine_similarity",
     "ema_update",
     "generate_insights",
     "global_z_normalize",
-    "welford_update",
 ]
 
 
@@ -250,6 +239,7 @@ async def _load_game_data(db: AsyncSession, playground_id: int):
         select(Game)
         .where(Game.playground_id == playground_id, Game.status == "finished")
         .order_by(Game.started_at)
+        .limit(100)
     )
     games = list(games_result.scalars().all())
     if not games:

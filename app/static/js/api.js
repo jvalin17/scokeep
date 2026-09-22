@@ -54,7 +54,6 @@ async function request(method, path, body = null) {
         throw new NetworkError('offline');
     }
 
-    let lastError;
     let showedBanner = false;
 
     for (let attempt = 0; attempt <= RETRY_DELAYS.length; attempt++) {
@@ -97,8 +96,6 @@ async function request(method, path, body = null) {
             return data;
         } catch (error) {
             if (!isRetryable(error)) throw error;
-            lastError = error;
-
             if (attempt === RETRY_DELAYS.length) break;
 
             if (attempt === 0) {

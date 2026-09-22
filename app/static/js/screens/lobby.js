@@ -5,7 +5,10 @@ import { initDragReorder } from '../components/drag-reorder.js';
 import { escapeHtml } from '../components/game-utils.js';
 import { renderSettingsGrid, readSettings } from '../components/game-settings.js';
 import { isMuted, toggleMute, soundEndGame } from '../components/sounds.js';
+import { showConfirmDialog } from '../components/confirm-dialog.js';
 import { getSyncPendingGames, syncOneGame } from '../engine/sync-import.js';
+
+let syncTimer = null;
 
 export const lobbyScreen = {
     async mount(container, state, { navigate, params }) {
@@ -139,7 +142,8 @@ export const lobbyScreen = {
             const endActiveBtn = container.querySelector('#end-active-game');
             if (endActiveBtn) {
                 endActiveBtn.addEventListener('click', async () => {
-                    if (confirm('End this game? Scores so far will be saved.')) {
+                    const confirmed = await showConfirmDialog('End this game? Scores so far will be saved.');
+                    if (confirmed) {
                         const gameId = activeGame.id;
                         await endGame(gameId);
                         soundEndGame();
@@ -220,7 +224,7 @@ export const lobbyScreen = {
 
                     if (failed === 0) {
                         messageEl.textContent = `All ${synced} game${synced > 1 ? 's' : ''} synced!`;
-                        setTimeout(() => {
+                        syncTimer = setTimeout(() => {
                             container.querySelector('#sync-banner')?.classList.add('hidden');
                         }, 2000);
                     } else {
@@ -252,6 +256,8 @@ export const lobbyScreen = {
     },
 
     unmount() {
+        clearTimeout(syncTimer);
+        syncTimer = null;
         if (lobbyScreen._cleanupDrag) {
             lobbyScreen._cleanupDrag();
             lobbyScreen._cleanupDrag = null;

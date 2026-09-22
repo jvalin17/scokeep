@@ -255,6 +255,42 @@ class TestSyncGameState:
         assert response.status_code == 401
 
 
+class TestSyncRoundRejectsMismatchedKeys:
+    async def test_sync_round_rejects_mismatched_bid_keys(self, client: AsyncClient):
+        """Bids keys must match player indices {0, 1, 2} for 3 players."""
+        game = await _setup_game(client)
+        payload = _valid_sync_payload(
+            bids={"0": 2, "1": 2, "99": 2},  # key 99 invalid
+            hands_won={"0": 2, "1": 2, "2": 2},
+            scores={"0": 20, "1": 20, "2": 20},
+        )
+        response = await client.post(
+            f"/api/game/{game['id']}/sync-round",
+            json=payload,
+            cookies=game["cookies"],
+        )
+        assert response.status_code in (409, 422), (
+            f"Expected 409/422 for bad bid keys, got {response.status_code}"
+        )
+
+    async def test_sync_round_rejects_negative_bid(self, client: AsyncClient):
+        """Negative bids are invalid."""
+        game = await _setup_game(client)
+        payload = _valid_sync_payload(
+            bids={"0": -1, "1": 2, "2": 2},
+            hands_won={"0": 2, "1": 2, "2": 2},
+            scores={"0": 20, "1": 20, "2": 20},
+        )
+        response = await client.post(
+            f"/api/game/{game['id']}/sync-round",
+            json=payload,
+            cookies=game["cookies"],
+        )
+        assert response.status_code in (409, 422), (
+            f"Expected 409/422 for negative bid, got {response.status_code}"
+        )
+
+
 async def test_validate_round_metadata_rejects_wrong_cards(client: AsyncClient):
     """_validate_round_metadata raises 409 on cards_dealt mismatch (via endpoint)."""
     game = await _setup_game(client)

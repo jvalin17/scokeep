@@ -178,6 +178,9 @@ class RoundService:
         if round_obj.status != "round_end":
             raise ValueError(f"Round is not in round_end phase (current: {round_obj.status})")
 
+        if value < 0:
+            raise ValueError("Hands won cannot be negative")
+
         # Validate: hands can't exceed remaining cards
         cards_dealt = round_obj.cards_dealt
         player_key = str(player_index)

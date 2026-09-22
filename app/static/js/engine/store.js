@@ -13,7 +13,7 @@
  */
 
 const DB_NAME = 'scokeep-local';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 /**
  * Normalize a game ID — hash URLs give strings but server IDs are integers.
@@ -67,6 +67,11 @@ function _open() {
       // v2: rooms store for offline Quick Game
       if (oldVersion < 2) {
         db.createObjectStore('rooms', { keyPath: 'share_code' });
+      }
+
+      // v3: sync_queue for retry on failed round syncs
+      if (oldVersion < 3) {
+        db.createObjectStore('sync_queue', { keyPath: 'id', autoIncrement: true });
       }
     };
 
@@ -305,6 +310,73 @@ export async function getAllRooms() {
  */
 export function deleteRoom(shareCode) {
   return _del('rooms', shareCode);
+}
+
+// ─── sync queue (v3) ─────────────────────────────────────────────────────────
+
+/**
+ * Queue a failed round sync for later retry.
+ * @param {string} gameId
+ * @param {Object} round
+ * @returns {Promise<void>}
+ */
+export function saveSyncQueueItem(gameId, round) {
+  return _put('sync_queue', { game_id: gameId, round, queued_at: new Date().toISOString() });
+}
+
+/**
+ * Return all items in the sync queue.
+ * @returns {Promise<Object[]>}
+ */
+export async function getSyncQueue() {
+  const db = await _open();
+  const tx = db.transaction('sync_queue', 'readonly');
+  const results = await _wrap(tx.objectStore('sync_queue').getAll());
+  return results ?? [];
+}
+
+/**
+ * Delete a sync queue item by its auto-incremented id.
+ * @param {number} id
+ * @returns {Promise<void>}
+ */
+export function deleteSyncQueueItem(id) {
+  return _del('sync_queue', id);
+}
+
+// ─── purge old games ─────────────────────────────────────────────────────────
+
+/**
+ * Delete oldest finished games when total exceeds maxCount.
+ * Keeps the most recent games by started_at.
+ * @param {number} maxCount  Maximum games to keep (default 50)
+ * @returns {Promise<number>} Number of games deleted
+ */
+export async function purgeOldGames(maxCount = 50) {
+  const db = await _open();
+  const tx = db.transaction('games', 'readonly');
+  const allGames = await _wrap(tx.objectStore('games').getAll());
+  const games = allGames ?? [];
+
+  if (games.length <= maxCount) return 0;
+
+  const sorted = games.sort((a, b) => {
+    if (a.started_at > b.started_at) return -1;
+    if (a.started_at < b.started_at) return 1;
+    return 0;
+  });
+
+  const toDelete = sorted.slice(maxCount);
+  const deleteTx = db.transaction('games', 'readwrite');
+  const store = deleteTx.objectStore('games');
+  for (const game of toDelete) {
+    store.delete(_normalizeId(game.id));
+  }
+  await new Promise((resolve, reject) => {
+    deleteTx.oncomplete = () => resolve();
+    deleteTx.onerror = () => reject(deleteTx.error);
+  });
+  return toDelete.length;
 }
 
 // ─── test helpers (no-op in production) ──────────────────────────────────────

@@ -94,6 +94,24 @@ class TestCreateGame:
 
         assert response.status_code == 422
 
+    async def test_create_game_rejects_invalid_formula(self, client: AsyncClient):
+        """scoring_formula must be one of the allowed values."""
+        pg = await _create_authenticated_playground(client)
+
+        response = await client.post(
+            "/api/game",
+            json={
+                "playground_id": pg["id"],
+                "players": ["Alice", "Bob"],
+                "settings": {"scoring_formula": "evil"},
+            },
+            cookies=pg["cookies"],
+        )
+
+        assert response.status_code == 422, (
+            f"Expected 422 for invalid formula, got {response.status_code}"
+        )
+
 
 class TestGetGame:
     async def test_get_game_returns_state(self, client: AsyncClient):

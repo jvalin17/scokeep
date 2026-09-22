@@ -25,7 +25,7 @@ def scoreboard_page(page, server):
     score_btn = page.locator('button:has-text("Score Round")')
     if score_btn.count() > 0:
         score_btn.click()
-        page.wait_for_timeout(1000)
+        page.wait_for_function("() => location.hash.includes('scoreboard')", timeout=10000)
     return page
 
 

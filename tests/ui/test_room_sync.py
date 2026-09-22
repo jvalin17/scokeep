@@ -64,7 +64,10 @@ def test_correct_pin_autofills_players(room_page):
     room_page.click("#quick-room-verify")
 
     # Wait for players to auto-fill
-    room_page.wait_for_timeout(1000)
+    room_page.wait_for_function(
+        "() => document.querySelector('.quick-player-name')?.value?.length > 0",
+        timeout=5000,
+    )
 
     player_inputs = room_page.locator(".quick-player-name")
     first_player = player_inputs.nth(0).input_value()
@@ -84,8 +87,7 @@ def test_wrong_pin_shows_error(room_page):
     room_page.fill("#quick-room-pin", "9999")
     room_page.click("#quick-room-verify")
 
-    room_page.wait_for_timeout(1000)
-
     error = room_page.locator("#quick-room-error")
+    error.wait_for(state="visible", timeout=5000)
     expect(error).to_be_visible(timeout=3000)
     expect(error).to_contain_text("Wrong PIN")

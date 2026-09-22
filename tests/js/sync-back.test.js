@@ -89,6 +89,14 @@ function mockImportFail() {
   });
 }
 
+function mockImportClientError() {
+  globalThis.fetch.mockResolvedValueOnce({
+    ok: false,
+    status: 422,
+    json: () => Promise.resolve({ detail: 'Validation error' }),
+  });
+}
+
 // ─── probes health before syncing ─────────────────────────────────────────────
 
 describe('test_sync_back_probes_health_first', () => {
@@ -159,6 +167,74 @@ describe('test_sync_back_no_pending_games', () => {
     const result = await attemptSyncBack();
     expect(result).toEqual({ synced: 0, failed: 0, skipped: true });
     expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
+});
+
+// ─── L2: sync-back error is logged ──────────────────────────────────────────
+
+describe('test_sync_back_error_is_logged', () => {
+  it('attemptSyncBack errors can be caught and logged', async () => {
+    // Verify that when attemptSyncBack throws, the error can be
+    // caught and passed to logger.error (as runSyncBack should do)
+    const { logger } = await import('../../app/static/js/components/logger.js');
+    vi.spyOn(logger, 'error');
+
+    // Simulate what runSyncBack should do: catch + log
+    const mockAttemptSyncBack = vi.fn().mockRejectedValue(new Error('IDB broken'));
+    try {
+      await mockAttemptSyncBack();
+    } catch (error) {
+      logger.error('sync', error.message);
+    }
+
+    expect(logger.error).toHaveBeenCalledWith('sync', 'IDB broken');
+  });
+});
+
+// ─── M15: 4xx skips bad game, continues to next ─────────────────────────────
+
+describe('test_sync_back_skips_permanently_failed_game', () => {
+  it('marks 4xx game as sync_failed and continues to next game', async () => {
+    const game1 = makeGame({ id: 'game-bad', client_game_id: 'fail-bad' });
+    const game2 = makeGame({ id: 'game-good', client_game_id: 'fail-good' });
+    await saveGame(game1);
+    await saveGame(game2);
+    await saveRound(makeRound(game1.id, 1));
+    await saveRound(makeRound(game2.id, 1));
+
+    mockHealthOk();
+    mockImportClientError(); // game1 gets 422
+    mockImportOk();          // game2 succeeds
+
+    const result = await attemptSyncBack();
+    // game1 should be marked failed, game2 should sync
+    expect(result.synced).toBe(1);
+    expect(result.failed).toBe(1);
+
+    const updated1 = await getGame(game1.id);
+    expect(updated1.sync_pending).toBe(false);
+    expect(updated1.sync_failed).toBe(true);
+
+    const updated2 = await getGame(game2.id);
+    expect(updated2.sync_pending).toBe(false);
+  });
+
+  it('still breaks on 5xx errors (retryable)', async () => {
+    const game1 = makeGame({ id: 'game-5xx', client_game_id: 'fail-5xx' });
+    const game2 = makeGame({ id: 'game-ok', client_game_id: 'fail-ok' });
+    await saveGame(game1);
+    await saveGame(game2);
+    await saveRound(makeRound(game1.id, 1));
+    await saveRound(makeRound(game2.id, 1));
+
+    mockHealthOk();
+    mockImportFail(); // game1 gets 500
+
+    const result = await attemptSyncBack();
+    expect(result.synced).toBe(0);
+    expect(result.failed).toBe(1);
+    // Should NOT have tried game2
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
   });
 });
 

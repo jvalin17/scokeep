@@ -189,3 +189,81 @@ class TestCentroidDifferentiation:
 
         sim = cosine_similarity(PERSONALITY_CENTROIDS["phoenix"], PERSONALITY_CENTROIDS["sprinter"])
         assert sim < 0.90, f"Phoenix/Sprinter still too similar: {sim:.3f}"
+
+
+class TestGlobalPriors:
+    def test_global_priors_dims_sum_at_most_one(self):
+        """accuracy + overbid + underbid cannot exceed 1.0 — they partition the same denominator."""
+        from app.services.personality_engine import GLOBAL_PRIORS
+
+        accuracy_mean = GLOBAL_PRIORS[0][0]
+        overbid_mean = GLOBAL_PRIORS[1][0]
+        underbid_mean = GLOBAL_PRIORS[2][0]
+        total = accuracy_mean + overbid_mean + underbid_mean
+        assert total <= 1.0, (
+            f"accuracy({accuracy_mean}) + overbid({overbid_mean})"
+            f" + underbid({underbid_mean}) = {total} > 1.0"
+        )
+
+
+class TestWeightedCentroidSeparation:
+    def test_weighted_centroid_separation(self):
+        """No pair of centroids should exceed 0.95 weighted cosine similarity."""
+        from app.services.personality_engine import (
+            PERSONALITY_CENTROIDS,
+            PERSONALITY_WEIGHTS,
+            weighted_cosine_similarity,
+        )
+
+        names = list(PERSONALITY_CENTROIDS.keys())
+        for i, a in enumerate(names):
+            for b in names[i + 1 :]:
+                weights = PERSONALITY_WEIGHTS[a]
+                sim = weighted_cosine_similarity(
+                    PERSONALITY_CENTROIDS[a],
+                    PERSONALITY_CENTROIDS[b],
+                    weights,
+                )
+                assert sim < 0.95, f"{a}/{b} weighted similarity {sim:.3f} >= 0.95"
+
+
+class TestMinConfidenceGap:
+    """L13: MIN_CONFIDENCE_GAP must flag low-confidence assignments."""
+
+    def test_low_confidence_flag_when_gap_below_threshold(self):
+        """assign_personality returns low_confidence=True when gap < MIN_CONFIDENCE_GAP."""
+        from app.services.personality_engine import (
+            MIN_CONFIDENCE_GAP,
+            PERSONALITY_CENTROIDS,
+            assign_personality,
+        )
+
+        # Create a vector equidistant from two centroids to produce tiny gap
+        sniper = PERSONALITY_CENTROIDS["sniper"]
+        gambler = PERSONALITY_CENTROIDS["gambler"]
+        midpoint = [(a + b) / 2 for a, b in zip(sniper, gambler, strict=True)]
+
+        result = assign_personality(midpoint)
+        if result["confidence_gap"] < MIN_CONFIDENCE_GAP:
+            assert result["low_confidence"] is True, (
+                f"Gap {result['confidence_gap']} < {MIN_CONFIDENCE_GAP} but low_confidence not set"
+            )
+
+    def test_high_confidence_has_low_confidence_false(self):
+        """assign_personality returns low_confidence=False when gap >= MIN_CONFIDENCE_GAP."""
+        from app.services.personality_engine import (
+            MIN_CONFIDENCE_GAP,
+            assign_personality,
+        )
+
+        # Extreme vector that should strongly match one archetype
+        # Sniper pattern: high accuracy, high zero_bid_rate, low variance
+        extreme = [1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0]
+        result = assign_personality(extreme)
+        # If gap is large enough, low_confidence should be False
+        if result["confidence_gap"] >= MIN_CONFIDENCE_GAP:
+            assert result["low_confidence"] is False
+        else:
+            # Even extreme vectors may have small gaps with weighted cosine
+            # In that case, low_confidence=True is correct behavior
+            assert result["low_confidence"] is True

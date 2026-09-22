@@ -28,9 +28,12 @@ def stats_page(page, server):
     score_btn = page.locator('button:has-text("Score Round")')
     if score_btn.count() > 0:
         score_btn.click()
-        page.wait_for_timeout(1000)
+        page.wait_for_function("() => location.hash.includes('scoreboard')", timeout=10000)
     end_game(page)
-    page.wait_for_timeout(500)
+    page.wait_for_function(
+        "() => location.hash.includes('scoreboard') || location.hash.includes('final')",
+        timeout=10000,
+    )
 
     navigate_to_stats(page, server, name, "1234")
     return page
@@ -52,9 +55,9 @@ def test_tab_switching(stats_page):
     tabs = stats_page.locator(".stats-tab")
     if tabs.count() >= 2:
         tabs.nth(1).click()
-        stats_page.wait_for_timeout(500)
+        stats_page.wait_for_selector(".stats-content, .stats-game-card", timeout=5000)
         tabs.nth(0).click()
-        stats_page.wait_for_timeout(500)
+        stats_page.wait_for_selector(".stats-content", timeout=5000)
         # First tab should render stats content
         stats_content = stats_page.locator(".stats-content")
         assert stats_content.count() > 0, "Stats content not rendered after tab switch"
@@ -64,7 +67,7 @@ def test_game_history_shows(stats_page):
     games_tab = stats_page.locator('.stats-tab:has-text("Games"), .stats-tab:has-text("History")')
     if games_tab.count() > 0:
         games_tab.click()
-        stats_page.wait_for_timeout(500)
+        stats_page.wait_for_selector(".stats-game-card", timeout=5000)
     game_cards = stats_page.locator(".stats-game-card")
     assert game_cards.count() > 0, "No game cards in history tab"
 
@@ -73,7 +76,7 @@ def test_expand_game_scoresheet(stats_page):
     expand_btn = stats_page.locator(".expand-game-btn, button:has-text('▶'), button:has-text('▸')")
     if expand_btn.count() > 0:
         expand_btn.first.click()
-        stats_page.wait_for_timeout(500)
+        stats_page.wait_for_selector(".score-table-full, .scoresheet", timeout=5000)
         scoresheet = stats_page.locator(".score-table-full, .scoresheet")
         if scoresheet.count() > 0:
             overflow = scoresheet.first.evaluate("el => getComputedStyle(el).overflowY")
@@ -116,7 +119,7 @@ def test_personality_card_flip(stats_page):
     insights_tab = page.locator('.stats-tab:has-text("Insights"), .stats-tab:has-text("Players")')
     if insights_tab.count() > 0:
         insights_tab.first.click()
-        page.wait_for_timeout(500)
+        page.wait_for_selector(".personality-card, .personality-card-locked", timeout=5000)
 
     unlocked = page.locator(".personality-card:not(.personality-card-locked)")
     locked = page.locator(".personality-card-locked")
@@ -125,20 +128,31 @@ def test_personality_card_flip(stats_page):
         # Unlocked card: clicking it must toggle .flipped
         card = unlocked.first
         card.click()
-        page.wait_for_timeout(700)
+        js_flipped = (
+            "() => document.querySelector("
+            "'.personality-card:not(.personality-card-locked)')"
+            "?.classList.contains('flipped')"
+        )
+        page.wait_for_function(js_flipped, timeout=3000)
         has_flipped = card.evaluate("el => el.classList.contains('flipped')")
         assert has_flipped, "Clicking an unlocked .personality-card must add .flipped class"
 
         # Click again to flip back
         card.click()
-        page.wait_for_timeout(700)
+        js_unflipped = (
+            "() => !document.querySelector("
+            "'.personality-card:not(.personality-card-locked)')"
+            "?.classList.contains('flipped')"
+        )
+        page.wait_for_function(js_unflipped, timeout=3000)
         still_flipped = card.evaluate("el => el.classList.contains('flipped')")
         assert not still_flipped, "Second click must remove .flipped from .personality-card"
     else:
         # After 1 game only locked cards exist — assert they are present and do NOT flip
         assert locked.count() > 0, "Expected .personality-card-locked when no unlocked cards exist"
         locked.first.click()
-        page.wait_for_timeout(700)
+        # Wait for any potential animation/state change, then assert no flip
+        page.locator(".personality-card-locked").first.wait_for(state="visible")
         flipped = page.locator(".personality-card-locked.flipped")
         assert flipped.count() == 0, "Locked card must not gain .flipped class when clicked"
 
@@ -155,9 +169,12 @@ def test_locked_personality_card(page, server):
     score_btn = page.locator('button:has-text("Score Round")')
     if score_btn.count() > 0:
         score_btn.click()
-        page.wait_for_timeout(1000)
+        page.wait_for_function("() => location.hash.includes('scoreboard')", timeout=10000)
     end_game(page)
-    page.wait_for_timeout(500)
+    page.wait_for_function(
+        "() => location.hash.includes('scoreboard') || location.hash.includes('final')",
+        timeout=10000,
+    )
 
     navigate_to_stats(page, server, name, "1234")
 
@@ -167,7 +184,10 @@ def test_locked_personality_card(page, server):
 
     # Click an unlocked card — it should flip
     unlocked_card.first.click()
-    page.wait_for_timeout(700)
+    page.wait_for_function(
+        "() => document.querySelector('.personality-card.flipped') !== null",
+        timeout=3000,
+    )
     flipped = page.locator(".personality-card.flipped")
     assert flipped.count() > 0, "Unlocked card should flip when clicked"
 

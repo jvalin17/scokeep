@@ -50,7 +50,10 @@ class TestExpertGameFlow:
         enter_bids_for_all(page, [2, 3, 1])
         confirm_bids(page)
         enter_hands_won(page, [2, 3, 3])
-        page.wait_for_timeout(1000)
+        page.wait_for_function(
+            "() => location.hash.includes('roundend') || location.hash.includes('scoreboard')",
+            timeout=10000,
+        )
         # Should be on confirm-hands or scoreboard screen
         url_hash = page.evaluate("() => location.hash")
         assert "roundend" in url_hash or "scoreboard" in url_hash
@@ -64,7 +67,12 @@ class TestExpertGameFlow:
         score_btn = page.locator('button:has-text("Score Round")')
         if score_btn.count() > 0:
             score_btn.click()
-            page.wait_for_timeout(1000)
+            page.wait_for_function(
+                "() => location.hash.includes('scoreboard')"
+                " || location.hash.includes('bid')"
+                " || location.hash.includes('play')",
+                timeout=10000,
+            )
         url_hash = page.evaluate("() => location.hash")
         assert "scoreboard" in url_hash or "bid" in url_hash or "play" in url_hash
 
@@ -75,7 +83,10 @@ class TestExpertGameFlow:
         confirm_bids(page)
         # Now in playing phase — end the game
         end_game(page)
-        page.wait_for_timeout(500)
+        page.wait_for_function(
+            "() => location.hash.includes('scoreboard') || location.hash.includes('final')",
+            timeout=10000,
+        )
         url_hash = page.evaluate("() => location.hash")
         assert "scoreboard" in url_hash or "final" in url_hash, (
             f"Expected scoreboard/final after end game, got: {url_hash}"

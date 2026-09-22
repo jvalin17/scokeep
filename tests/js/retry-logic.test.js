@@ -230,6 +230,28 @@ describe('test_request_backoff_increases', () => {
   });
 });
 
+// ─── L1: no unused lastError variable ────────────────────────────────────────
+
+describe('test_request_no_unused_lasterror', () => {
+  it('exhausted retries throw NetworkError without relying on lastError', async () => {
+    globalThis.fetch
+      .mockRejectedValueOnce(makeTypeError())
+      .mockRejectedValueOnce(makeTypeError())
+      .mockRejectedValueOnce(makeTypeError())
+      .mockRejectedValueOnce(makeTypeError());
+
+    const promise = request('GET', '/game/l1');
+    const caughtPromise = promise.catch(err => err);
+    await vi.advanceTimersByTimeAsync(30000);
+
+    const err = await caughtPromise;
+    // NetworkError is thrown directly — not from a stored lastError
+    expect(err).toBeInstanceOf(NetworkError);
+    expect(err.reason).toBe('exhausted');
+    expect(err.message).not.toContain('Failed to fetch');
+  });
+});
+
 // ─── server 500 is NOT retried ────────────────────────────────────────────────
 
 describe('test_request_server_500_not_retried', () => {

@@ -51,9 +51,16 @@ export async function attemptSyncBack() {
       game.sync_pending = false;
       await saveGame(game);
       synced++;
-    } else {
+    } else if (result.status && result.status >= 400 && result.status < 500) {
+      // Client error (4xx) — not retryable, mark as permanently failed and continue
+      game.sync_pending = false;
+      game.sync_failed = true;
+      await saveGame(game);
       failed++;
-      break; // Stop on first failure
+    } else {
+      // Server error (5xx) or network failure — stop, will retry later
+      failed++;
+      break;
     }
   }
 

@@ -46,7 +46,7 @@ def test_browse_hides_recent_rooms(page, server):
     page.click('.tab[data-tab="join"]')
 
     # Recent should be visible before browse
-    page.wait_for_timeout(500)
+    page.wait_for_selector("#recent-playgrounds", timeout=3000)
 
     page.click("#browse-rooms-btn")
     page.wait_for_selector(".browse-item", timeout=5000)
@@ -66,7 +66,7 @@ def test_browse_toggle_closes_on_second_click(page, server):
     assert page.locator("#browse-rooms").is_visible()
 
     page.click("#browse-rooms-btn")
-    page.wait_for_timeout(300)
+    page.locator("#browse-rooms").wait_for(state="hidden", timeout=3000)
     assert page.locator("#browse-rooms").is_hidden(), "Browse should hide on second click"
 
 
@@ -85,7 +85,10 @@ def test_filter_by_room_name(page, server):
     assert initial_count >= 2
 
     page.fill("#browse-filter-room", "Alpha")
-    page.wait_for_timeout(300)
+    page.wait_for_function(
+        f"() => document.querySelectorAll('.browse-item').length < {initial_count}",
+        timeout=3000,
+    )
     filtered = page.locator(".browse-item")
     assert filtered.count() < initial_count, "Room filter did not narrow results"
     assert filtered.count() >= 1
@@ -104,7 +107,10 @@ def test_filter_by_player_name(page, server):
 
     initial_count = page.locator(".browse-item").count()
     page.fill("#browse-filter-player", "Maria")
-    page.wait_for_timeout(300)
+    page.wait_for_function(
+        f"() => document.querySelectorAll('.browse-item').length < {initial_count}",
+        timeout=3000,
+    )
     filtered = page.locator(".browse-item")
     assert filtered.count() < initial_count, "Player filter did not narrow results"
     assert filtered.count() >= 1

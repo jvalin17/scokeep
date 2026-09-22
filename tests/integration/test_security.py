@@ -4,6 +4,8 @@ BUG-002: XSS via player names — names must be HTML-escaped server-side
 BUG-003: Cross-playground auth — user authed to playground A must NOT access games in playground B
 """
 
+import logging
+
 from httpx import AsyncClient
 
 
@@ -52,6 +54,26 @@ async def _create_game(
         cookies=cookies,
     )
     return resp.json()
+
+
+class TestFailedAuthLogging:
+    """L4: Failed PIN attempts must be logged for brute-force detection."""
+
+    async def test_failed_auth_is_logged(self, client: AsyncClient, caplog):
+        """POST wrong PIN → log must contain 'auth failed'."""
+        await client.post(
+            "/api/playground",
+            json={"name": "Log Test PG", "pin": "1234", "players": ["A", "B"]},
+        )
+        with caplog.at_level(logging.WARNING):
+            resp = await client.post(
+                "/api/playground/auth",
+                json={"name": "Log Test PG", "pin": "9999"},
+            )
+        assert resp.status_code == 401
+        assert any("auth failed" in r.message.lower() for r in caplog.records), (
+            f"Expected 'auth failed' in logs, got: {[r.message for r in caplog.records]}"
+        )
 
 
 class TestXSSPrevention:

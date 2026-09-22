@@ -50,6 +50,22 @@ SCORING_FORMULAS = {
 }
 
 
+def assert_scores_match(
+    bids: dict[str, int],
+    hands_won: dict[str, int],
+    formula_name: str,
+    client_scores: dict[str, int] | None,
+) -> dict[str, int]:
+    """Re-derive scores and compare to client-provided scores.
+
+    Returns the server-derived scores. Raises ValueError on mismatch.
+    """
+    derived = calculate_round_scores(bids, hands_won, formula_name)
+    if client_scores and client_scores != derived:
+        raise ValueError(f"Score mismatch: expected {derived}, got {client_scores}")
+    return derived
+
+
 def calculate_round_scores(
     bids: dict[str, int],
     hands_won: dict[str, int],

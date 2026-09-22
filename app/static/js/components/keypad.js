@@ -1,8 +1,13 @@
 // Phone-style 0-8 keypad component with haptic + sound feedback
+// Falls back to InlineKeypad when max > 8 (e.g. 13-card rounds)
 
 import { soundTap, haptic } from './sounds.js';
 
 export function Keypad({ max = 8, disabled = [], onSelect }) {
+    if (max > 8) {
+        return InlineKeypad({ max, disabled, onSelect });
+    }
+
     const el = document.createElement('div');
     el.className = 'keypad';
 

@@ -488,11 +488,6 @@ def test_compute_game_metrics():
     assert len(gm.players) == 2
 
 
-def test_comeback():
-    """Satisfies gate for 'comeback' in architecture/ml-engine.md code sample."""
-    pass
-
-
 def test__make_declarative_wrapper():
     from app.services.game_titles import TITLE_REGISTRY
 

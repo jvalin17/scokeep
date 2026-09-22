@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy — Scokeep</title>
+    <meta name="description" content="Scokeep privacy policy. What data we collect, how we use it, and how to delete it.">
+    <link rel="canonical" href="https://scokeep.com/static/privacy.html">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        body { max-width: 640px; margin: 0 auto; padding: 24px 16px; font-family: system-ui, sans-serif; line-height: 1.6; color: var(--text-primary, #333); background: var(--bg-main, #fff); }
+        h1 { font-size: 1.5rem; margin-bottom: 4px; }
+        h2 { font-size: 1.1rem; margin-top: 24px; }
+        .date { color: var(--text-muted, #888); font-size: 0.85rem; margin-bottom: 24px; }
+        a { color: var(--accent, #007bff); }
+        ul { padding-left: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Privacy Policy</h1>
+    <p class="date">Last updated: September 22, 2026</p>
+
+    <h2>What Scokeep Is</h2>
+    <p>Scokeep is a free score tracker for the Judgement (Kachuful) card game. It runs at <a href="https://scokeep.com">scokeep.com</a>.</p>
+
+    <h2>Data We Collect</h2>
+    <ul>
+        <li><strong>Player names</strong> — entered when you create a room. These are display names only (e.g., "Alice", "Bob"), not real identities.</li>
+        <li><strong>Game data</strong> — bids, scores, hands won, round history, and game settings for each game played.</li>
+        <li><strong>Room name and PIN</strong> — chosen by you to create and access your room. The PIN is hashed before storage.</li>
+    </ul>
+
+    <h2>Data We Do NOT Collect</h2>
+    <ul>
+        <li>No email addresses or real names</li>
+        <li>No location data</li>
+        <li>No device identifiers</li>
+        <li>No third-party analytics or tracking scripts</li>
+        <li>No advertising cookies</li>
+    </ul>
+
+    <h2>How Data Is Stored</h2>
+    <ul>
+        <li><strong>Server</strong> — game and room data is stored in a PostgreSQL database hosted on Neon. Session cookies are signed and expire after 30 days.</li>
+        <li><strong>Your device</strong> — offline/Quick Game data is stored in IndexedDB (browser local storage) so games work without internet. This data stays on your device unless you sync it to a room.</li>
+    </ul>
+
+    <h2>Cookies</h2>
+    <p>Scokeep uses a single session cookie (<code>scokeep_session</code>) to authenticate your room access. No third-party cookies are used.</p>
+
+    <h2>Third-Party Sharing</h2>
+    <p>We do not share, sell, or transfer any data to third parties. There are no analytics services, ad networks, or external trackers.</p>
+
+    <h2>How to Delete Your Data</h2>
+    <ul>
+        <li><strong>Room data</strong> — use the "Clear Stats" button in the Stats screen to delete all game history for your room.</li>
+        <li><strong>Local data</strong> — clear your browser's site data for scokeep.com to remove IndexedDB and cookies.</li>
+        <li><strong>Full deletion</strong> — contact us and we will delete all data associated with your room name.</li>
+    </ul>
+
+    <h2>Children</h2>
+    <p>Scokeep does not knowingly collect data from children under 13. The app collects only game scores and player nicknames, with no personal information required.</p>
+
+    <h2>Changes</h2>
+    <p>We may update this policy. Changes will be posted on this page with an updated date.</p>
+
+    <h2>Contact</h2>
+    <p>Questions about this policy? Open an issue on our GitHub repository or reach out through the app.</p>
+
+    <p><a href="/">Back to Scokeep</a></p>
+</body>
+</html>

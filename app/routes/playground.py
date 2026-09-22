@@ -1,7 +1,9 @@
 """Playground API routes — create, authenticate, get."""
 
+import logging
+
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response
-from itsdangerous import BadSignature, URLSafeSerializer
+from itsdangerous import BadSignature
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.constants import (
     AUTH_RATE_LIMIT,
+    GAME_RATE_LIMIT,
     SESSION_COOKIE_NAME,
     SESSION_MAX_AGE_AUTH,
     SESSION_MAX_AGE_JOIN,
@@ -18,12 +21,13 @@ from app.schemas.playground import PlaygroundAuth, PlaygroundCreate, PlaygroundR
 from app.services.analytics import AnalyticsService
 from app.services.insights import backfill_meta
 from app.services.playground import PlaygroundService
+from app.utils.auth import signer
 from app.utils.sanitize import sanitize_text
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/playground", tags=["playground"])
 limiter = Limiter(key_func=get_remote_address, enabled=settings.rate_limit_enabled)
-
-signer = URLSafeSerializer(settings.secret_key)
 
 
 def _get_authenticated_playground_id(
@@ -39,13 +43,15 @@ def _get_authenticated_playground_id(
 
 
 @router.get("/recent")
-async def list_recent_playgrounds(db: AsyncSession = Depends(get_db)):
+@limiter.limit(GAME_RATE_LIMIT)
+async def list_recent_playgrounds(request: Request, db: AsyncSession = Depends(get_db)):
     names = await PlaygroundService.list_recent_names(db)
     return {"names": names}
 
 
 @router.get("/browse")
-async def browse_playgrounds(db: AsyncSession = Depends(get_db)):
+@limiter.limit(GAME_RATE_LIMIT)
+async def browse_playgrounds(request: Request, db: AsyncSession = Depends(get_db)):
     """List all rooms (name + share_code) sorted alphabetically. Public."""
     rooms = await PlaygroundService.list_all(db)
     return {"rooms": rooms}
@@ -91,6 +97,7 @@ async def auth_playground(
         raise HTTPException(status_code=404, detail="Playground not found")
 
     if not PlaygroundService.verify_pin(playground, data.pin):
+        logger.warning("Auth failed for playground: %s", sanitize_text(data.name))
         raise HTTPException(status_code=401, detail="Invalid PIN")
 
     session_token = signer.dumps({"playground_id": playground.id})
@@ -194,6 +201,7 @@ async def delete_playground(
     if not playground:
         raise HTTPException(status_code=404, detail="Playground not found")
     if not PlaygroundService.verify_pin(playground, data.pin):
+        logger.warning("Auth failed for playground: %s", sanitize_text(data.name))
         raise HTTPException(status_code=401, detail="Invalid PIN")
     await PlaygroundService.delete(db, playground)
     return {"deleted": playground.name}

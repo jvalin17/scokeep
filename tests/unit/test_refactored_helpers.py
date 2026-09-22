@@ -110,7 +110,7 @@ def test_validate_round_scores_raises_on_tampered_scores():
         _validate_round_scores(rounds, "kachuful_standard")
     assert exc_info.value.status_code == 422
     assert "Score mismatch" in exc_info.value.detail
-    assert "round 1" in exc_info.value.detail
+    assert "round 1" in exc_info.value.detail.lower()
 
 
 def test_validate_round_scores_raises_on_mismatch_for_second_round():
@@ -130,7 +130,7 @@ def test_validate_round_scores_raises_on_mismatch_for_second_round():
     with pytest.raises(HTTPException) as exc_info:
         _validate_round_scores([good_round, bad_round], "kachuful_standard")
     assert exc_info.value.status_code == 422
-    assert "round 2" in exc_info.value.detail
+    assert "round 2" in exc_info.value.detail.lower()
 
 
 def test_validate_round_scores_zeros_formula_passes():

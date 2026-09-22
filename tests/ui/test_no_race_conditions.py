@@ -14,13 +14,3 @@ def test_helpers_no_count_gt_zero():
     assert ".count() > 0" not in source, (
         "helpers.py still uses count() > 0 — use wait_for(state='visible') instead"
     )
-
-
-def test_handleBidSelect():  # noqa: N802
-    """Bid selection works without review timer — tested via UI flow tests."""
-    pass
-
-
-def test_handleHandsSelect():  # noqa: N802
-    """Hands selection works without review timer — tested via UI flow tests."""
-    pass

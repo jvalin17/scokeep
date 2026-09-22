@@ -50,8 +50,16 @@ def play_quick_round(page: Page, num_players: int):
     # Bid 0 for each player
     for _ in range(num_players):
         page.wait_for_selector(".keypad", timeout=10000)
+        name_el = page.locator(".bid-player-name")
+        name_el.wait_for(state="attached", timeout=10000)
+        old_name = name_el.text_content() or ""
         page.locator(".keypad-key:has-text('0')").click()
-        page.wait_for_timeout(300)
+        escaped = old_name.replace("'", "\\'")
+        page.wait_for_function(
+            "() => { const el = document.querySelector('.bid-player-name');"
+            f" return !el || el.textContent !== '{escaped}'; }}",
+            timeout=10000,
+        )
 
     # Confirm bids
     page.locator('button:has-text("Start Round")').wait_for(state="visible", timeout=10000)
@@ -65,12 +73,20 @@ def play_quick_round(page: Page, num_players: int):
     # Enter hands won — 0 for first N-1 players, last player is auto-forced to remaining
     for i in range(num_players):
         page.wait_for_selector(".keypad", timeout=10000)
+        name_el = page.locator(".bid-player-name")
+        name_el.wait_for(state="attached", timeout=10000)
+        old_name = name_el.text_content() or ""
         if i < num_players - 1:
             page.locator(".keypad-key:has-text('0')").click()
         else:
             # Last player: only 'remaining' key is enabled — click the enabled one
             page.locator(".keypad-key:not([disabled])").first.click()
-        page.wait_for_timeout(300)
+        escaped = old_name.replace("'", "\\'")
+        page.wait_for_function(
+            "() => { const el = document.querySelector('.bid-player-name');"
+            f" return !el || el.textContent !== '{escaped}'; }}",
+            timeout=10000,
+        )
 
     # Score round
     page.locator('button:has-text("Score Round")').wait_for(state="visible", timeout=10000)

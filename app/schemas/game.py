@@ -1,5 +1,7 @@
 """Game request/response schemas."""
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -8,7 +10,9 @@ class GameSettings(BaseModel):
     mode: str = Field(default="expert", pattern=r"^(expert|rookie|friendly)$")
     appearance: str = Field(default="standard", pattern=r"^(standard|interactive)$")
     timer_seconds: int = Field(default=0, ge=0, le=30)
-    scoring_formula: str = Field(default="kachuful_standard")
+    scoring_formula: Literal["kachuful_standard", "kachuful_zeros"] = Field(
+        default="kachuful_standard"
+    )
     num_sets: int = Field(default=3, ge=1, le=10)
     rounds_per_set: int = Field(default=8, ge=1, le=26)
     must_lose: bool = Field(default=False)

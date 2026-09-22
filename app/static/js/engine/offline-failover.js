@@ -54,6 +54,9 @@ export async function transferToOffline(serverGame, currentRoundData, shareCode)
   try {
     await saveGameAndRound(localGame, round);
   } catch (idbError) {
+    if (idbError.name === 'QuotaExceededError') {
+      throw new Error('Cannot play offline — storage full');
+    }
     throw new Error('Cannot play offline — private browsing not supported');
   }
 

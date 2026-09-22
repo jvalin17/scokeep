@@ -5,6 +5,7 @@
 .gitignore
 __pycache__
 *.pyc
+node_modules/
 tests/
 .pytest_cache/
 .venv/

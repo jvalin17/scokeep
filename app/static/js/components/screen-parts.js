@@ -3,6 +3,7 @@
  * Each function does one thing — render HTML or attach a handler.
  */
 
+import { showConfirmDialog } from './confirm-dialog.js';
 import { getApi } from '../resolve-api.js';
 import { getRoundCards, getTrump, escapeHtml } from './game-utils.js';
 
@@ -100,7 +101,8 @@ export function attachEndGameHandler(container, gameId, navigate, state) {
     const btn = container.querySelector('#end-game-btn');
     if (!btn) return;
     btn.addEventListener('click', async () => {
-        if (confirm('End this game? You can review scores before finalizing.')) {
+        const confirmed = await showConfirmDialog('End this game? You can review scores before finalizing.');
+        if (confirmed) {
             const api = await getApi(gameId);
             await api.endGame(gameId);
             navigate(`review/${gameId}`);

@@ -82,6 +82,7 @@ class AnalyticsService:
                 Game.status == "finished",
             )
             .order_by(Game.started_at.desc())
+            .limit(100)
         )
         games = list(games_result.scalars().all())
         if not games:

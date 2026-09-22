@@ -134,20 +134,21 @@ window.addEventListener('hashchange', render);
 render();
 
 // Sync-back: attempt on startup and online event
-async function runSyncBack() {
+// silent=true means don't show error banner (used for startup — don't nag on load)
+async function runSyncBack(silent = false) {
     try {
         const result = await attemptSyncBack();
         if (result.synced > 0) {
             banner.showSynced();
-        } else if (result.failed > 0) {
+        } else if (result.failed > 0 && !silent) {
             banner.showSyncFailed(() => runSyncBack());
         }
-    } catch {
-        // Sync-back is best-effort — don't break the app
+    } catch (error) {
+        logger.error('sync', error.message);
     }
 }
 
-runSyncBack();
+runSyncBack(true);  // silent on startup — don't show red banner on load
 window.addEventListener('online', () => runSyncBack());
 
 // Export for screens to use

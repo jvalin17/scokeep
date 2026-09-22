@@ -8,7 +8,7 @@ from app.database import get_db
 from app.models.round import Round
 from app.schemas.round import RoundResponse
 from app.schemas.sync import SyncGameStateRequest, SyncRoundRequest
-from app.services.scoring import calculate_round_scores
+from app.services.scoring import assert_scores_match
 from app.utils.auth import get_game_with_auth, require_auth
 from app.utils.trump import get_cards_for_round, get_trump_for_round
 
@@ -42,17 +42,30 @@ def _validate_round_metadata(body: SyncRoundRequest, game) -> None:
         )
 
 
+def _validate_round_keys(body: SyncRoundRequest, player_count: int) -> None:
+    """Raise 409 if bids/hands_won keys don't match player indices or values out of bounds."""
+    valid_keys = {str(i) for i in range(player_count)}
+    if set(body.bids.keys()) != valid_keys:
+        raise HTTPException(409, detail=f"bids keys must be {valid_keys}")
+    if set(body.hands_won.keys()) != valid_keys:
+        raise HTTPException(409, detail=f"hands_won keys must be {valid_keys}")
+    for bid in body.bids.values():
+        if bid < 0 or bid > body.cards_dealt:
+            raise HTTPException(409, detail=f"bid {bid} out of range 0..{body.cards_dealt}")
+    for hands in body.hands_won.values():
+        if hands < 0:
+            raise HTTPException(409, detail="hands_won cannot be negative")
+    if sum(body.hands_won.values()) > body.cards_dealt:
+        raise HTTPException(409, detail="hands_won sum exceeds cards_dealt")
+
+
 def _validate_scores(body: SyncRoundRequest, formula: str) -> None:
     """Raise 409/422 if client scores don't match server-derived scores."""
     try:
-        derived = calculate_round_scores(body.bids, body.hands_won, formula)
+        assert_scores_match(body.bids, body.hands_won, formula, body.scores)
     except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-    if derived != body.scores:
-        raise HTTPException(
-            409,
-            detail=f"Score mismatch: client {body.scores} vs server {derived}",
-        )
+        status = 422 if "Unknown scoring formula" in str(exc) else 409
+        raise HTTPException(status_code=status, detail=str(exc)) from exc
 
 
 async def _upsert_round(db: AsyncSession, game_id: int, body: SyncRoundRequest) -> Round:
@@ -82,6 +95,7 @@ async def sync_round(
     """Receive a completed round from the client, re-derive scores and upsert."""
     game = await get_game_with_auth(db, game_id, playground_id)
     _validate_round_metadata(body, game)
+    _validate_round_keys(body, len(game.players))
     formula = game.settings.get("scoring_formula", DEFAULT_SCORING_FORMULA)
     _validate_scores(body, formula)
     return await _upsert_round(db, game_id, body)

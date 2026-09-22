@@ -5,8 +5,12 @@
  * Run with: npx vitest run tests/js/server-sync.test.js
  */
 
+import 'fake-indexeddb/auto';
+import { IDBFactory } from 'fake-indexeddb';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { syncRound, syncGameState } from '../../app/static/js/engine/server-sync.js';
+import { syncRound, syncGameState, retrySyncQueue } from '../../app/static/js/engine/server-sync.js';
+import { resetForTesting, setIndexedDBForTesting } from '../../app/static/js/engine/store.js';
+import { getSyncQueue } from '../../app/static/js/engine/store.js';
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -23,6 +27,8 @@ function setOnline(value) {
 // ─── setup / teardown ────────────────────────────────────────────────────────
 
 beforeEach(() => {
+  resetForTesting();
+  setIndexedDBForTesting(new IDBFactory());
   setOnline(true);
   vi.restoreAllMocks();
 });
@@ -121,5 +127,47 @@ describe('test_sync_game_state_skipped_when_offline', () => {
     await Promise.resolve();
 
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
+
+// ─── sync queue (H6) ────────────────────────────────────────────────────────
+
+describe('test_sync_round_queues_on_failure', () => {
+  it('saves round to sync_queue when fetch fails', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('network down'))));
+
+    const round = { round_num: 3, bids: { '0': 2 }, hands_won: { '0': 2 } };
+    syncRound('game-42', round);
+
+    // Wait for the async queue write
+    await new Promise(r => setTimeout(r, 50));
+
+    const queue = await getSyncQueue();
+    expect(queue.length).toBe(1);
+    expect(queue[0].game_id).toBe('game-42');
+    expect(queue[0].round.round_num).toBe(3);
+  });
+});
+
+describe('test_sync_round_retries_queued_rounds', () => {
+  it('retries queued rounds and removes them on success', async () => {
+    // First call fails (queues), then retry succeeds
+    vi.stubGlobal('fetch', vi.fn()
+      .mockRejectedValueOnce(new Error('network down'))
+      .mockResolvedValueOnce({ ok: true }));
+
+    const round = { round_num: 1, bids: { '0': 1 }, hands_won: { '0': 1 } };
+    syncRound('game-10', round);
+    await new Promise(r => setTimeout(r, 50));
+
+    // Queue should have 1 item
+    let queue = await getSyncQueue();
+    expect(queue.length).toBe(1);
+
+    // Now retry — fetch mock returns ok
+    await retrySyncQueue();
+
+    queue = await getSyncQueue();
+    expect(queue.length).toBe(0);
   });
 });

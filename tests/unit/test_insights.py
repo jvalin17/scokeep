@@ -530,14 +530,14 @@ class TestGlobalZNormalize:
     def test_at_prior_mean_gives_half(self):
         """A value exactly at the prior mean should normalize to ~0.5."""
         # GLOBAL_PRIORS[0] = (0.50, 0.20) for bid_accuracy
-        vectors = {"Alice": [0.50, 0.35, 0.40, 0.50, 0.60, 0.50, 0.50, 0.50, 0.50, 0.30]}
+        vectors = {"Alice": [0.50, 0.25, 0.25, 0.50, 0.60, 0.50, 0.50, 0.50, 0.50, 0.30]}
         result = global_z_normalize(vectors)
         for v in result["Alice"]:
             assert v == pytest.approx(0.5, abs=0.01)
 
     def test_above_mean_gives_above_half(self):
         """Values above the prior mean should normalize > 0.5."""
-        vectors = {"Alice": [0.90, 0.35, 0.40, 0.50, 0.60, 0.50, 0.50, 0.50, 0.50, 0.30]}
+        vectors = {"Alice": [0.90, 0.25, 0.25, 0.50, 0.60, 0.50, 0.50, 0.50, 0.50, 0.30]}
         result = global_z_normalize(vectors)
         assert result["Alice"][0] > 0.5  # bid_accuracy 0.90 is above prior mean 0.50
 

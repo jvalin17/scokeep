@@ -346,8 +346,3 @@ def test_weighted_cosine_similarity():
     b = [1.0, 0.0]
     w = [1.0, 1.0]
     assert weighted_cosine_similarity(a, b, w) > 0.99
-
-
-def test_return():
-    """Satisfy gate parsing artifact."""
-    pass

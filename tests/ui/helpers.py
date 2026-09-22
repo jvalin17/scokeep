@@ -153,7 +153,7 @@ def navigate_to_stats(page: Page, server: str, name: str, pin: str):
     auth_playground(page, server, name, pin)
     page.wait_for_selector("#view-stats", timeout=5000)
     page.click("#view-stats")
-    page.wait_for_timeout(1000)
+    page.wait_for_selector(".stats-content, .stats-tab, .stats-empty", timeout=10000)
 
 
 VIEWPORTS = [

@@ -4,6 +4,7 @@
 import { escapeHtml } from './game-utils.js';
 
 const FALLBACK_META = { name: 'Unknown', tagline: '', color: '#37474F', icon: '❓' };
+const VALID_COLOR_RE = /^#[0-9a-fA-F]{3,6}$/;
 
 export function renderPersonalityCards(players) {
     const names = Object.keys(players);
@@ -26,9 +27,10 @@ function renderSingleCard(playerName, data) {
     }
 
     const meta = data.meta || FALLBACK_META;
+    const safeColor = VALID_COLOR_RE.test(meta.color) ? meta.color : FALLBACK_META.color;
 
     return `
-        <div class="personality-card" style="--card-color: ${meta.color}">
+        <div class="personality-card" style="--card-color: ${safeColor}">
             <div class="personality-card-inner">
                 ${renderCardFront(playerName, data, meta)}
                 ${renderCardBack(playerName, data)}
@@ -65,9 +67,9 @@ function renderCardFront(playerName, data, meta) {
     return `
         <div class="personality-front">
             <div class="personality-badge" title="Based on all games played">ℹ overall insights</div>
-            <div class="personality-icon">${meta.icon}</div>
-            <div class="personality-type">${meta.name}</div>
-            <div class="personality-tagline">${meta.tagline}</div>
+            <div class="personality-icon">${escapeHtml(meta.icon)}</div>
+            <div class="personality-type">${escapeHtml(meta.name)}</div>
+            <div class="personality-tagline">${escapeHtml(meta.tagline)}</div>
             ${overallAccuracy !== null ? renderAccuracyDial(overallAccuracy) : ''}
             <div class="personality-player-name">${escapeHtml(playerName)}</div>
             <div class="personality-flip-hint">tap to flip</div>

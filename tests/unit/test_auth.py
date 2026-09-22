@@ -51,3 +51,16 @@ class TestRequireAuth:
         with pytest.raises(HTTPException) as exc_info:
             require_auth(scokeep_session=tampered)
         assert exc_info.value.status_code == 401
+
+
+class TestSignerConsolidation:
+    """L6: Single signer instance — playground.py must use utils/auth.py signer."""
+
+    def test_playground_routes_use_shared_signer(self):
+        """playground.py must import signer from utils/auth, not create its own."""
+        import app.routes.playground as pg_module
+        from app.utils.auth import signer as shared_signer
+
+        assert pg_module.signer is shared_signer, (
+            "playground.py should use the signer from utils/auth.py, not a local copy"
+        )

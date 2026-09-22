@@ -350,3 +350,41 @@ describe('test_create_game_sync_pending_defaults_false', () => {
     expect(game.sync_pending).toBe(false);
   });
 });
+
+describe('test_create_game_default_must_lose_matches_server', () => {
+  it('defaults must_lose to false (matching server default)', async () => {
+    const game = await createGame(makePlayers(), {
+      formula: 'kachuful_standard',
+      rounds_per_set: 8,
+      num_sets: 2,
+      // must_lose intentionally omitted — should default to false
+    });
+    expect(game.settings.must_lose).toBe(false);
+  });
+});
+
+describe('test_extend_game_preserves_completed_round', () => {
+  it('extendGame does not overwrite the last completed round data', async () => {
+    // Create a short game: 1 set × 1 round, must_lose off to simplify bidding
+    const game = await createGame(makePlayers(), makeSettings({ rounds_per_set: 1, num_sets: 1, must_lose: false }));
+    // Play round 1 (1 card dealt)
+    await playRound(game.id, [0, 1], [0, 1]);
+    await nextRound(game.id);
+
+    // Verify round 1 has real scored data
+    const { getRound } = await import('../../app/static/js/engine/store.js');
+    const roundBefore = await getRound(game.id, 1);
+    expect(roundBefore.status).toBe('complete');
+    expect(roundBefore.scores).toBeDefined();
+
+    // End game and extend
+    await endGame(game.id);
+    await extendGame(game.id);
+
+    // Round 1 should still have its original scores
+    const roundAfter = await getRound(game.id, 1);
+    expect(roundAfter.status).toBe('complete');
+    expect(roundAfter.scores).toEqual(roundBefore.scores);
+    expect(roundAfter.bids).toEqual(roundBefore.bids);
+  });
+});

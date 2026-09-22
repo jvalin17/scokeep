@@ -107,7 +107,7 @@ export async function createGame(players, settings) {
       mode: settings.mode ?? 'rookie',
       appearance: settings.appearance ?? 'interactive',
       scoring_formula: settings.scoring_formula ?? settings.formula ?? 'kachuful_standard',
-      must_lose: settings.must_lose ?? true,
+      must_lose: settings.must_lose ?? false,
       rounds_per_set: roundsPerSet,
       num_sets: numSets,
     },
@@ -317,9 +317,8 @@ export async function extendGame(gameId) {
   extended.phase = 'bidding';
   await saveGame(extended);
 
-  // Create the round record for the newly added first round of the extension.
-  const round = _makeRound(extended, extended.current_round);
-  await saveRound(round);
+  // Round creation happens in nextRound() after current_round is incremented.
+  // Do NOT create a round here — it would overwrite the completed round's data.
 
   return extended;
 }

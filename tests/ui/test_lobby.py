@@ -62,7 +62,10 @@ def test_sound_mute_toggle(lobby_page):
     initial_text = toggle.inner_text()
     assert "🔊" in initial_text, f"Expected 🔊 initially, got: {initial_text!r}"
     toggle.click()
-    page.wait_for_timeout(300)
+    page.wait_for_function(
+        "() => document.querySelector('#toggle-sound')?.innerText?.includes('🔇')",
+        timeout=3000,
+    )
     muted_text = toggle.inner_text()
     assert "🔇" in muted_text, f"Expected 🔇 after click, got: {muted_text!r}"
     stored = page.evaluate("() => localStorage.getItem('scokeep_mute')")

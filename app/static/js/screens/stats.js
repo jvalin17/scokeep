@@ -1,6 +1,7 @@
 // Stats screen — insights (personality cards), awards, game history
 
 import { getPlaygroundStats, clearPlaygroundStats, getScoreboard } from '../api.js';
+import { showPromptDialog } from '../components/confirm-dialog.js';
 import { escapeHtml } from '../components/game-utils.js';
 import { renderPersonalityCards } from '../components/personality-card.js';
 import { renderCareerTable, renderLastGameAwards } from '../components/stats-awards.js';
@@ -253,7 +254,7 @@ export const statsScreen = {
                     const roundNum = Number(cell.dataset.round);
                     const playerIdx = Number(cell.dataset.player);
                     const current = Number(cell.dataset.score);
-                    const newVal = prompt(`Edit score (round ${roundNum}):`, current);
+                    const newVal = await showPromptDialog(`Edit score (round ${roundNum}):`, String(current));
                     if (newVal === null) return;
                     const parsed = parseInt(newVal, 10);
                     if (isNaN(parsed)) return;

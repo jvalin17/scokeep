@@ -225,6 +225,54 @@ class TestImportValidation:
         )
         assert resp.status_code == 422, f"Expected 422 for bad timestamps, got {resp.status_code}"
 
+    async def test_import_sanitizes_html_in_player_names(self, client: AsyncClient, db_session):
+        """Player names with HTML must be escaped before storing in DB."""
+        pg_id, share_code, cookies = await _setup_playground(client)
+        body = _valid_import_body()
+        body["players"] = ["<script>alert(1)</script>", "Bob", "Carol"]
+        body["client_game_id"] = "test-html-sanitize-001"
+        resp = await client.post(
+            f"/api/game/{share_code}/import",
+            json=body,
+            cookies=cookies,
+        )
+        assert resp.status_code == 200, f"Import failed: {resp.text}"
+        game_id = resp.json()["game_id"]
+
+        # Verify stored name is escaped, not raw HTML
+        from sqlalchemy import select
+
+        from app.models.game import Game
+
+        result = await db_session.execute(select(Game).where(Game.id == game_id))
+        game = result.scalar_one()
+        assert "<script>" not in game.players[0], f"Raw HTML stored in DB: {game.players[0]}"
+        assert "&lt;script&gt;" in game.players[0], f"Expected escaped HTML, got: {game.players[0]}"
+
+    async def test_import_rejects_wrong_cards_dealt(self, client: AsyncClient):
+        """cards_dealt must match the expected value for the round number."""
+        pg_id, share_code, cookies = await _setup_playground(client)
+        body = _valid_import_body(
+            rounds=[
+                {
+                    "round_num": 1,
+                    "bids": {"0": 1, "1": 2, "2": 1},
+                    "hands_won": {"0": 1, "1": 2, "2": 2},
+                    "cards_dealt": 5,  # round 1 with rounds_per_set=8 expects 8
+                    "trump_suit": "spades",
+                }
+            ]
+        )
+        body["client_game_id"] = "test-cards-dealt-001"
+        resp = await client.post(
+            f"/api/game/{share_code}/import",
+            json=body,
+            cookies=cookies,
+        )
+        assert resp.status_code == 422, (
+            f"Expected 422 for wrong cards_dealt, got {resp.status_code}"
+        )
+
     async def test_import_rejects_duplicate_round_nums(self, client: AsyncClient):
         """Round numbers must be unique."""
         pg_id, share_code, cookies = await _setup_playground(client)
@@ -241,3 +289,29 @@ class TestImportValidation:
             cookies=cookies,
         )
         assert resp.status_code == 422, f"Expected 422 for dup round_nums, got {resp.status_code}"
+
+    async def test_concurrent_import_returns_200_not_500(self, client: AsyncClient):
+        """Two imports with same client_game_id must not cause unhandled 500."""
+        pg_id, share_code, cookies = await _setup_playground(client)
+        body = _valid_import_body()
+        body["client_game_id"] = "test-concurrent-001"
+
+        # First import succeeds
+        resp1 = await client.post(
+            f"/api/game/{share_code}/import",
+            json=body,
+            cookies=cookies,
+        )
+        assert resp1.status_code == 200
+
+        # Second import with same client_game_id must return 200 (idempotent), not 500
+        resp2 = await client.post(
+            f"/api/game/{share_code}/import",
+            json=body,
+            cookies=cookies,
+        )
+        assert resp2.status_code == 200, (
+            f"Duplicate import should return 200 (idempotent), "
+            f"got {resp2.status_code}: {resp2.text}"
+        )
+        assert resp2.json()["already_existed"] is True

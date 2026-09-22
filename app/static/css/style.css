@@ -226,7 +226,7 @@ input::placeholder { color: var(--text-muted); }
     align-items: center;
 }
 .settings-grid label { font-size: 0.95rem; color: var(--text-secondary); }
-.settings-grid select { padding: 8px 10px; font-size: 0.9rem; }
+.settings-grid select { padding: 8px 10px; font-size: 1rem; }
 
 /* Toggle */
 .toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; }
@@ -273,6 +273,7 @@ input::placeholder { color: var(--text-muted); }
     background: none; border: none; cursor: pointer;
     font-size: 1.1rem; font-weight: 700; color: var(--text-muted);
     padding: 0 4px; line-height: 1;
+    min-width: 44px; min-height: 44px;
 }
 .game-island.island-enlarged { font-size: 1.6rem; padding: 14px 20px; }
 .game-island.island-enlarged .island-toggle { font-size: 1.4rem; }
@@ -302,13 +303,13 @@ input::placeholder { color: var(--text-muted); }
 .share-code-mini { font-family: monospace; font-size: 0.8rem; color: var(--text-muted); letter-spacing: 0.05em; }
 .btn-refresh {
     background: none; border: 1px solid var(--border); border-radius: 50%;
-    width: 32px; height: 32px; font-size: 1.2rem; cursor: pointer;
+    width: 44px; height: 44px; min-width: 44px; min-height: 44px; font-size: 1.2rem; cursor: pointer;
     color: var(--text-secondary); display: flex; align-items: center; justify-content: center;
 }
 .btn-refresh:active { background: var(--border); }
 .btn-home {
     background: none; border: 1px solid var(--border); border-radius: 50%;
-    width: 32px; height: 32px; font-size: 1.1rem; cursor: pointer;
+    width: 44px; height: 44px; min-width: 44px; min-height: 44px; font-size: 1.1rem; cursor: pointer;
     color: var(--text-secondary); display: flex; align-items: center; justify-content: center;
     text-decoration: none; filter: grayscale(1);
 }
@@ -529,6 +530,7 @@ input::placeholder { color: var(--text-muted); }
 .btn-end-game {
     font-size: 0.7rem;
     padding: 2px 8px;
+    min-width: 44px; min-height: 44px;
     border: 1px solid var(--danger);
     color: var(--danger);
     border-radius: var(--radius);
@@ -1071,11 +1073,19 @@ input::placeholder { color: var(--text-muted); }
 }
 
 /* Action dialog overlay */
-.action-overlay {
+.action-overlay, .confirm-overlay {
     position: fixed; top: 0; left: 0; right: 0; bottom: 0;
     background: rgba(0,0,0,0.5); z-index: 100;
     display: flex; align-items: center; justify-content: center;
 }
+.confirm-message { margin: 0 0 16px; font-size: 1rem; line-height: 1.4; }
+.prompt-input {
+    width: 100%; padding: 10px; font-size: 1rem; border: 1px solid var(--border);
+    border-radius: var(--radius); background: var(--bg-main); color: var(--text-primary);
+    margin-bottom: 16px; box-sizing: border-box;
+}
+.confirm-actions { display: flex; gap: 10px; }
+.confirm-actions .action-btn { flex: 1; margin-bottom: 0; }
 .action-overlay.hidden { display: none; }
 .action-dialog {
     background: var(--bg-card); border-radius: 16px; padding: 20px;
