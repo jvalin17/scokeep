@@ -1,9 +1,11 @@
 """Integration tests for game API endpoints.
 
-Tests game creation, state retrieval, and early ending.
+Tests game creation, state retrieval, early ending, and cascade deletion.
 """
 
 from httpx import AsyncClient
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 async def _create_authenticated_playground(client: AsyncClient) -> dict:
@@ -284,3 +286,55 @@ class TestGameWithCustomRoundsPerSet:
         )
         assert resp.status_code == 201
         assert resp.json()["total_rounds"] == 15  # 3 sets × 5
+
+
+class TestDeleteGameCascadesRounds:
+    """L11: Deleting a game must cascade-delete its rounds via FK constraint."""
+
+    async def test_delete_game_cascades_rounds(
+        self, client: AsyncClient, db_session: AsyncSession
+    ):
+        """Delete a game row → its rounds are also deleted by ON DELETE CASCADE."""
+        # Enable FK enforcement (SQLite requires this explicitly)
+        await db_session.execute(text("PRAGMA foreign_keys = ON"))
+
+        # Arrange: create a game with a round via API
+        pg = await _create_authenticated_playground(client)
+        create_resp = await client.post(
+            "/api/game",
+            json={
+                "playground_id": pg["id"],
+                "players": ["Alice", "Bob"],
+            },
+            cookies=pg["cookies"],
+        )
+        game_id = create_resp.json()["id"]
+
+        # Submit bids to create a round row
+        await client.post(
+            f"/api/game/{game_id}/bid",
+            json={"player_index": 0, "value": 1},
+            cookies=pg["cookies"],
+        )
+
+        # Verify round exists
+        rounds_before = await db_session.execute(
+            text("SELECT COUNT(*) FROM round WHERE game_id = :gid"),
+            {"gid": game_id},
+        )
+        assert rounds_before.scalar() >= 1, "Round should exist before delete"
+
+        # Act: delete the game row directly
+        await db_session.execute(
+            text("DELETE FROM game WHERE id = :gid"), {"gid": game_id}
+        )
+        await db_session.commit()
+
+        # Assert: rounds are gone (CASCADE)
+        rounds_after = await db_session.execute(
+            text("SELECT COUNT(*) FROM round WHERE game_id = :gid"),
+            {"gid": game_id},
+        )
+        assert rounds_after.scalar() == 0, (
+            "Rounds should be cascade-deleted when game is deleted"
+        )
