@@ -171,8 +171,9 @@ export function getPlayground(shareCode) {
     return request('GET', `/playground/${shareCode}`);
 }
 
-export function getPlaygroundStats(shareCode) {
-    return request('GET', `/playground/${shareCode}/stats`);
+export function getPlaygroundStats(shareCode, { offset = 0, limit = 40 } = {}) {
+    const params = offset > 0 ? `?offset=${offset}&limit=${limit}` : '';
+    return request('GET', `/playground/${shareCode}/stats${params}`);
 }
 
 export function clearPlaygroundStats(shareCode) {

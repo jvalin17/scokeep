@@ -4,7 +4,7 @@ import { createPlayground, authPlayground, listRecentPlaygrounds, browsePlaygrou
 import { createGame } from '../game-api.js';
 import { escapeHtml } from '../components/game-utils.js';
 import { renderSettingsGrid, readSettings, updateCardsDropdown } from '../components/game-settings.js';
-import { saveRoom, getAllRooms, getRoom, getFinishedGames } from '../engine/store.js';
+import { saveRoom, getAllRooms, getRoom } from '../engine/store.js';
 import { createVerifier, checkPin, isLocked, checkAttempt } from '../engine/pin-verifier.js';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -630,22 +630,6 @@ function _bindQuickTab(container, navigate) {
     return { loadCachedRooms };
 }
 
-/** Update the Quick Game sync badge with pending game count. */
-async function _updateSyncBadge(container) {
-    try {
-        const finished = await getFinishedGames(100);
-        const pendingCount = finished.filter(g => g.sync_pending === true).length;
-        const badge = container.querySelector('#quick-badge');
-        if (badge) {
-            if (pendingCount > 0) {
-                badge.textContent = `${pendingCount} pending`;
-                badge.classList.remove('hidden');
-            } else {
-                badge.classList.add('hidden');
-            }
-        }
-    } catch (error) { console.warn('Badge update failed:', error); }
-}
 
 export const homeScreen = {
     mount(container, state, { navigate }) {
@@ -659,7 +643,7 @@ export const homeScreen = {
                 <div class="tabs">
                     <button class="tab active" data-tab="create">Create</button>
                     <button class="tab" data-tab="join">Join</button>
-                    <button class="tab" data-tab="quick">Quick Game <span id="quick-badge" class="hidden" style="background:var(--accent);color:#fff;border-radius:10px;padding:1px 6px;font-size:0.7rem;vertical-align:middle;"></span></button>
+                    <button class="tab" data-tab="quick">Quick Game</button>
                     <button class="tab" data-tab="howto">How To</button>
                 </div>
 
@@ -677,7 +661,6 @@ export const homeScreen = {
         const { loadCachedRooms } = _bindQuickTab(container, navigate);
         _bindCreateTab(container, state, navigate);
         _bindTabListeners(container, loadRecent, loadCachedRooms);
-        _updateSyncBadge(container).catch(() => {});
     },
 
     unmount() {},

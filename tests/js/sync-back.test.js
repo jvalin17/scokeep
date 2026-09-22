@@ -165,7 +165,7 @@ describe('test_sync_back_no_pending_games', () => {
     await saveGame(game);
 
     const result = await attemptSyncBack();
-    expect(result).toEqual({ synced: 0, failed: 0, skipped: true });
+    expect(result).toEqual({ synced: 0, failed: 0, skipped: true, cleared: 0 });
     expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 });
@@ -252,5 +252,16 @@ describe('test_sync_back_skips_unlinked_games', () => {
     // No import attempted (no linked_room)
     expect(result.synced).toBe(0);
     expect(result.failed).toBe(0);
+  });
+
+  it('clears sync_pending on unlinked games so badge does not show them', async () => {
+    const game = makeGame({ linked_room: null });
+    await saveGame(game);
+
+    const result = await attemptSyncBack();
+    expect(result.cleared).toBe(1);
+
+    const updated = await getGame(game.id);
+    expect(updated.sync_pending).toBe(false);
   });
 });

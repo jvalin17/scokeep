@@ -24,9 +24,16 @@ const HEALTH_TIMEOUT_MS = 5000;
 export async function attemptSyncBack() {
   const pending = await getSyncPendingGames();
   const syncable = pending.filter(g => g.linked_room);
+  const unsyncable = pending.filter(g => !g.linked_room);
+
+  // Clear sync_pending on games that can never sync (no linked room)
+  for (const game of unsyncable) {
+    game.sync_pending = false;
+    await saveGame(game);
+  }
 
   if (syncable.length === 0) {
-    return { synced: 0, failed: 0, skipped: true };
+    return { synced: 0, failed: 0, skipped: true, cleared: unsyncable.length };
   }
 
   // Probe server health — don't trust navigator.onLine
@@ -64,5 +71,5 @@ export async function attemptSyncBack() {
     }
   }
 
-  return { synced, failed };
+  return { synced, failed, cleared: unsyncable.length };
 }

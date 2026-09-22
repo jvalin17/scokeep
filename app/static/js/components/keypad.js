@@ -45,7 +45,7 @@ export function InlineKeypad({ max = 8, disabled = [], onSelect }) {
 
     for (let num = 0; num <= max; num++) {
         const btn = document.createElement('button');
-        btn.className = 'inline-keypad-key';
+        btn.className = 'keypad-key';
         btn.textContent = num;
         btn.type = 'button';
 

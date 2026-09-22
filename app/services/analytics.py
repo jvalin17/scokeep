@@ -17,10 +17,14 @@ CAREER_RULES = {
 }
 
 
-def _build_stats_response(game_history, highlights, insights_blob) -> dict:
-    """Build the standard stats response dict."""
+def _build_stats_response(
+    game_history, highlights, insights_blob,
+    *, offset: int = 0, page_size: int = 40,
+) -> dict:
+    """Build the standard stats response dict with pagination."""
+    page = game_history[offset:offset + page_size]
     return {
-        "game_history": game_history[:20],
+        "game_history": page,
         "highlights": highlights,
         "insights": insights_blob,
         "total_games": len(game_history),
@@ -57,6 +61,9 @@ class AnalyticsService:
         db: AsyncSession,
         playground_id: int,
         insights_blob: dict | None = None,
+        *,
+        offset: int = 0,
+        page_size: int = 40,
     ) -> dict:
         # empty_highlights keys must match _career_tables output:
         # "sniper","zero_master","high_roller","all_in","jinxed","perfect_set",
@@ -65,12 +72,18 @@ class AnalyticsService:
         games, all_rounds = await AnalyticsService._load_data(db, playground_id)
         if not games:
             fallback_highlights = (insights_blob or {}).get("highlights", _build_empty_highlights())
-            return _build_stats_response([], fallback_highlights, insights_blob)
+            return _build_stats_response(
+                [], fallback_highlights, insights_blob,
+                offset=offset, page_size=page_size,
+            )
 
         rounds_by_game = AnalyticsService._group_rounds(all_rounds)
         game_history = AnalyticsService._calc_game_history(games, rounds_by_game)
         highlights = _resolve_highlights(insights_blob, games, rounds_by_game)
-        return _build_stats_response(game_history, highlights, insights_blob)
+        return _build_stats_response(
+            game_history, highlights, insights_blob,
+            offset=offset, page_size=page_size,
+        )
 
     @staticmethod
     async def _load_data(db: AsyncSession, playground_id: int):

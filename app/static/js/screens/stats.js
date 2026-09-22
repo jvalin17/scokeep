@@ -244,6 +244,24 @@ export const statsScreen = {
                     render();
                 });
             });
+
+            const loadMoreBtn = container.querySelector('.load-more-btn');
+            if (loadMoreBtn) {
+                loadMoreBtn.addEventListener('click', async () => {
+                    loadMoreBtn.textContent = 'Loading...';
+                    loadMoreBtn.disabled = true;
+                    try {
+                        const moreStats = await getPlaygroundStats(shareCode, {
+                            offset: stats.game_history.length,
+                        });
+                        stats.game_history.push(...moreStats.game_history);
+                        render();
+                    } catch {
+                        loadMoreBtn.textContent = 'Load More Games';
+                        loadMoreBtn.disabled = false;
+                    }
+                });
+            }
         }
 
         function bindEditListeners() {
@@ -343,6 +361,10 @@ export const statsScreen = {
                             ) : ''}
                         </div>
                     `).join('')}
+                    ${stats.game_history.length < stats.total_games
+                        ? '<button class="btn load-more-btn" style="width:100%;margin-top:12px;">Load More Games</button>'
+                        : `<p class="stats-muted" style="text-align:center;margin-top:8px;">All ${stats.total_games} games shown</p>`
+                    }
                 </div>
             `;
         }

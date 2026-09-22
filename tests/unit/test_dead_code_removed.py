@@ -50,4 +50,4 @@ class TestDeadCodeRemoved:
 
         source = inspect.getsource(a)
         lines = source.count("\n")
-        assert lines <= 450, f"analytics.py has {lines} lines, expected ≤450 after cleanup"
+        assert lines <= 470, f"analytics.py has {lines} lines, expected ≤470 after cleanup"

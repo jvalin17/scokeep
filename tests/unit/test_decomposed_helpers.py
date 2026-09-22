@@ -21,6 +21,34 @@ def test__build_stats_response():
     assert r["total_games"] == 0
 
 
+def test__build_stats_response_default_page_size_is_40():
+    from app.services.analytics import _build_stats_response
+
+    history = [{"game_id": i} for i in range(60)]
+    r = _build_stats_response(history, {}, None)
+    assert len(r["game_history"]) == 40
+    assert r["total_games"] == 60
+
+
+def test__build_stats_response_with_offset():
+    from app.services.analytics import _build_stats_response
+
+    history = [{"game_id": i} for i in range(60)]
+    r = _build_stats_response(history, {}, None, offset=40, page_size=40)
+    assert len(r["game_history"]) == 20
+    assert r["game_history"][0]["game_id"] == 40
+    assert r["total_games"] == 60
+
+
+def test__build_stats_response_offset_beyond_total():
+    from app.services.analytics import _build_stats_response
+
+    history = [{"game_id": i} for i in range(10)]
+    r = _build_stats_response(history, {}, None, offset=20)
+    assert len(r["game_history"]) == 0
+    assert r["total_games"] == 10
+
+
 def test__build_empty_highlights():
     from app.services.analytics import _build_empty_highlights
 

@@ -158,6 +158,8 @@ async def get_playground(
 @router.get("/{share_code}/stats")
 async def get_playground_stats(
     share_code: str,
+    offset: int = 0,
+    limit: int = 40,
     playground_id: int = Depends(_get_authenticated_playground_id),
     db: AsyncSession = Depends(get_db),
 ):
@@ -166,10 +168,14 @@ async def get_playground_stats(
         raise HTTPException(status_code=404, detail="Playground not found")
     if playground.id != playground_id:
         raise HTTPException(status_code=403, detail="Access denied")
+    clamped_offset = max(0, offset)
+    clamped_limit = max(1, min(limit, 100))
     return await AnalyticsService.get_playground_stats(
         db,
         playground.id,
         backfill_meta(playground.insights),
+        offset=clamped_offset,
+        page_size=clamped_limit,
     )
 
 

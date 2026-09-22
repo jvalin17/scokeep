@@ -68,7 +68,7 @@ describe('InlineKeypad', () => {
     it('renders buttons 0 to max', () => {
         const el = InlineKeypad({ max: 13, onSelect: vi.fn() });
         document.body.appendChild(el);
-        const keys = el.querySelectorAll('.inline-keypad-key');
+        const keys = el.querySelectorAll('.keypad-key');
         expect(keys.length).toBe(14);
     });
 
