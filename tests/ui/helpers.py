@@ -135,7 +135,9 @@ def end_game(page: Page):
     end_btn.first.click()
     # Some screens (bidding/play) show a confirm overlay; scoreboard navigates directly.
     # Wait briefly for the dialog — if it appears, click Confirm; otherwise proceed.
-    # Some screens (bidding/play) show a confirm overlay; scoreboard navigates directly.
+    # Bidding/play show a confirm overlay; scoreboard navigates directly.
+    # Brief wait for the dialog to render, then click if present.
+    page.wait_for_timeout(500)
     confirm_ok = page.locator(".confirm-ok")
     if confirm_ok.is_visible():
         confirm_ok.click()
