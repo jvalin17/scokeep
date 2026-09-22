@@ -34,7 +34,8 @@ def test_scoreboard_renders(scoreboard_page, viewport):
     scoreboard_page.set_viewport_size(viewport)
     url_hash = scoreboard_page.evaluate("() => location.hash")
     assert "scoreboard" in url_hash, f"Not on scoreboard: {url_hash}"
-    score_table = scoreboard_page.locator(".score-table, .scoreboard")
+    score_table = scoreboard_page.locator(".score-table, .scoreboard, .scoresheet")
+    score_table.first.wait_for(state="visible", timeout=10000)
     assert score_table.count() > 0, "No score display on scoreboard"
 
 

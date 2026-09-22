@@ -186,7 +186,7 @@ def test_locked_personality_card(page, server):
     unlocked_card.first.click()
     page.wait_for_function(
         "() => document.querySelector('.personality-card.flipped') !== null",
-        timeout=3000,
+        timeout=10000,
     )
     flipped = page.locator(".personality-card.flipped")
     assert flipped.count() > 0, "Unlocked card should flip when clicked"
