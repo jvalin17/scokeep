@@ -388,3 +388,65 @@ describe('test_extend_game_preserves_completed_round', () => {
     expect(roundAfter.bids).toEqual(roundBefore.bids);
   });
 });
+
+// ─── 13-card round support ─────────────────────────────────────────────────
+
+describe('test_13_card_round_full_workflow', () => {
+  it('bid 13, win 13 hands in a 2-player 13-card round', async () => {
+    const game = await createGame(
+      makePlayers(),
+      makeSettings({ rounds_per_set: 13, num_sets: 1, must_lose: false }),
+    );
+    // Round 1 deals 13 cards (descending: 13, 12, 11, ...)
+    await submitBid(game.id, 0, 13);
+    await submitBid(game.id, 1, 0);
+    await startRound(game.id);
+    await enterRoundEnd(game.id);
+    await submitHands(game.id, 0, 13);
+    await submitHands(game.id, 1, 0);
+    await endRound(game.id);
+
+    const sb = await getScoreboard(game.id);
+    // Player 0 bid 13, made 13 → score = 13 * 10 = 130
+    expect(sb.totals['0']).toBe(130);
+    // Player 1 bid 0, made 0 → score = 10
+    expect(sb.totals['1']).toBe(10);
+  });
+});
+
+describe('test_13_card_bid_rejected_above_cards_dealt', () => {
+  it('bid 14 is rejected when cards_dealt is 13', async () => {
+    const game = await createGame(
+      makePlayers(),
+      makeSettings({ rounds_per_set: 13, num_sets: 1, must_lose: false }),
+    );
+    await expect(submitBid(game.id, 0, 14)).rejects.toThrow();
+  });
+});
+
+describe('test_13_card_hands_rejected_above_remaining', () => {
+  it('hands 14 is rejected when cards_dealt is 13', async () => {
+    const game = await createGame(
+      makePlayers(),
+      makeSettings({ rounds_per_set: 13, num_sets: 1, must_lose: false }),
+    );
+    await submitBid(game.id, 0, 5);
+    await submitBid(game.id, 1, 5);
+    await startRound(game.id);
+    await enterRoundEnd(game.id);
+    await expect(submitHands(game.id, 0, 14)).rejects.toThrow();
+  });
+});
+
+describe('test_13_card_edit_bid', () => {
+  it('editBid to 13 works in a 13-card round', async () => {
+    const game = await createGame(
+      makePlayers(),
+      makeSettings({ rounds_per_set: 13, num_sets: 1, must_lose: false }),
+    );
+    await submitBid(game.id, 0, 5);
+    await editBid(game.id, 0, 13);
+    const bids = await getBids(game.id);
+    expect(bids['0']).toBe(13);
+  });
+});

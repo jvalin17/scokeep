@@ -96,6 +96,7 @@ export const biddingScreen = {
             const keypad = Keypad({
                 max: cardsDealt,
                 disabled: getMustLoseDisabledKeys(pi, cardsDealt),
+                useInline: rps > 8,
                 onSelect: (value) => {
                     handleBidSelect(value);
                 },

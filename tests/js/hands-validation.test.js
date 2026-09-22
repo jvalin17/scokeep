@@ -92,3 +92,29 @@ describe("validateHands", () => {
     expect(result).toContain("3");
   });
 });
+
+// ─── 13-card round tests ────────────────────────────────────────────────────
+
+describe("validateHands — 13-card rounds", () => {
+  it("hands 13 accepted when cards_dealt is 13 and no others", () => {
+    const result = validateHands({}, 0, 13, 13);
+    expect(result).toBeNull();
+  });
+
+  it("hands 14 rejected when cards_dealt is 13", () => {
+    const result = validateHands({}, 0, 14, 13);
+    expect(result).toBeTypeOf("string");
+  });
+
+  it("last player gets remaining 3 of 13 cards", () => {
+    // others took 10 of 13
+    const result = validateHands({ "0": 5, "1": 3, "2": 2 }, 3, 3, 13);
+    expect(result).toBeNull();
+  });
+
+  it("last player exceeds remaining in 13-card round", () => {
+    // others took 10 of 13, remaining = 3, player claims 4
+    const result = validateHands({ "0": 5, "1": 3, "2": 2 }, 3, 4, 13);
+    expect(result).toBeTypeOf("string");
+  });
+});

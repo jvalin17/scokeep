@@ -75,3 +75,22 @@ def test_validate_hands():
 
     assert validate_hands({}, 0, 3, 8) is None
     assert isinstance(validate_hands({}, 0, -1, 8), str)
+
+
+class TestHands13CardRound:
+    """13-card round support for hands validation."""
+
+    def test_hands_13_accepted_when_cards_dealt_is_13(self):
+        assert validate_hands({}, 0, 13, 13) is None
+
+    def test_hands_14_rejected_when_cards_dealt_is_13(self):
+        result = validate_hands({}, 0, 14, 13)
+        assert isinstance(result, str)
+
+    def test_last_player_gets_remaining_3_of_13(self):
+        result = validate_hands({"0": 5, "1": 3, "2": 2}, 3, 3, 13)
+        assert result is None
+
+    def test_last_player_exceeds_remaining_in_13_card_round(self):
+        result = validate_hands({"0": 5, "1": 3, "2": 2}, 3, 4, 13)
+        assert isinstance(result, str)

@@ -291,9 +291,7 @@ class TestGameWithCustomRoundsPerSet:
 class TestDeleteGameCascadesRounds:
     """L11: Deleting a game must cascade-delete its rounds via FK constraint."""
 
-    async def test_delete_game_cascades_rounds(
-        self, client: AsyncClient, db_session: AsyncSession
-    ):
+    async def test_delete_game_cascades_rounds(self, client: AsyncClient, db_session: AsyncSession):
         """Delete a game row → its rounds are also deleted by ON DELETE CASCADE."""
         # Enable FK enforcement (SQLite requires this explicitly)
         await db_session.execute(text("PRAGMA foreign_keys = ON"))
@@ -325,9 +323,7 @@ class TestDeleteGameCascadesRounds:
         assert rounds_before.scalar() >= 1, "Round should exist before delete"
 
         # Act: delete the game row directly
-        await db_session.execute(
-            text("DELETE FROM game WHERE id = :gid"), {"gid": game_id}
-        )
+        await db_session.execute(text("DELETE FROM game WHERE id = :gid"), {"gid": game_id})
         await db_session.commit()
 
         # Assert: rounds are gone (CASCADE)
@@ -335,6 +331,4 @@ class TestDeleteGameCascadesRounds:
             text("SELECT COUNT(*) FROM round WHERE game_id = :gid"),
             {"gid": game_id},
         )
-        assert rounds_after.scalar() == 0, (
-            "Rounds should be cascade-deleted when game is deleted"
-        )
+        assert rounds_after.scalar() == 0, "Rounds should be cascade-deleted when game is deleted"

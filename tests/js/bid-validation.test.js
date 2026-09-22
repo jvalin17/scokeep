@@ -131,3 +131,47 @@ describe('bid-validation — explicit named tests', () => {
         expect(result).not.toBeNull();
     });
 });
+
+// ─── 13-card round tests ────────────────────────────────────────────────────
+
+describe('bid-validation — 13-card rounds', () => {
+    it('bid 13 accepted when cards_dealt is 13', () => {
+        const result = validateBid(
+            {},
+            0,
+            13,
+            { mustLose: false, cardsDeal: 13, playerCount: 4 }
+        );
+        expect(result).toBeNull();
+    });
+
+    it('bid 14 rejected when cards_dealt is 13', () => {
+        const result = validateBid(
+            {},
+            0,
+            14,
+            { mustLose: false, cardsDeal: 13, playerCount: 4 }
+        );
+        expect(result).not.toBeNull();
+    });
+
+    it('must-lose: last player bid 3 rejected when total would equal 13', () => {
+        const result = validateBid(
+            { '0': 5, '1': 3, '2': 2 },
+            3,
+            3,
+            { mustLose: true, cardsDeal: 13, playerCount: 4 }
+        );
+        expect(result).not.toBeNull();
+    });
+
+    it('must-lose: last player bid 4 allowed when total would be 14 (not 13)', () => {
+        const result = validateBid(
+            { '0': 5, '1': 3, '2': 2 },
+            3,
+            4,
+            { mustLose: true, cardsDeal: 13, playerCount: 4 }
+        );
+        expect(result).toBeNull();
+    });
+});

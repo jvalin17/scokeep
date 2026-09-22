@@ -90,6 +90,7 @@ export const roundendScreen = {
             const keypad = Keypad({
                 max: getRemainingCards(),
                 disabled: getLastPlayerDisabledKeys(),
+                useInline: rps > 8,
                 onSelect: (value) => {
                     handleHandsSelect(value);
                 },

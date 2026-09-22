@@ -3,8 +3,8 @@
 
 import { soundTap, haptic } from './sounds.js';
 
-export function Keypad({ max = 8, disabled = [], onSelect }) {
-    if (max > 8) {
+export function Keypad({ max = 8, disabled = [], onSelect, useInline = false }) {
+    if (max > 8 || useInline) {
         return InlineKeypad({ max, disabled, onSelect });
     }
 
@@ -56,6 +56,8 @@ export function InlineKeypad({ max = 8, disabled = [], onSelect }) {
             btn.addEventListener('click', () => {
                 haptic();
                 soundTap();
+                el.querySelectorAll('.keypad-selected').forEach(k => k.classList.remove('keypad-selected'));
+                btn.classList.add('keypad-selected');
                 onSelect(num);
             });
         }

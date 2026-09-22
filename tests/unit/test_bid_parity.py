@@ -138,6 +138,54 @@ class TestValidateBidMustLoseConstraint:
         )
         assert result is not None
 
+
+class TestBid13CardRound:
+    """13-card round support for bid validation."""
+
+    def test_bid_13_accepted_when_cards_dealt_is_13(self):
+        result = validate_bid(
+            {},
+            0,
+            13,
+            must_lose=False,
+            cards_deal=13,
+            player_count=4,
+        )
+        assert result is None
+
+    def test_bid_14_rejected_when_cards_dealt_is_13(self):
+        result = validate_bid(
+            {},
+            0,
+            14,
+            must_lose=False,
+            cards_deal=13,
+            player_count=4,
+        )
+        assert result is not None
+
+    def test_must_lose_last_player_rejected_at_13(self):
+        result = validate_bid(
+            {"0": 5, "1": 3, "2": 2},
+            3,
+            3,
+            must_lose=True,
+            cards_deal=13,
+            player_count=4,
+        )
+        assert result is not None
+
+    def test_must_lose_last_player_allowed_when_not_equal_13(self):
+        result = validate_bid(
+            {"0": 5, "1": 3, "2": 2},
+            3,
+            4,
+            must_lose=True,
+            cards_deal=13,
+            player_count=4,
+        )
+        assert result is None
+
     def test_negative_bid_rejected(self):
         result = validate_bid(
             {"0": 2},
