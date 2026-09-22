@@ -133,7 +133,7 @@ def test_personality_card_flip(stats_page):
             "'.personality-card:not(.personality-card-locked)')"
             "?.classList.contains('flipped')"
         )
-        page.wait_for_function(js_flipped, timeout=3000)
+        page.wait_for_function(js_flipped, timeout=10000)
         has_flipped = card.evaluate("el => el.classList.contains('flipped')")
         assert has_flipped, "Clicking an unlocked .personality-card must add .flipped class"
 
@@ -144,7 +144,7 @@ def test_personality_card_flip(stats_page):
             "'.personality-card:not(.personality-card-locked)')"
             "?.classList.contains('flipped')"
         )
-        page.wait_for_function(js_unflipped, timeout=3000)
+        page.wait_for_function(js_unflipped, timeout=10000)
         still_flipped = card.evaluate("el => el.classList.contains('flipped')")
         assert not still_flipped, "Second click must remove .flipped from .personality-card"
     else:

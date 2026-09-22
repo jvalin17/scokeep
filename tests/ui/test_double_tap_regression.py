@@ -157,7 +157,9 @@ class TestDoubleTapRoundEnd:
             if not name_el.is_visible():
                 break  # On confirm screen
             old_name = name_el.text_content() or ""
-            page.locator(".keypad-key:has-text('0')").click()
+            # Click the first enabled key (last player may have only one enabled key)
+            enabled_key = page.locator(".keypad-key:not(.keypad-disabled)")
+            enabled_key.first.click()
             escaped = old_name.replace("'", "\\'")
             page.wait_for_function(
                 "() => {"

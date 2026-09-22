@@ -7,7 +7,8 @@ def test_room_finder_visible_on_join_tab(page, server):
     """Room finder card is visible on the join tab."""
     page.goto(server)
     page.click('.tab[data-tab="join"]')
-    finder = page.locator(".room-finder")
+    # Scope to join tab — Quick Game tab also has a .room-finder element
+    finder = page.locator("#join-form .room-finder")
     finder.wait_for(state="visible", timeout=5000)
     assert finder.is_visible()
 

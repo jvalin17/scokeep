@@ -128,12 +128,15 @@ def play_one_round(page: Page, bids: list[int], hands: list[int]):
 
 
 def end_game(page: Page):
-    """End the game — clicks End Game, confirms on review screen, waits for final."""
+    """End the game — clicks End Game, confirms via custom dialog, waits for navigation."""
     current_hash = page.evaluate("() => location.hash")
     end_btn = page.locator('#end-game, #end-game-btn, button:has-text("End Game")')
     end_btn.first.wait_for(state="visible", timeout=60000)
-    page.once("dialog", lambda dialog: dialog.accept())
     end_btn.first.click()
+    # App uses custom confirm overlay (not native confirm())
+    confirm_ok = page.locator(".confirm-ok")
+    confirm_ok.wait_for(state="visible", timeout=5000)
+    confirm_ok.click()
     page.wait_for_function(
         f"() => location.hash !== '{current_hash}'",
         timeout=10000,
