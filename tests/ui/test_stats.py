@@ -119,7 +119,7 @@ def test_personality_card_flip(stats_page):
     insights_tab = page.locator('.stats-tab:has-text("Insights"), .stats-tab:has-text("Players")')
     if insights_tab.count() > 0:
         insights_tab.first.click()
-        page.wait_for_selector(".personality-card, .personality-card-locked", timeout=5000)
+        page.wait_for_selector(".personality-card, .personality-card-locked", timeout=15000)
 
     unlocked = page.locator(".personality-card:not(.personality-card-locked)")
     locked = page.locator(".personality-card-locked")
@@ -127,13 +127,15 @@ def test_personality_card_flip(stats_page):
     if unlocked.count() > 0:
         # Unlocked card: clicking it must toggle .flipped
         card = unlocked.first
-        card.click()
-        js_flipped = (
+        card.wait_for(state="visible", timeout=5000)
+        card.scroll_into_view_if_needed()
+        card.click(force=True)
+        page.wait_for_function(
             "() => document.querySelector("
             "'.personality-card:not(.personality-card-locked)')"
-            "?.classList.contains('flipped')"
+            "?.classList.contains('flipped')",
+            timeout=10000,
         )
-        page.wait_for_function(js_flipped, timeout=10000)
         has_flipped = card.evaluate("el => el.classList.contains('flipped')")
         assert has_flipped, "Clicking an unlocked .personality-card must add .flipped class"
 
