@@ -52,9 +52,9 @@ export const lobbyScreen = {
                         </div>
                     ` : ''}
 
-                    <div id="sync-banner" class="hidden" style="background:var(--bg-card);border:1px solid var(--accent);border-radius:8px;padding:12px;margin-bottom:12px;">
-                        <p id="sync-message" style="margin:0 0 8px;font-size:0.9rem;"></p>
+                    <div id="sync-section" class="hidden" style="margin-bottom:12px;">
                         <button id="sync-now" class="btn btn-primary btn-small">Sync now</button>
+                        <p id="sync-result" class="hidden" style="margin-top:6px;font-size:0.85rem;"></p>
                     </div>
 
                     <section class="lobby-section">
@@ -204,12 +204,13 @@ export const lobbyScreen = {
                 container.querySelector('#toggle-sound').textContent = muted ? '🔇' : '🔊';
             });
 
-            // Sync banner — sync pending offline games
+            // Sync button — user-initiated sync of pending offline games
             const syncBtn = container.querySelector('#sync-now');
             if (syncBtn) {
                 syncBtn.addEventListener('click', async () => {
-                    const messageEl = container.querySelector('#sync-message');
+                    const resultEl = container.querySelector('#sync-result');
                     syncBtn.disabled = true;
+                    resultEl.classList.remove('hidden');
 
                     const pendingGames = await getSyncPendingGames(shareCode);
                     const total = pendingGames.length;
@@ -217,28 +218,27 @@ export const lobbyScreen = {
                     let failed = 0;
 
                     for (const game of pendingGames) {
-                        messageEl.textContent = `Syncing ${synced + 1} of ${total}...`;
+                        resultEl.textContent = `Syncing ${synced + 1} of ${total}...`;
                         const result = await syncOneGame(game);
                         if (result.success) {
                             synced++;
                         } else if (result.status >= 400 && result.status < 500) {
-                            // Permanent failure (duplicate, bad data) — stop retrying
                             game.sync_pending = false;
                             game.sync_failed = true;
                             await saveGame(game);
-                            synced++; // count as resolved, not retryable
+                            synced++;
                         } else {
                             failed++;
                         }
                     }
 
                     if (failed === 0) {
-                        messageEl.textContent = `All ${synced} game${synced > 1 ? 's' : ''} synced!`;
+                        resultEl.textContent = `${synced} game${synced > 1 ? 's' : ''} synced!`;
                         syncTimer = setTimeout(() => {
-                            container.querySelector('#sync-banner')?.classList.add('hidden');
-                        }, 2000);
+                            container.querySelector('#sync-section')?.classList.add('hidden');
+                        }, 3000);
                     } else {
-                        messageEl.textContent = `${synced} synced, ${failed} failed. Retry later.`;
+                        resultEl.textContent = `${synced} synced, ${failed} failed. Retry?`;
                         syncBtn.disabled = false;
                     }
                 });
@@ -248,13 +248,12 @@ export const lobbyScreen = {
         async function checkPendingSyncs() {
             try {
                 const pendingGames = await getSyncPendingGames(shareCode);
-                if (pendingGames.length > 0) {
-                    const banner = container.querySelector('#sync-banner');
-                    const messageEl = container.querySelector('#sync-message');
-                    if (banner && messageEl) {
-                        const count = pendingGames.length;
-                        messageEl.textContent = `You have ${count} unsynced offline game${count > 1 ? 's' : ''}. Sync now?`;
-                        banner.classList.remove('hidden');
+                const syncSection = container.querySelector('#sync-section');
+                if (syncSection) {
+                    if (pendingGames.length > 0) {
+                        syncSection.classList.remove('hidden');
+                    } else {
+                        syncSection.classList.add('hidden');
                     }
                 }
             } catch (error) {

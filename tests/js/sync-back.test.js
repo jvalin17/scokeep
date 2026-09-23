@@ -238,6 +238,31 @@ describe('test_sync_back_skips_permanently_failed_game', () => {
   });
 });
 
+// ─── sync-back is silent — no banner side effects ────────────────────────────
+
+describe('test_sync_back_returns_result_without_ui_side_effects', () => {
+  it('attemptSyncBack returns counts without calling any banner/UI methods', async () => {
+    const game = makeGame();
+    await saveGame(game);
+    await saveRound(makeRound(game.id, 1));
+
+    mockHealthOk();
+    mockImportOk();
+
+    // banner module should NOT be imported or called by attemptSyncBack
+    const { banner } = await import('../../app/static/js/components/connection-banner.js');
+    const showSyncedSpy = vi.spyOn(banner, 'showSynced');
+    const showSyncFailedSpy = vi.spyOn(banner, 'showSyncFailed');
+
+    const result = await attemptSyncBack();
+    expect(result.synced).toBe(1);
+
+    // Per requirements: sync-back is data-only, UI is lobby-only
+    expect(showSyncedSpy).not.toHaveBeenCalled();
+    expect(showSyncFailedSpy).not.toHaveBeenCalled();
+  });
+});
+
 // ─── skips games without linked_room ──────────────────────────────────────────
 
 describe('test_sync_back_skips_unlinked_games', () => {

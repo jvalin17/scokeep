@@ -3,7 +3,6 @@
 import { escapeHtml } from './components/game-utils.js';
 import { logger } from './components/logger.js';
 import { isLocalGame } from './resolve-api.js';
-import { banner } from './components/connection-banner.js';
 import { attemptSyncBack } from './engine/sync-back.js';
 import { homeScreen } from './screens/home.js';
 import { lobbyScreen } from './screens/lobby.js';
@@ -133,22 +132,17 @@ async function render() {
 window.addEventListener('hashchange', render);
 render();
 
-// Sync-back: attempt on startup and online event
-// silent=true means don't show error banner (used for startup — don't nag on load)
-async function runSyncBack(silent = false) {
+// Sync-back: attempt silently on startup and online event.
+// No UI here — sync banner is lobby-only per requirements.
+async function runSyncBack() {
     try {
-        const result = await attemptSyncBack();
-        if (result.synced > 0) {
-            banner.showSynced();
-        } else if (result.failed > 0 && !silent) {
-            banner.showSyncFailed(() => runSyncBack());
-        }
+        await attemptSyncBack();
     } catch (error) {
         logger.error('sync', error.message);
     }
 }
 
-runSyncBack(true);  // silent on startup — don't show red banner on load
+runSyncBack();
 window.addEventListener('online', () => runSyncBack());
 
 // Export for screens to use
