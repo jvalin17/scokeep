@@ -9,7 +9,7 @@ import {
   setIndexedDBForTesting,
 } from '../../app/static/js/engine/store.js';
 
-import { syncOneGame, getSyncPendingGames } from '../../app/static/js/engine/sync-import.js';
+import { syncOneGame, getSyncPendingGames } from '../../app/static/js/engine/sync-manager.js';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 

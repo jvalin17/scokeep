@@ -2,7 +2,7 @@
  * game-api.js — Unified game interface for screens.
  *
  * Delegates all logic and persistence to game-engine (IndexedDB), then fires
- * server-sync as a background side-effect for online backup.
+ * SyncManager as a background side-effect for online backup.
  *
  * Screens should import from this module instead of engine/game-engine.js
  * so that server sync is always applied consistently.
@@ -18,8 +18,8 @@
 
 import * as engine from './engine/game-engine.js';
 import { saveGame as storeSaveGame, saveRound as storeSaveRound, getRound as storeGetRound } from './engine/store.js';
-import { syncRound, syncGameState } from './engine/server-sync.js';
-import { syncOneGame } from './engine/sync-import.js';
+import { syncManager } from './engine/sync-manager.js';
+import { logger } from './components/logger.js';
 
 const PHASE_ROUTES = {
   bidding: 'bid',
@@ -69,6 +69,7 @@ export async function loadGameFromServer(gameId) {
     }
   } catch { /* current round may not exist yet */ }
 
+  game.server_game_id = game.server_game_id ?? game.id;
   await storeSaveGame(game);
   for (const round of roundsData) {
     await storeSaveRound(round);
@@ -141,7 +142,6 @@ export async function enterRescore(gameId) {
   }
   game.phase = 'round_end';
   await storeSaveGame(game);
-  syncGameState(gameId, game);
   return game;
 }
 
@@ -169,8 +169,6 @@ export async function rescoreRound(gameId, roundNum) {
   game.current_round = roundNum;
   game.phase = 'round_end';
   await storeSaveGame(game);
-
-  syncGameState(gameId, game);
   return game;
 }
 
@@ -185,7 +183,6 @@ export async function enterReview(gameId) {
   if (!game) throw new Error(`Game not found: ${gameId}`);
   game.phase = 'review';
   await storeSaveGame(game);
-  syncGameState(gameId, game);
   return game;
 }
 
@@ -247,8 +244,25 @@ export async function getScoreboard(gameId) {
  * @returns {Promise<Object>} Created game.
  */
 export async function createGame(players, settings) {
-  const game = await engine.createGame(players, settings);
-  syncGameState(game.id, game);
+  return engine.createGame(players, settings);
+}
+
+/**
+ * Create a local IDB mirror of a server-created room game.
+ *
+ * @param {number|string} serverGameId
+ * @param {string[]} players
+ * @param {Object} settings
+ * @param {string} shareCode
+ * @returns {Promise<Object>} Local game with server_game_id set.
+ */
+export async function createOnlineGame(serverGameId, players, settings, shareCode) {
+  const game = await engine.createGame(players, {
+    ...settings,
+    linked_room: shareCode,
+  });
+  game.server_game_id = serverGameId;
+  await storeSaveGame(game);
   return game;
 }
 
@@ -261,9 +275,7 @@ export async function createGame(players, settings) {
  * @returns {Promise<Object>} Updated round.
  */
 export async function submitBid(gameId, playerIndex, value) {
-  const round = await engine.submitBid(gameId, playerIndex, value);
-  syncRound(gameId, round);
-  return round;
+  return engine.submitBid(gameId, playerIndex, value);
 }
 
 /**
@@ -275,9 +287,7 @@ export async function submitBid(gameId, playerIndex, value) {
  * @returns {Promise<Object>} Updated round.
  */
 export async function editBid(gameId, playerIndex, value) {
-  const round = await engine.editBid(gameId, playerIndex, value);
-  syncRound(gameId, round);
-  return round;
+  return engine.editBid(gameId, playerIndex, value);
 }
 
 /**
@@ -287,9 +297,7 @@ export async function editBid(gameId, playerIndex, value) {
  * @returns {Promise<Object>} Updated game.
  */
 export async function startRound(gameId) {
-  const game = await engine.startRound(gameId);
-  syncGameState(gameId, game);
-  return game;
+  return engine.startRound(gameId);
 }
 
 /**
@@ -299,9 +307,7 @@ export async function startRound(gameId) {
  * @returns {Promise<Object>} Updated game.
  */
 export async function enterRoundEnd(gameId) {
-  const game = await engine.enterRoundEnd(gameId);
-  syncGameState(gameId, game);
-  return game;
+  return engine.enterRoundEnd(gameId);
 }
 
 /**
@@ -313,9 +319,7 @@ export async function enterRoundEnd(gameId) {
  * @returns {Promise<Object>} Updated round.
  */
 export async function submitHands(gameId, playerIndex, value) {
-  const round = await engine.submitHands(gameId, playerIndex, value);
-  syncRound(gameId, round);
-  return round;
+  return engine.submitHands(gameId, playerIndex, value);
 }
 
 /**
@@ -327,8 +331,9 @@ export async function submitHands(gameId, playerIndex, value) {
 export async function endRound(gameId) {
   const round = await engine.endRound(gameId);
   const game = await engine.getGame(gameId);
-  syncRound(gameId, round);
-  syncGameState(gameId, game);
+  if (game && game.server_game_id) {
+    syncManager.syncRound(game.server_game_id, round);
+  }
   return round;
 }
 
@@ -339,9 +344,7 @@ export async function endRound(gameId) {
  * @returns {Promise<Object>} Updated game.
  */
 export async function nextRound(gameId) {
-  const game = await engine.nextRound(gameId);
-  syncGameState(gameId, game);
-  return game;
+  return engine.nextRound(gameId);
 }
 
 /**
@@ -351,9 +354,7 @@ export async function nextRound(gameId) {
  * @returns {Promise<Object>} Updated game.
  */
 export async function endGame(gameId) {
-  const game = await engine.endGame(gameId);
-  syncGameState(gameId, game);
-  return game;
+  return engine.endGame(gameId);
 }
 
 /**
@@ -363,9 +364,7 @@ export async function endGame(gameId) {
  * @returns {Promise<Object>} Updated game.
  */
 export async function extendGame(gameId) {
-  const game = await engine.extendGame(gameId);
-  syncGameState(gameId, game);
-  return game;
+  return engine.extendGame(gameId);
 }
 
 /**
@@ -375,9 +374,7 @@ export async function extendGame(gameId) {
  * @returns {Promise<Object>} Updated game.
  */
 export async function undoRound(gameId) {
-  const game = await engine.undoRound(gameId);
-  syncGameState(gameId, game);
-  return game;
+  return engine.undoRound(gameId);
 }
 
 /**
@@ -388,12 +385,10 @@ export async function undoRound(gameId) {
  */
 export async function confirmFinal(gameId) {
   const game = await engine.confirmFinal(gameId);
-  syncGameState(gameId, game);
 
-  // Auto-sync linked Quick Games to server when online
-  if (game.linked_room && game.sync_pending && navigator.onLine) {
-    syncOneGame(game).catch(error =>
-      console.warn('Auto-sync after confirmFinal failed:', error),
+  if (game.linked_room && game.sync_pending) {
+    syncManager.syncGame(game).catch(error =>
+      logger.warn('sync', `confirmFinal auto-sync failed: ${error.message}`),
     );
   }
 

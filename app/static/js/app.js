@@ -3,7 +3,7 @@
 import { escapeHtml } from './components/game-utils.js';
 import { logger } from './components/logger.js';
 import { isLocalGame } from './resolve-api.js';
-import { attemptSyncBack } from './engine/sync-back.js';
+import { attemptSyncBack } from './engine/sync-manager.js';
 import { homeScreen } from './screens/home.js';
 import { lobbyScreen } from './screens/lobby.js';
 import { biddingScreen } from './screens/bidding.js';

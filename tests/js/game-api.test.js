@@ -1,9 +1,7 @@
 /**
  * game-api.test.js — Tests for the unified game-api.js interface.
  *
- * game-api delegates to game-engine for logic + IndexedDB persistence,
- * and fires server-sync as a side-effect for online backup.
- *
+ * Fixtures are synthetic (factory), matching existing game-api / engine tests.
  * Run with: npx vitest run tests/js/game-api.test.js
  */
 
@@ -13,23 +11,25 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   resetForTesting,
   setIndexedDBForTesting,
+  getGame,
 } from '../../app/static/js/engine/store.js';
+import { syncManager } from '../../app/static/js/engine/sync-manager.js';
 
-// We spy on the sync module — import it so vi.mock picks it up
-import * as serverSync from '../../app/static/js/engine/server-sync.js';
-
-vi.mock('../../app/static/js/engine/server-sync.js', () => ({
-  syncRound: vi.fn(),
-  syncGameState: vi.fn(),
+vi.mock('../../app/static/js/engine/sync-manager.js', () => ({
+  syncManager: {
+    syncRound: vi.fn(),
+    syncGame: vi.fn(),
+  },
+  isLocalId: (gameId) => typeof gameId === 'string' && gameId.startsWith('game-'),
 }));
 
 import {
   createGame,
+  createOnlineGame,
   submitBid,
+  endRound,
   getScoreboard,
 } from '../../app/static/js/game-api.js';
-
-// ─── helpers ─────────────────────────────────────────────────────────────────
 
 function setOnline(value) {
   Object.defineProperty(navigator, 'onLine', { value, configurable: true });
@@ -49,8 +49,6 @@ function makeSettings(overrides = {}) {
   };
 }
 
-// ─── isolation ───────────────────────────────────────────────────────────────
-
 beforeEach(() => {
   resetForTesting();
   setIndexedDBForTesting(new IDBFactory());
@@ -61,8 +59,6 @@ beforeEach(() => {
 afterEach(() => {
   vi.restoreAllMocks();
 });
-
-// ─── tests ───────────────────────────────────────────────────────────────────
 
 describe('test_create_game_returns_game_object', () => {
   it('createGame returns game object with expected fields', async () => {
@@ -76,41 +72,76 @@ describe('test_create_game_returns_game_object', () => {
   });
 });
 
-describe('test_submit_bid_calls_engine_and_syncs', () => {
-  it('submitBid returns round and fires syncRound when online', async () => {
+describe('test_create_online_game_sets_server_fields', () => {
+  it('stores server_game_id and linked_room on the IDB game', async () => {
+    const game = await createOnlineGame(42, makePlayers(), makeSettings(), 'KLCC');
+
+    expect(game.server_game_id).toBe(42);
+    expect(game.linked_room).toBe('KLCC');
+    expect(game.sync_pending).toBe(true);
+
+    const stored = await getGame(game.id);
+    expect(stored.server_game_id).toBe(42);
+    expect(stored.linked_room).toBe('KLCC');
+  });
+});
+
+describe('test_submit_bid_does_not_sync', () => {
+  it('submitBid writes the bid and does not call syncRound', async () => {
     const game = await createGame(makePlayers(), makeSettings());
 
     const round = await submitBid(game.id, 0, 3);
 
     expect(round.bids['0']).toBe(3);
-    expect(serverSync.syncRound).toHaveBeenCalledOnce();
-    const [syncedGameId, syncedRound] = serverSync.syncRound.mock.calls[0];
-    expect(syncedGameId).toBe(game.id);
-    expect(syncedRound.bids['0']).toBe(3);
+    expect(syncManager.syncRound).not.toHaveBeenCalled();
   });
 });
 
 describe('test_submit_bid_offline_still_works', () => {
-  it('submitBid succeeds and skips sync when offline', async () => {
+  it('submitBid succeeds when offline', async () => {
     setOnline(false);
-
-    // Override syncRound to enforce the offline guard: it must not be called
-    // (server-sync.syncRound bails out early when navigator.onLine is false).
-    serverSync.syncRound.mockImplementation(() => {
-      if (!navigator.onLine) return Promise.resolve();
-      throw new Error('syncRound called while offline');
-    });
-
     const game = await createGame(makePlayers(), makeSettings());
-    vi.clearAllMocks(); // reset call counts after createGame
 
     const round = await submitBid(game.id, 0, 2);
 
     expect(round.bids['0']).toBe(2);
-    // syncRound was invoked by game-api but the implementation resolved without
-    // hitting the server (onLine guard). Verify the mock was called exactly once
-    // and did not throw.
-    expect(serverSync.syncRound).toHaveBeenCalledOnce();
+    expect(syncManager.syncRound).not.toHaveBeenCalled();
+  });
+});
+
+describe('test_end_round_syncs_server_game_id', () => {
+  it('endRound syncs the completed round to the server game id', async () => {
+    const game = await createOnlineGame(42, makePlayers(), makeSettings(), 'KLCC');
+    const engine = await import('../../app/static/js/engine/game-engine.js');
+    await engine.submitBid(game.id, 0, 2);
+    await engine.submitBid(game.id, 1, 3);
+    await engine.startRound(game.id);
+    await engine.enterRoundEnd(game.id);
+    await engine.submitHands(game.id, 0, 2);
+    await engine.submitHands(game.id, 1, 6);
+
+    const round = await endRound(game.id);
+
+    expect(round.status).toBe('complete');
+    expect(syncManager.syncRound).toHaveBeenCalledOnce();
+    const [serverGameId, syncedRound] = syncManager.syncRound.mock.calls[0];
+    expect(serverGameId).toBe(42);
+    expect(syncedRound.round_num).toBe(1);
+  });
+
+  it('endRound does not sync when there is no server_game_id', async () => {
+    const game = await createGame(makePlayers(), makeSettings());
+    const engine = await import('../../app/static/js/engine/game-engine.js');
+    await engine.submitBid(game.id, 0, 2);
+    await engine.submitBid(game.id, 1, 3);
+    await engine.startRound(game.id);
+    await engine.enterRoundEnd(game.id);
+    await engine.submitHands(game.id, 0, 2);
+    await engine.submitHands(game.id, 1, 6);
+
+    await endRound(game.id);
+
+    expect(syncManager.syncRound).not.toHaveBeenCalled();
   });
 });
 
@@ -118,7 +149,6 @@ describe('test_get_scoreboard_returns_totals', () => {
   it('getScoreboard returns totals object after a scored round', async () => {
     const game = await createGame(makePlayers(), makeSettings());
 
-    // Import engine functions directly to set up a complete round
     const engine = await import('../../app/static/js/engine/game-engine.js');
     await engine.submitBid(game.id, 0, 2);
     await engine.submitBid(game.id, 1, 3);
@@ -132,7 +162,6 @@ describe('test_get_scoreboard_returns_totals', () => {
 
     expect(scoreboard).toHaveProperty('totals');
     expect(scoreboard).toHaveProperty('rounds');
-    // Alice bid 2, won 2 → 2*10 = 20. Bob bid 3, won 6 → -30.
     expect(scoreboard.totals['0']).toBe(20);
     expect(scoreboard.totals['1']).toBe(-30);
   });

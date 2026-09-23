@@ -457,7 +457,7 @@ function _bindQuickTab(container, navigate) {
                 }
             } catch (_) { /* offline — use cached rooms only */ }
             if (!allCachedRooms.length) {
-                listEl.innerHTML = '';
+                listEl.innerHTML = '<p class="stats-muted" style="padding:8px;">No rooms yet — create one on the Create tab, then come back.</p>';
                 return;
             }
             renderRoomButtons(listEl, allCachedRooms);

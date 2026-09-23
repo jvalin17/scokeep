@@ -1,8 +1,8 @@
 /**
- * resolve-api.js — Routes game API calls to the correct backend.
+ * resolve-api.js — Routes game API calls to the local engine.
  *
- * Online games (integer IDs from server) → api.js (server endpoints)
- * Quick games (string IDs starting with "game-") → game-api.js (local engine)
+ * All active gameplay uses game-api.js (IndexedDB first + SyncManager).
+ * api.js remains for room/auth/stats, not in-game taps.
  */
 
 /**
@@ -18,15 +18,12 @@ export function isLocalGame(gameId) {
 }
 
 /**
- * Returns the appropriate API module for the given game ID.
- * Uses dynamic imports so both modules are available but only one is loaded per call.
+ * Returns the game-api module for every game id.
+ * Online room games are mirrored in IndexedDB; screens always write locally.
  *
  * @param {string|number} gameId
- * @returns {Promise<Object>} The API module (game-api.js or api.js)
+ * @returns {Promise<Object>} The game-api.js module
  */
 export async function getApi(gameId) {
-  if (isLocalGame(gameId)) {
-    return import('./game-api.js');
-  }
-  return import('./api.js');
+  return import('./game-api.js');
 }

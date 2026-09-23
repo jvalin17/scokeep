@@ -49,6 +49,9 @@ export const logger = {
     },
 
     // Errors and recovery
+    info(category, message, data) {
+        log('info', category, message, data || undefined);
+    },
     error(category, message, data) {
         log('error', category, message, data || undefined);
     },

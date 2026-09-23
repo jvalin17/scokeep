@@ -175,6 +175,20 @@ export async function getActiveGame() {
 }
 
 /**
+ * Return the active IDB game linked to a room share code, or null.
+ * @param {string} shareCode
+ * @returns {Promise<Object|null>}
+ */
+export async function getActiveGameForRoom(shareCode) {
+  const db = await _open();
+  const tx = db.transaction('games', 'readonly');
+  const all = await _wrap(tx.objectStore('games').getAll());
+  return (all ?? []).find(
+    (game) => game.status === 'active' && game.linked_room === shareCode,
+  ) ?? null;
+}
+
+/**
  * Persist a round (insert or overwrite).
  * @param {Object} round  Must contain game_id and round_num.
  * @returns {Promise<void>}

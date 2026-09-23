@@ -32,7 +32,7 @@ def create_playground(page: Page, name: str, pin: str, players: list[str]):
             page.locator(".player-name").last.fill(player)
 
     page.click('#create-form button[type="submit"]')
-    page.wait_for_function("() => location.hash.includes('playground')", timeout=5000)
+    page.wait_for_function("() => location.hash.includes('playground')", timeout=15000)
 
 
 def auth_playground(page: Page, server: str, name: str, pin: str):

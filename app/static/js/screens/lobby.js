@@ -1,13 +1,14 @@
 // Lobby screen — player setup, settings, start game
 
-import { getPlayground, createGame, getActiveGame, endGame } from '../api.js';
+import { getPlayground, createGame as createServerGame, getActiveGame as getServerActiveGame, endGame as endServerGame } from '../api.js';
+import { createOnlineGame, loadGameFromServer, endGame as endLocalGame } from '../game-api.js';
 import { initDragReorder } from '../components/drag-reorder.js';
 import { escapeHtml } from '../components/game-utils.js';
 import { renderSettingsGrid, readSettings } from '../components/game-settings.js';
 import { isMuted, toggleMute, soundEndGame } from '../components/sounds.js';
 import { showConfirmDialog } from '../components/confirm-dialog.js';
-import { getSyncPendingGames, syncOneGame } from '../engine/sync-import.js';
-import { saveGame } from '../engine/store.js';
+import { getSyncPendingGames, syncOneGame } from '../engine/sync-manager.js';
+import { getActiveGameForRoom, saveGame } from '../engine/store.js';
 
 let syncTimer = null;
 
@@ -27,11 +28,16 @@ export const lobbyScreen = {
         const playground = state.playground;
         let players = [...playground.players];
 
-        // Check for active game
-        let activeGame = null;
-        try {
-            activeGame = await getActiveGame(playground.id);
-        } catch { /* no active game */ }
+        // Prefer local IDB active game for this room (IDB-first local game- ids).
+        let activeGame = await getActiveGameForRoom(playground.share_code);
+        if (!activeGame) {
+            try {
+                const serverActive = await getServerActiveGame(playground.id);
+                if (serverActive) {
+                    activeGame = await loadGameFromServer(serverActive.id);
+                }
+            } catch { /* no active game */ }
+        }
 
         function renderLobby() {
             container.innerHTML = `
@@ -146,7 +152,11 @@ export const lobbyScreen = {
                     const confirmed = await showConfirmDialog('End this game? Scores so far will be saved.');
                     if (confirmed) {
                         const gameId = activeGame.id;
-                        await endGame(gameId);
+                        const serverId = activeGame.server_game_id;
+                        if (serverId) {
+                            try { await endServerGame(serverId); } catch { /* local end still proceeds */ }
+                        }
+                        try { await endLocalGame(gameId); } catch { /* may already be finished */ }
                         soundEndGame();
                         navigate(`scoreboard/${gameId}`);
                     }
@@ -185,7 +195,13 @@ export const lobbyScreen = {
                 };
 
                 try {
-                    const game = await createGame(playground.id, players, settings);
+                    const serverGame = await createServerGame(playground.id, players, settings);
+                    const game = await createOnlineGame(
+                        serverGame.id,
+                        players,
+                        settings,
+                        playground.share_code,
+                    );
                     state.game = game;
                     document.body.setAttribute('data-appearance', settings.appearance);
                     navigate(`bid/${game.id}`);

@@ -6,8 +6,6 @@ import { getRoundCards, escapeHtml } from '../components/game-utils.js';
 import { getEntryOrder } from '../components/entry-utils.js';
 import { renderGameIsland, renderRoundInfoBar, renderTrumpDisplay, attachEndGameHandler, showError, setScreenContext } from '../components/screen-parts.js';
 import { soundScoreRound, soundNextRound } from '../components/sounds.js';
-import { isNetworkError, transferToOffline } from '../engine/offline-failover.js';
-import { banner } from '../components/connection-banner.js';
 
 
 export const roundendScreen = {
@@ -263,14 +261,6 @@ export const roundendScreen = {
                 entryPosition++;
                 renderCollecting();
             } catch (error) {
-                if (isNetworkError(error)) {
-                    const rps = game.settings.rounds_per_set || 8;
-                    const roundData = { hands_won: handsCollected, round_num: game.current_round, cards_dealt: getRoundCards(game.current_round, rps), trump_suit: null };
-                    const localId = await transferToOffline(game, roundData, state.playground?.share_code || null);
-                    banner.showOffline();
-                    navigate(`roundend/${localId}`);
-                    return;
-                }
                 showError(container, 'hands-error', error.message);
             } finally {
                 isSubmitting = false;

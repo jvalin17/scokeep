@@ -114,36 +114,6 @@ async function request(method, path, body = null) {
 // Exported for tests only
 export { request as _request };
 
-const PHASE_ROUTES = {
-    bidding: 'bid',
-    playing: 'play',
-    round_end: 'roundend',
-    scoreboard: 'scoreboard',
-    review: 'review',
-    final: 'final',
-};
-
-// Guard: check backend phase matches expected. Redirects if mismatch.
-// Returns the game object if phase matches, null if redirected.
-export async function guardPhase(gameId, expectedPhase) {
-    const game = await request('GET', `/game/${gameId}`);
-    if (game.phase !== expectedPhase) {
-        const route = PHASE_ROUTES[game.phase] || 'scoreboard';
-        logger.resync(gameId, expectedPhase, game.phase);
-        window.location.hash = `${route}/${gameId}`;
-        return null;
-    }
-    return game;
-}
-
-// Re-sync: fetch game state and navigate to correct screen
-export async function resyncGame(gameId) {
-    const game = await request('GET', `/game/${gameId}`);
-    const route = PHASE_ROUTES[game.phase] || 'scoreboard';
-    window.location.hash = `${route}/${gameId}`;
-    return game;
-}
-
 // Playground
 export function listRecentPlaygrounds() {
     return request('GET', '/playground/recent');
@@ -180,7 +150,7 @@ export function clearPlaygroundStats(shareCode) {
     return request('DELETE', `/playground/${shareCode}/stats`);
 }
 
-// Game
+// Game — room create / resume / end (server). In-game taps use game-api.js.
 export function createGame(playgroundId, players, settings = {}) {
     return request('POST', '/game', {
         playground_id: playgroundId,
@@ -197,74 +167,11 @@ export function getActiveGame(playgroundId) {
     return request('GET', `/game/active/${playgroundId}`);
 }
 
-export function nextRound(gameId) {
-    return request('POST', `/game/${gameId}/next-round`);
-}
-
 export function endGame(gameId) {
     return request('POST', `/game/${gameId}/end`);
 }
 
-export function extendGame(gameId) {
-    return request('POST', `/game/${gameId}/extend`);
-}
-
-// Round
-export function submitBid(gameId, playerIndex, value) {
-    return request('POST', `/game/${gameId}/bid`, {
-        player_index: playerIndex,
-        value,
-    });
-}
-
-export function getBids(gameId) {
-    return request('GET', `/game/${gameId}/bids`);
-}
-
-export function editBid(gameId, playerIndex, value) {
-    return request('PATCH', `/game/${gameId}/bid/${playerIndex}`, { value });
-}
-
-export function startRound(gameId) {
-    return request('POST', `/game/${gameId}/start-round`);
-}
-
-export function enterRoundEnd(gameId) {
-    return request('POST', `/game/${gameId}/enter-round-end`);
-}
-
-export function submitHands(gameId, playerIndex, value) {
-    return request('POST', `/game/${gameId}/hands`, {
-        player_index: playerIndex,
-        value,
-    });
-}
-
-export function endRound(gameId) {
-    return request('POST', `/game/${gameId}/end-round`);
-}
-
-export function enterRescore(gameId) {
-    return request('POST', `/game/${gameId}/enter-rescore`);
-}
-
-// Review phase
-export function enterReview(gameId) {
-    return request('POST', `/game/${gameId}/enter-review`);
-}
-
-export function rescoreRound(gameId, roundNum) {
-    return request('POST', `/game/${gameId}/rescore/${roundNum}`);
-}
-
-export function confirmFinal(gameId) {
-    return request('POST', `/game/${gameId}/confirm-final`);
-}
-
-// Scoreboard
+// Scoreboard (stats screen)
 export function getScoreboard(gameId) {
     return request('GET', `/game/${gameId}/scoreboard`);
-}
-export function undoRound(gameId) {
-    return request('POST', `/game/${gameId}/undo`);
 }

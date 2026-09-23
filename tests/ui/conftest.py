@@ -4,13 +4,13 @@ Uses Playwright's SYNC API to avoid event loop conflicts with pytest-asyncio.
 """
 
 import os
+import socket
 import subprocess  # noqa: S603
 import sys
 import time
-import urllib.error
-import urllib.request  # noqa: S310
 from pathlib import Path
 
+import httpx
 import pytest
 
 collect_ignore_glob: list[str] = []
@@ -31,9 +31,14 @@ def setup_database():
 
 
 DB_PATH = Path("ui_test.db")
-SERVER_PORT = 8050
-BASE_URL = f"http://localhost:{SERVER_PORT}"
 SERVER_LOG = Path("ui_test_server.log")
+
+
+def _pick_free_port() -> int:
+    """Bind briefly to port 0 so we never collide with a stale uvicorn on 8050."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        return int(sock.getsockname()[1])
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -47,6 +52,9 @@ def _clean_db():
 @pytest.fixture(scope="session")
 def server():
     """Start uvicorn subprocess for the entire UI test session."""
+    server_port = _pick_free_port()
+    base_url = f"http://127.0.0.1:{server_port}"
+
     env = {
         **os.environ,
         "DATABASE_URL": f"sqlite+aiosqlite:///./{DB_PATH}",
@@ -63,9 +71,9 @@ def server():
             "uvicorn",
             "app.main:app",
             "--host",
-            "0.0.0.0",  # noqa: S104
+            "127.0.0.1",
             "--port",
-            str(SERVER_PORT),
+            str(server_port),
         ],
         env=env,
         stdout=log_file,
@@ -81,9 +89,10 @@ def server():
                 f"Server process exited with code {proc.returncode}\nLog:\n{log_content[-2000:]}"
             )
         try:
-            urllib.request.urlopen(f"{BASE_URL}/api/health", timeout=2)  # noqa: S310
-            break
-        except (urllib.error.URLError, ConnectionError, TimeoutError, OSError):
+            response = httpx.get(f"{base_url}/api/health", timeout=2.0)
+            if response.status_code == 200:
+                break
+        except (httpx.HTTPError, OSError):
             time.sleep(0.5)
     else:
         log_file.close()
@@ -91,7 +100,7 @@ def server():
         proc.terminate()
         raise RuntimeError(f"Server did not start within 30 seconds\nLog:\n{log_content[-2000:]}")
 
-    yield BASE_URL
+    yield base_url
     proc.terminate()
     proc.wait(timeout=5)
     log_file.close()

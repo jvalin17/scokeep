@@ -19,7 +19,7 @@ import {
 } from '../../app/static/js/engine/store.js';
 import {
   attemptSyncBack,
-} from '../../app/static/js/engine/sync-back.js';
+} from '../../app/static/js/engine/sync-manager.js';
 
 // ─── setup ────────────────────────────────────────────────────────────────────
 
