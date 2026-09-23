@@ -140,19 +140,26 @@ async function retryPendingServerEnds() {
     for (const game of finished) {
         if (!game.server_end_pending || !game.server_game_id) continue;
         try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 15000);
-            const response = await fetch(`/api/game/${game.server_game_id}/end`, {
+            const endResponse = await fetch(`/api/game/${game.server_game_id}/end`, {
                 method: 'POST',
                 credentials: 'same-origin',
-                signal: controller.signal,
             });
-            clearTimeout(timeoutId);
-            if (!response.ok) throw new Error(`Server returned ${response.status}`);
+            if (endResponse.status !== 409 && !endResponse.ok) {
+                throw new Error(`Server /end returned ${endResponse.status}`);
+            }
+            if (endResponse.status !== 409) {
+                const confirmResponse = await fetch(
+                    `/api/game/${game.server_game_id}/confirm-final`,
+                    { method: 'POST', credentials: 'same-origin' },
+                );
+                if (!confirmResponse.ok && confirmResponse.status !== 409) {
+                    throw new Error(`Server /confirm-final returned ${confirmResponse.status}`);
+                }
+            }
             game.server_end_pending = false;
             await saveGame(game);
         } catch (error) {
-            logger.warn('sync', `server end retry failed: ${error.message}`);
+            logger.warn('sync', `server finalize retry failed: ${error.message}`);
             break;
         }
     }

@@ -92,31 +92,53 @@ def test_no_banner_on_drop(page, server):
 
 
 def test_game_end_syncs_all(page, server):
-    """After confirmFinal, online room games POST /end on the server game id."""
+    """After confirmFinal, server gets /end then /confirm-final (leaves active)."""
     sync_urls: list[str] = []
     end_ok_urls: list[str] = []
+    confirm_ok_urls: list[str] = []
 
     def on_request(request):
         if request.method == "POST" and "sync-round" in request.url:
             sync_urls.append(request.url)
 
     def on_response(response):
-        if (
-            response.request.method == "POST"
-            and re.search(r"/api/game/\d+/end$", response.url)
-            and response.ok
-        ):
+        if response.request.method != "POST" or not response.ok:
+            return
+        if re.search(r"/api/game/\d+/end$", response.url):
             end_ok_urls.append(response.url)
+        if re.search(r"/api/game/\d+/confirm-final$", response.url):
+            confirm_ok_urls.append(response.url)
 
     page.on("request", on_request)
     page.on("response", on_response)
-    _start_idb_room(page, server, unique_name("IDBEnd"))
+    share = _start_idb_room(page, server, unique_name("IDBEnd"))
     play_one_round(page, [2, 3, 1], [2, 3, 3])
     end_game(page)
 
     page.wait_for_timeout(3000)
     assert sync_urls, f"expected sync-round during play, got {sync_urls}"
     assert end_ok_urls, f"expected successful POST /end after confirmFinal, got {end_ok_urls}"
+    assert confirm_ok_urls, (
+        f"expected successful POST /confirm-final after confirmFinal, got {confirm_ok_urls}"
+    )
+
+    # Resume must clear — server active endpoint returns 404
+    page.evaluate(f"() => location.hash = 'playground/{share}'")
+    page.wait_for_selector("#start-game", timeout=10000)
+    expect(page.locator("#resume-game")).to_have_count(0)
+
+
+def test_resume_clears_after_confirm_final(page, server):
+    """Ending a game must remove Resume Game from the lobby."""
+    share = _start_idb_room(page, server, unique_name("IDBResumeClear"))
+    play_one_round(page, [2, 3, 1], [2, 3, 3])
+    end_game(page)
+    page.wait_for_timeout(1500)
+
+    page.evaluate(f"() => location.hash = 'playground/{share}'")
+    page.wait_for_selector("#start-game", timeout=10000)
+    expect(page.locator("#resume-game")).to_have_count(0)
+    expect(page.locator("#start-game")).to_be_visible()
 
 
 def test_lobby_sync_button_offline(page, server):
@@ -166,9 +188,9 @@ def test_lobby_sync_button_offline(page, server):
 
 
 def test_partial_sync_recovery(page, server):
-    """One online round syncs; block /end; after online event, server end retries."""
+    """One online round syncs; block finalize; after online event, /confirm-final retries."""
     sync_urls: list[str] = []
-    end_ok_urls: list[str] = []
+    confirm_ok_urls: list[str] = []
 
     def on_request(request):
         if request.method == "POST" and "sync-round" in request.url:
@@ -177,10 +199,10 @@ def test_partial_sync_recovery(page, server):
     def on_response(response):
         if (
             response.request.method == "POST"
-            and re.search(r"/api/game/\d+/end$", response.url)
+            and re.search(r"/api/game/\d+/confirm-final$", response.url)
             and response.ok
         ):
-            end_ok_urls.append(response.url)
+            confirm_ok_urls.append(response.url)
 
     page.on("request", on_request)
     page.on("response", on_response)
@@ -191,13 +213,17 @@ def test_partial_sync_recovery(page, server):
     assert sync_urls, "round 1 should sync while online"
 
     page.route("**/api/game/**/end", lambda route: route.abort())
+    page.route("**/api/game/**/confirm-final", lambda route: route.abort())
 
     end_game(page)
     page.wait_for_timeout(800)
-    assert not end_ok_urls, "server end should not succeed while blocked"
+    assert not confirm_ok_urls, "confirm-final should not succeed while blocked"
 
     page.unroute("**/api/game/**/end")
+    page.unroute("**/api/game/**/confirm-final")
     page.evaluate("() => window.dispatchEvent(new Event('online'))")
     page.wait_for_timeout(2500)
 
-    assert end_ok_urls, f"expected successful POST /end after online retry, got {end_ok_urls}"
+    assert confirm_ok_urls, (
+        f"expected successful POST /confirm-final after online retry, got {confirm_ok_urls}"
+    )

@@ -22,18 +22,38 @@ import { syncManager } from './engine/sync-manager.js';
 import { logger } from './components/logger.js';
 
 /**
- * Quiet POST /end for a server game — no reconnect banner, no long retries.
- * Used by confirmFinal / sync-back so gameplay stays silent on failure.
+ * Quiet finalize for a server game — no reconnect banner, no long retries.
+ * POST /end (phase=review, status still active) then POST /confirm-final
+ * (status=finished). Without confirm-final, lobby Resume stays forever.
  */
-async function endServerGameQuiet(serverGameId) {
-  const response = await fetchWithTimeout(`/api/game/${serverGameId}/end`, {
+async function finalizeServerGameQuiet(serverGameId) {
+  const endResponse = await fetchWithTimeout(`/api/game/${serverGameId}/end`, {
     method: 'POST',
     credentials: 'same-origin',
   });
-  if (!response.ok) {
-    throw new Error(`Server returned ${response.status}`);
+  // 409 = already finished — treat as done
+  if (endResponse.status === 409) {
+    return { already_finished: true };
   }
-  return response.json().catch(() => ({}));
+  if (!endResponse.ok) {
+    throw new Error(`Server /end returned ${endResponse.status}`);
+  }
+
+  const confirmResponse = await fetchWithTimeout(
+    `/api/game/${serverGameId}/confirm-final`,
+    {
+      method: 'POST',
+      credentials: 'same-origin',
+    },
+  );
+  if (confirmResponse.status === 409) {
+    // Already past review (e.g. prior partial finalize) — check via re-end
+    return { already_finished: true };
+  }
+  if (!confirmResponse.ok) {
+    throw new Error(`Server /confirm-final returned ${confirmResponse.status}`);
+  }
+  return confirmResponse.json().catch(() => ({}));
 }
 
 const PHASE_ROUTES = {
@@ -397,7 +417,8 @@ export async function undoRound(gameId) {
 
 /**
  * Confirm the game is final, then background-sync.
- * Online room games: retry queued rounds + POST /end on server_game_id.
+ * Online room games: retry queued rounds + POST /end then /confirm-final
+ * so the server game leaves "active" (otherwise lobby Resume never clears).
  * Offline Quick Games: import via syncGame when sync_pending.
  *
  * @param {string} gameId
@@ -410,7 +431,7 @@ export async function confirmFinal(gameId) {
     syncManager.retrySyncQueue().catch(error =>
       logger.warn('sync', `confirmFinal queue retry failed: ${error.message}`),
     );
-    endServerGameQuiet(game.server_game_id)
+    finalizeServerGameQuiet(game.server_game_id)
       .then(async () => {
         const latest = await engine.getGame(gameId);
         if (latest?.server_end_pending) {
@@ -419,7 +440,7 @@ export async function confirmFinal(gameId) {
         }
       })
       .catch(async (error) => {
-        logger.warn('sync', `confirmFinal server end failed: ${error.message}`);
+        logger.warn('sync', `confirmFinal server finalize failed: ${error.message}`);
         const latest = await engine.getGame(gameId);
         if (latest) {
           latest.server_end_pending = true;

@@ -172,7 +172,7 @@ describe('test_get_scoreboard_returns_totals', () => {
 });
 
 describe('test_confirm_final_ends_server_game', () => {
-  it('retries the sync queue and POSTs server end for online games', async () => {
+  it('POSTs /end then /confirm-final so the server game leaves active', async () => {
     const fetchSpy = vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 200 }));
     vi.stubGlobal('fetch', fetchSpy);
 
@@ -181,18 +181,20 @@ describe('test_confirm_final_ends_server_game', () => {
 
     await confirmFinal(game.id);
     await vi.waitFor(() => {
-      expect(fetchSpy).toHaveBeenCalled();
+      expect(fetchSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
     });
 
     expect(syncManager.retrySyncQueue).toHaveBeenCalledOnce();
     expect(syncManager.syncGame).not.toHaveBeenCalled();
-    const endCall = fetchSpy.mock.calls.find(
-      ([url, options]) => String(url).includes('/api/game/42/end') && options?.method === 'POST',
-    );
-    expect(endCall).toBeTruthy();
+
+    const urls = fetchSpy.mock.calls
+      .filter(([, options]) => options?.method === 'POST')
+      .map(([url]) => String(url));
+    expect(urls).toContain('/api/game/42/end');
+    expect(urls).toContain('/api/game/42/confirm-final');
   });
 
-  it('marks server_end_pending when server end fails', async () => {
+  it('marks server_end_pending when server finalize fails', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => {
       throw new Error('network down');
     }));

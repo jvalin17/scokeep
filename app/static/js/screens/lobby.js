@@ -1,7 +1,7 @@
 // Lobby screen — player setup, settings, start game
 
-import { getPlayground, createGame as createServerGame, getActiveGame as getServerActiveGame, endGame as endServerGame } from '../api.js';
-import { createOnlineGame, loadGameFromServer, endGame as endLocalGame } from '../game-api.js';
+import { getPlayground, createGame as createServerGame, getActiveGame as getServerActiveGame } from '../api.js';
+import { createOnlineGame, loadGameFromServer, endGame as endLocalGame, confirmFinal as confirmLocalFinal } from '../game-api.js';
 import { initDragReorder } from '../components/drag-reorder.js';
 import { escapeHtml } from '../components/game-utils.js';
 import { renderSettingsGrid, readSettings } from '../components/game-settings.js';
@@ -145,18 +145,16 @@ export const lobbyScreen = {
                 });
             }
 
-            // End active game from lobby
+            // End active game from lobby — must finish on server (/end + /confirm-final)
+            // or Resume stays forever (active endpoint keys off status=active).
             const endActiveBtn = container.querySelector('#end-active-game');
             if (endActiveBtn) {
                 endActiveBtn.addEventListener('click', async () => {
                     const confirmed = await showConfirmDialog('End this game? Scores so far will be saved.');
                     if (confirmed) {
                         const gameId = activeGame.id;
-                        const serverId = activeGame.server_game_id;
-                        if (serverId) {
-                            try { await endServerGame(serverId); } catch { /* local end still proceeds */ }
-                        }
                         try { await endLocalGame(gameId); } catch { /* may already be finished */ }
+                        try { await confirmLocalFinal(gameId); } catch { /* server finalize retried on online */ }
                         soundEndGame();
                         navigate(`scoreboard/${gameId}`);
                     }
