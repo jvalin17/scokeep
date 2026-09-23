@@ -129,7 +129,7 @@ def test_personality_card_flip(stats_page):
         card = unlocked.first
         card.wait_for(state="visible", timeout=5000)
         card.scroll_into_view_if_needed()
-        card.click(force=True)
+        card.click()
         page.wait_for_function(
             "() => document.querySelector("
             "'.personality-card:not(.personality-card-locked)')"
@@ -138,6 +138,19 @@ def test_personality_card_flip(stats_page):
         )
         has_flipped = card.evaluate("el => el.classList.contains('flipped')")
         assert has_flipped, "Clicking an unlocked .personality-card must add .flipped class"
+
+        # Wait for the 600ms CSS transition + debounce guard to complete
+        # Race transitionend against a 1s timeout to avoid hanging if animation is skipped
+        page.evaluate(
+            "() => new Promise(r => {"
+            "  const inner = document.querySelector("
+            "    '.personality-card:not(.personality-card-locked) .personality-card-inner');"
+            "  const fallback = setTimeout(r, 1000);"
+            "  if (inner) inner.addEventListener('transitionend', () => {"
+            "    clearTimeout(fallback); r();"
+            "  }, {once: true});"
+            "})"
+        )
 
         # Click again to flip back
         card.click()

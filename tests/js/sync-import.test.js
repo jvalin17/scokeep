@@ -144,6 +144,28 @@ describe('test_sync_one_game_keeps_pending_on_non_ok', () => {
   });
 });
 
+describe('test_sync_one_game_returns_status_on_4xx', () => {
+  it('syncOneGame returns numeric status on 4xx so callers can distinguish permanent failures', async () => {
+    const game = makeLinkedGame();
+    await saveGame(game);
+    await saveRound(makeRound(game.id, 1));
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false,
+      status: 409,
+      json: () => Promise.resolve({ detail: 'Duplicate game' }),
+    }));
+
+    const result = await syncOneGame(game);
+    expect(result.success).toBe(false);
+    expect(result.status).toBe(409);
+
+    // sync_pending stays true — it's the caller's job to clear it for 4xx
+    const updated = await getGame(game.id);
+    expect(updated.sync_pending).toBe(true);
+  });
+});
+
 // ─── getSyncPendingGames ────────────────────────────────────────────────────
 
 describe('test_get_sync_pending_games_filters_by_room', () => {

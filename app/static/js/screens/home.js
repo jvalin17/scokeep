@@ -155,7 +155,7 @@ function _renderQuickTab() {
                             <div style="display:flex;gap:8px;align-items:center;">
                                 <input type="password" id="quick-room-pin" placeholder="Enter room PIN"
                                     maxlength="4" inputmode="numeric" pattern="[0-9]*" autocomplete="off" style="flex:1;">
-                                <button type="button" id="quick-room-verify" class="btn btn-primary" style="padding:8px 16px;">Verify</button>
+                                <button type="button" id="quick-room-verify" class="btn btn-primary" style="padding:8px 16px;width:auto;flex-shrink:0;">Verify</button>
                             </div>
                             <p id="quick-room-error" class="error hidden" style="margin-top:4px;"></p>
                             <p id="quick-room-success" class="hidden" style="margin-top:4px;color:var(--success,#22c55e);font-size:0.85rem;"></p>
@@ -442,6 +442,20 @@ function _bindQuickTab(container, navigate) {
         try {
             allCachedRooms = await getAllRooms();
             const listEl = container.querySelector('#quick-room-list');
+            // Fetch fresh rooms from browse API; cache only new ones (preserve pin_verifier)
+            try {
+                const data = await browsePlaygrounds();
+                const browseRooms = data.rooms || [];
+                for (const room of browseRooms) {
+                    const existing = await getRoom(room.share_code);
+                    if (!existing) {
+                        await saveRoom(room);
+                    }
+                }
+                if (browseRooms.length) {
+                    allCachedRooms = await getAllRooms();
+                }
+            } catch (_) { /* offline — use cached rooms only */ }
             if (!allCachedRooms.length) {
                 listEl.innerHTML = '';
                 return;

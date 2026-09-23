@@ -7,6 +7,7 @@ import { renderSettingsGrid, readSettings } from '../components/game-settings.js
 import { isMuted, toggleMute, soundEndGame } from '../components/sounds.js';
 import { showConfirmDialog } from '../components/confirm-dialog.js';
 import { getSyncPendingGames, syncOneGame } from '../engine/sync-import.js';
+import { saveGame } from '../engine/store.js';
 
 let syncTimer = null;
 
@@ -218,8 +219,17 @@ export const lobbyScreen = {
                     for (const game of pendingGames) {
                         messageEl.textContent = `Syncing ${synced + 1} of ${total}...`;
                         const result = await syncOneGame(game);
-                        if (result.success) { synced++; }
-                        else { failed++; }
+                        if (result.success) {
+                            synced++;
+                        } else if (result.status >= 400 && result.status < 500) {
+                            // Permanent failure (duplicate, bad data) — stop retrying
+                            game.sync_pending = false;
+                            game.sync_failed = true;
+                            await saveGame(game);
+                            synced++; // count as resolved, not retryable
+                        } else {
+                            failed++;
+                        }
                     }
 
                     if (failed === 0) {
