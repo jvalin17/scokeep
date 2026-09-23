@@ -3,7 +3,8 @@
 import { escapeHtml } from './components/game-utils.js';
 import { logger } from './components/logger.js';
 import { isLocalGame } from './resolve-api.js';
-import { attemptSyncBack } from './engine/sync-manager.js';
+import { attemptSyncBack, retrySyncQueue } from './engine/sync-manager.js';
+import { getFinishedGames, saveGame } from './engine/store.js';
 import { homeScreen } from './screens/home.js';
 import { lobbyScreen } from './screens/lobby.js';
 import { biddingScreen } from './screens/bidding.js';
@@ -132,10 +133,35 @@ async function render() {
 window.addEventListener('hashchange', render);
 render();
 
-// Sync-back: attempt silently on startup and online event.
-// No UI here — sync banner is lobby-only per requirements.
+// Sync-back: retry queued rounds, unfinished server ends, then pending imports.
+// Silent — sync banner is lobby-only per requirements.
+async function retryPendingServerEnds() {
+    const finished = await getFinishedGames(50);
+    for (const game of finished) {
+        if (!game.server_end_pending || !game.server_game_id) continue;
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000);
+            const response = await fetch(`/api/game/${game.server_game_id}/end`, {
+                method: 'POST',
+                credentials: 'same-origin',
+                signal: controller.signal,
+            });
+            clearTimeout(timeoutId);
+            if (!response.ok) throw new Error(`Server returned ${response.status}`);
+            game.server_end_pending = false;
+            await saveGame(game);
+        } catch (error) {
+            logger.warn('sync', `server end retry failed: ${error.message}`);
+            break;
+        }
+    }
+}
+
 async function runSyncBack() {
     try {
+        await retrySyncQueue();
+        await retryPendingServerEnds();
         await attemptSyncBack();
     } catch (error) {
         logger.error('sync', error.message);

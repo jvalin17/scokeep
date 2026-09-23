@@ -21,6 +21,21 @@ import { saveGame as storeSaveGame, saveRound as storeSaveRound, getRound as sto
 import { syncManager } from './engine/sync-manager.js';
 import { logger } from './components/logger.js';
 
+/**
+ * Quiet POST /end for a server game — no reconnect banner, no long retries.
+ * Used by confirmFinal / sync-back so gameplay stays silent on failure.
+ */
+async function endServerGameQuiet(serverGameId) {
+  const response = await fetchWithTimeout(`/api/game/${serverGameId}/end`, {
+    method: 'POST',
+    credentials: 'same-origin',
+  });
+  if (!response.ok) {
+    throw new Error(`Server returned ${response.status}`);
+  }
+  return response.json().catch(() => ({}));
+}
+
 const PHASE_ROUTES = {
   bidding: 'bid',
   playing: 'play',
@@ -249,6 +264,8 @@ export async function createGame(players, settings) {
 
 /**
  * Create a local IDB mirror of a server-created room game.
+ * Rounds sync via sync-round to server_game_id; sync_pending stays false
+ * so confirmFinal does not POST /import (which would duplicate the room game).
  *
  * @param {number|string} serverGameId
  * @param {string[]} players
@@ -262,12 +279,13 @@ export async function createOnlineGame(serverGameId, players, settings, shareCod
     linked_room: shareCode,
   });
   game.server_game_id = serverGameId;
+  game.sync_pending = false;
   await storeSaveGame(game);
   return game;
 }
 
 /**
- * Submit a bid for a player and sync the round to the server.
+ * Submit a bid for a player (IndexedDB only — no per-tap sync).
  *
  * @param {string} gameId
  * @param {number} playerIndex
@@ -279,7 +297,7 @@ export async function submitBid(gameId, playerIndex, value) {
 }
 
 /**
- * Edit a player's existing bid and sync the round.
+ * Edit a player's existing bid (IndexedDB only — no per-tap sync).
  *
  * @param {string} gameId
  * @param {number} playerIndex
@@ -291,7 +309,7 @@ export async function editBid(gameId, playerIndex, value) {
 }
 
 /**
- * Start the round (transition to playing phase) and sync game state.
+ * Start the round (transition to playing phase). IndexedDB only.
  *
  * @param {string} gameId
  * @returns {Promise<Object>} Updated game.
@@ -301,7 +319,7 @@ export async function startRound(gameId) {
 }
 
 /**
- * Transition to round_end phase and sync game state.
+ * Transition to round_end phase. IndexedDB only.
  *
  * @param {string} gameId
  * @returns {Promise<Object>} Updated game.
@@ -311,7 +329,7 @@ export async function enterRoundEnd(gameId) {
 }
 
 /**
- * Submit hands won for a player and sync the round.
+ * Submit hands won for a player. IndexedDB only.
  *
  * @param {string} gameId
  * @param {number} playerIndex
@@ -323,7 +341,7 @@ export async function submitHands(gameId, playerIndex, value) {
 }
 
 /**
- * Score the round and sync both round and game state.
+ * Score the round; background syncRound when server_game_id is set.
  *
  * @param {string} gameId
  * @returns {Promise<Object>} Scored round.
@@ -338,7 +356,7 @@ export async function endRound(gameId) {
 }
 
 /**
- * Advance to next round and sync game state.
+ * Advance to next round. IndexedDB only.
  *
  * @param {string} gameId
  * @returns {Promise<Object>} Updated game.
@@ -348,7 +366,7 @@ export async function nextRound(gameId) {
 }
 
 /**
- * Finish the game and sync state.
+ * Finish the game (status=finished, phase=review). IndexedDB only.
  *
  * @param {string} gameId
  * @returns {Promise<Object>} Updated game.
@@ -358,7 +376,7 @@ export async function endGame(gameId) {
 }
 
 /**
- * Extend the game with another set and sync state.
+ * Extend the game with another set. IndexedDB only.
  *
  * @param {string} gameId
  * @returns {Promise<Object>} Updated game.
@@ -368,7 +386,7 @@ export async function extendGame(gameId) {
 }
 
 /**
- * Undo the last round and sync state.
+ * Undo the last round. IndexedDB only.
  *
  * @param {string} gameId
  * @returns {Promise<Object>} Updated game.
@@ -378,7 +396,9 @@ export async function undoRound(gameId) {
 }
 
 /**
- * Confirm the game is final and sync state.
+ * Confirm the game is final, then background-sync.
+ * Online room games: retry queued rounds + POST /end on server_game_id.
+ * Offline Quick Games: import via syncGame when sync_pending.
  *
  * @param {string} gameId
  * @returns {Promise<Object>} Updated game.
@@ -386,7 +406,27 @@ export async function undoRound(gameId) {
 export async function confirmFinal(gameId) {
   const game = await engine.confirmFinal(gameId);
 
-  if (game.linked_room && game.sync_pending) {
+  if (game.server_game_id) {
+    syncManager.retrySyncQueue().catch(error =>
+      logger.warn('sync', `confirmFinal queue retry failed: ${error.message}`),
+    );
+    endServerGameQuiet(game.server_game_id)
+      .then(async () => {
+        const latest = await engine.getGame(gameId);
+        if (latest?.server_end_pending) {
+          latest.server_end_pending = false;
+          await storeSaveGame(latest);
+        }
+      })
+      .catch(async (error) => {
+        logger.warn('sync', `confirmFinal server end failed: ${error.message}`);
+        const latest = await engine.getGame(gameId);
+        if (latest) {
+          latest.server_end_pending = true;
+          await storeSaveGame(latest);
+        }
+      });
+  } else if (game.linked_room && game.sync_pending) {
     syncManager.syncGame(game).catch(error =>
       logger.warn('sync', `confirmFinal auto-sync failed: ${error.message}`),
     );

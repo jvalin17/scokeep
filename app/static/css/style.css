@@ -9,7 +9,7 @@
     --bg-card: #FFFFFF;
     --text-primary: #1A1A1A;
     --text-secondary: #666666;
-    --text-muted: #999999;
+    --text-muted: #6B6B6B;
     --border: #E0E0E0;
     --border-light: #F0F0F0;
     --accent: #333333;
@@ -107,10 +107,13 @@ input[type="text"], input[type="password"], select {
     font-size: 1rem;
     background: var(--bg-card);
     color: var(--text-primary);
-    outline: none;
-    transition: border-color 0.15s;
+    outline: 2px solid transparent;
+    transition: border-color 0.15s, outline-color 0.15s;
 }
-input:focus, select:focus { border-color: var(--accent); }
+input:focus, select:focus {
+    border-color: var(--accent);
+    outline-color: var(--accent);
+}
 input::placeholder { color: var(--text-muted); }
 
 /* Tabs */
@@ -172,7 +175,11 @@ input::placeholder { color: var(--text-muted); }
     border: 1px solid var(--border); border-radius: 8px;
     font-size: 0.875rem; background: var(--bg-card); box-sizing: border-box;
 }
-.room-finder-search:focus { outline: none; border-color: var(--accent); }
+.room-finder-search:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+    border-color: var(--accent);
+}
 .browse-item { font-size: 0.875rem; padding: 8px 14px; min-height: 44px; display: inline-flex; align-items: center; }
 
 /* Player list (home) */

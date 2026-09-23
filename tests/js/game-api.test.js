@@ -18,7 +18,8 @@ import { syncManager } from '../../app/static/js/engine/sync-manager.js';
 vi.mock('../../app/static/js/engine/sync-manager.js', () => ({
   syncManager: {
     syncRound: vi.fn(),
-    syncGame: vi.fn(),
+    syncGame: vi.fn(() => Promise.resolve({ success: true })),
+    retrySyncQueue: vi.fn(() => Promise.resolve()),
   },
   isLocalId: (gameId) => typeof gameId === 'string' && gameId.startsWith('game-'),
 }));
@@ -29,6 +30,8 @@ import {
   submitBid,
   endRound,
   getScoreboard,
+  confirmFinal,
+  endGame,
 } from '../../app/static/js/game-api.js';
 
 function setOnline(value) {
@@ -72,17 +75,18 @@ describe('test_create_game_returns_game_object', () => {
   });
 });
 
-describe('test_create_online_game_sets_server_fields', () => {
-  it('stores server_game_id and linked_room on the IDB game', async () => {
+describe('test_create_online_game_sets_server_id', () => {
+  it('stores server_game_id, linked_room, and sync_pending false', async () => {
     const game = await createOnlineGame(42, makePlayers(), makeSettings(), 'KLCC');
 
     expect(game.server_game_id).toBe(42);
     expect(game.linked_room).toBe('KLCC');
-    expect(game.sync_pending).toBe(true);
+    expect(game.sync_pending).toBe(false);
 
     const stored = await getGame(game.id);
     expect(stored.server_game_id).toBe(42);
     expect(stored.linked_room).toBe('KLCC');
+    expect(stored.sync_pending).toBe(false);
   });
 });
 
@@ -164,5 +168,56 @@ describe('test_get_scoreboard_returns_totals', () => {
     expect(scoreboard).toHaveProperty('rounds');
     expect(scoreboard.totals['0']).toBe(20);
     expect(scoreboard.totals['1']).toBe(-30);
+  });
+});
+
+describe('test_confirm_final_ends_server_game', () => {
+  it('retries the sync queue and POSTs server end for online games', async () => {
+    const fetchSpy = vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const game = await createOnlineGame(42, makePlayers(), makeSettings(), 'KLCC');
+    await endGame(game.id);
+
+    await confirmFinal(game.id);
+    await vi.waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalled();
+    });
+
+    expect(syncManager.retrySyncQueue).toHaveBeenCalledOnce();
+    expect(syncManager.syncGame).not.toHaveBeenCalled();
+    const endCall = fetchSpy.mock.calls.find(
+      ([url, options]) => String(url).includes('/api/game/42/end') && options?.method === 'POST',
+    );
+    expect(endCall).toBeTruthy();
+  });
+
+  it('marks server_end_pending when server end fails', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      throw new Error('network down');
+    }));
+
+    const game = await createOnlineGame(42, makePlayers(), makeSettings(), 'KLCC');
+    await endGame(game.id);
+
+    await confirmFinal(game.id);
+    await vi.waitFor(async () => {
+      const stored = await getGame(game.id);
+      expect(stored.server_end_pending).toBe(true);
+    });
+  });
+
+  it('imports via syncGame for offline pending games without server_game_id', async () => {
+    const game = await createGame(makePlayers(), {
+      ...makeSettings(),
+      linked_room: 'KLCC',
+    });
+    expect(game.sync_pending).toBe(true);
+    expect(game.server_game_id).toBeUndefined();
+    await endGame(game.id);
+
+    await confirmFinal(game.id);
+
+    expect(syncManager.syncGame).toHaveBeenCalledOnce();
   });
 });

@@ -7,8 +7,8 @@ import { escapeHtml } from '../components/game-utils.js';
 import { renderSettingsGrid, readSettings } from '../components/game-settings.js';
 import { isMuted, toggleMute, soundEndGame } from '../components/sounds.js';
 import { showConfirmDialog } from '../components/confirm-dialog.js';
-import { getSyncPendingGames, syncOneGame } from '../engine/sync-manager.js';
-import { getActiveGameForRoom, saveGame } from '../engine/store.js';
+import { getSyncPendingGames, attemptSyncBack } from '../engine/sync-manager.js';
+import { getActiveGameForRoom } from '../engine/store.js';
 
 let syncTimer = null;
 
@@ -45,7 +45,7 @@ export const lobbyScreen = {
                     <div class="lobby-header">
                         <button class="btn-text" id="lobby-home" style="position:absolute;left:16px;">← Home</button>
                         <h2>${escapeHtml(playground.name)}</h2>
-                        <p class="share-code">Code: <strong>${playground.share_code}</strong></p>
+                        <p class="share-code">Code: <strong>${escapeHtml(playground.share_code)}</strong></p>
                     </div>
 
                     ${activeGame ? `
@@ -60,7 +60,7 @@ export const lobbyScreen = {
 
                     <div id="sync-section" class="hidden" style="margin-bottom:12px;">
                         <button id="sync-now" class="btn btn-primary btn-small">Sync now</button>
-                        <p id="sync-result" class="hidden" style="margin-top:6px;font-size:0.85rem;"></p>
+                        <p id="sync-result" class="hidden" role="status" aria-live="polite" style="margin-top:6px;font-size:0.85rem;"></p>
                     </div>
 
                     <section class="lobby-section">
@@ -90,7 +90,7 @@ export const lobbyScreen = {
                     <button id="start-game" class="btn btn-primary btn-large">Start Game</button>
                     <div style="display:flex;gap:8px;margin-top:8px;">
                         <button id="view-stats" class="btn btn-large" style="flex:1;">📊 Stats</button>
-                        <button id="toggle-sound" class="btn btn-large" style="flex:0;">${isMuted() ? '🔇' : '🔊'}</button>
+                        <button id="toggle-sound" class="btn btn-large" style="flex:0;" aria-label="${isMuted() ? 'Unmute sound' : 'Mute sound'}">${isMuted() ? '🔇' : '🔊'}</button>
                     </div>
                     <p id="lobby-error" class="error hidden"></p>
                 </div>
@@ -217,39 +217,34 @@ export const lobbyScreen = {
 
             container.querySelector('#toggle-sound').addEventListener('click', () => {
                 const muted = toggleMute();
-                container.querySelector('#toggle-sound').textContent = muted ? '🔇' : '🔊';
+                const soundBtn = container.querySelector('#toggle-sound');
+                soundBtn.textContent = muted ? '🔇' : '🔊';
+                soundBtn.setAttribute('aria-label', muted ? 'Unmute sound' : 'Mute sound');
             });
 
-            // Sync button — user-initiated sync of pending offline games
+            // Sync button — uses SyncManager.syncPending (correct 4xx = failed)
             const syncBtn = container.querySelector('#sync-now');
             if (syncBtn) {
                 syncBtn.addEventListener('click', async () => {
                     const resultEl = container.querySelector('#sync-result');
                     syncBtn.disabled = true;
                     resultEl.classList.remove('hidden');
+                    resultEl.textContent = 'Syncing...';
 
-                    const pendingGames = await getSyncPendingGames(shareCode);
-                    const total = pendingGames.length;
-                    let synced = 0;
-                    let failed = 0;
+                    const result = await attemptSyncBack(shareCode);
+                    const synced = result.synced ?? 0;
+                    const failed = result.failed ?? 0;
 
-                    for (const game of pendingGames) {
-                        resultEl.textContent = `Syncing ${synced + 1} of ${total}...`;
-                        const result = await syncOneGame(game);
-                        if (result.success) {
-                            synced++;
-                        } else if (result.status >= 400 && result.status < 500) {
-                            game.sync_pending = false;
-                            game.sync_failed = true;
-                            await saveGame(game);
-                            synced++;
-                        } else {
-                            failed++;
-                        }
+                    if (result.skipped && synced === 0 && failed === 0) {
+                        resultEl.textContent = 'Could not reach server. Retry?';
+                        syncBtn.disabled = false;
+                        return;
                     }
 
                     if (failed === 0) {
-                        resultEl.textContent = `${synced} game${synced > 1 ? 's' : ''} synced!`;
+                        resultEl.textContent = synced === 0
+                            ? 'Nothing to sync'
+                            : `${synced} game${synced === 1 ? '' : 's'} synced!`;
                         syncTimer = setTimeout(() => {
                             container.querySelector('#sync-section')?.classList.add('hidden');
                         }, 3000);

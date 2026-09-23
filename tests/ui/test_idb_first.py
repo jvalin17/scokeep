@@ -92,32 +92,73 @@ def test_no_banner_on_drop(page, server):
 
 
 def test_game_end_syncs_all(page, server):
-    """After confirmFinal, import POST runs for the linked room."""
-    import_urls: list[str] = []
+    """After confirmFinal, online room games POST /end on the server game id."""
+    sync_urls: list[str] = []
+    end_ok_urls: list[str] = []
 
     def on_request(request):
-        if "/import" in request.url and request.method == "POST":
-            import_urls.append(request.url)
+        if request.method == "POST" and "sync-round" in request.url:
+            sync_urls.append(request.url)
+
+    def on_response(response):
+        if (
+            response.request.method == "POST"
+            and re.search(r"/api/game/\d+/end$", response.url)
+            and response.ok
+        ):
+            end_ok_urls.append(response.url)
 
     page.on("request", on_request)
-    share = _start_idb_room(page, server, unique_name("IDBEnd"))
+    page.on("response", on_response)
+    _start_idb_room(page, server, unique_name("IDBEnd"))
     play_one_round(page, [2, 3, 1], [2, 3, 3])
     end_game(page)
 
     page.wait_for_timeout(3000)
-    assert any(share in url or "/import" in url for url in import_urls) or import_urls, (
-        f"expected import POST after confirmFinal, got {import_urls}"
-    )
+    assert sync_urls, f"expected sync-round during play, got {sync_urls}"
+    assert end_ok_urls, f"expected successful POST /end after confirmFinal, got {end_ok_urls}"
 
 
 def test_lobby_sync_button_offline(page, server):
-    """Finish a game with sync blocked; lobby shows Sync now for the room."""
+    """Finish a Quick-linked offline game with sync blocked; lobby shows Sync now."""
     share = _start_idb_room(page, server, unique_name("IDBLobbySync"))
+    # Force sync_pending on the local finished game so Sync now appears
+    # (online room games use server_game_id + sync_pending=false).
     page.route("**/api/game/**/sync-round", lambda route: route.abort())
     page.route("**/api/game/**/import", lambda route: route.abort())
+    page.route("**/api/game/**/end", lambda route: route.abort())
 
     play_one_round(page, [2, 3, 1], [2, 3, 3])
     end_game(page)
+
+    page.evaluate(
+        """async (shareCode) => {
+            const db = await new Promise((resolve, reject) => {
+                const req = indexedDB.open('scokeep-local', 3);
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+            });
+            const tx = db.transaction('games', 'readwrite');
+            const store = tx.objectStore('games');
+            const all = await new Promise((resolve, reject) => {
+                const req = store.getAll();
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+            });
+            for (const game of all) {
+                if (game.linked_room === shareCode && game.status === 'finished') {
+                    game.sync_pending = true;
+                    store.put(game);
+                }
+            }
+            await new Promise((resolve, reject) => {
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+            db.close();
+        }""",
+        share,
+    )
 
     page.evaluate(f"() => location.hash = 'playground/{share}'")
     page.wait_for_selector("#sync-now, #start-game", timeout=10000)
@@ -125,39 +166,38 @@ def test_lobby_sync_button_offline(page, server):
 
 
 def test_partial_sync_recovery(page, server):
-    """One online round syncs; then block sync and finish — Sync now recovers."""
+    """One online round syncs; block /end; after online event, server end retries."""
     sync_urls: list[str] = []
-    import_urls: list[str] = []
+    end_ok_urls: list[str] = []
 
     def on_request(request):
-        if request.method != "POST":
-            return
-        if "sync-round" in request.url:
+        if request.method == "POST" and "sync-round" in request.url:
             sync_urls.append(request.url)
-        if "/import" in request.url:
-            import_urls.append(request.url)
+
+    def on_response(response):
+        if (
+            response.request.method == "POST"
+            and re.search(r"/api/game/\d+/end$", response.url)
+            and response.ok
+        ):
+            end_ok_urls.append(response.url)
 
     page.on("request", on_request)
-    share = _start_idb_room(page, server, unique_name("IDBPartial"))
+    page.on("response", on_response)
+    _start_idb_room(page, server, unique_name("IDBPartial"))
 
     play_one_round(page, [2, 3, 1], [2, 3, 3])
     page.wait_for_timeout(1500)
     assert sync_urls, "round 1 should sync while online"
 
-    page.route("**/api/game/**/sync-round", lambda route: route.abort())
-    page.route("**/api/game/**/import", lambda route: route.abort())
+    page.route("**/api/game/**/end", lambda route: route.abort())
 
     end_game(page)
-    page.wait_for_timeout(500)
+    page.wait_for_timeout(800)
+    assert not end_ok_urls, "server end should not succeed while blocked"
 
-    # Unblock and trigger lobby sync
-    page.unroute("**/api/game/**/sync-round")
-    page.unroute("**/api/game/**/import")
-    page.evaluate(f"() => location.hash = 'playground/{share}'")
-    page.wait_for_selector("#sync-now, #start-game", timeout=10000)
-    sync_btn = page.locator("#sync-now")
-    if sync_btn.count() > 0 and sync_btn.is_visible():
-        sync_btn.click()
-        page.wait_for_timeout(2000)
+    page.unroute("**/api/game/**/end")
+    page.evaluate("() => window.dispatchEvent(new Event('online'))")
+    page.wait_for_timeout(2500)
 
-    assert sync_urls or import_urls
+    assert end_ok_urls, f"expected successful POST /end after online retry, got {end_ok_urls}"
