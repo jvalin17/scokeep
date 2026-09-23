@@ -180,9 +180,6 @@ describe('test_confirm_final_ends_server_game', () => {
     await endGame(game.id);
 
     await confirmFinal(game.id);
-    await vi.waitFor(() => {
-      expect(fetchSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
-    });
 
     expect(syncManager.retrySyncQueue).toHaveBeenCalledOnce();
     expect(syncManager.syncGame).not.toHaveBeenCalled();
@@ -203,10 +200,8 @@ describe('test_confirm_final_ends_server_game', () => {
     await endGame(game.id);
 
     await confirmFinal(game.id);
-    await vi.waitFor(async () => {
-      const stored = await getGame(game.id);
-      expect(stored.server_end_pending).toBe(true);
-    });
+    const stored = await getGame(game.id);
+    expect(stored.server_end_pending).toBe(true);
   });
 
   it('imports via syncGame for offline pending games without server_game_id', async () => {

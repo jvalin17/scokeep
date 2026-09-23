@@ -248,7 +248,10 @@ async def _load_game_data(db: AsyncSession, playground_id: int):
     game_ids = [g.id for g in games]
     rounds_result = await db.execute(
         select(Round)
-        .where(Round.game_id.in_(game_ids), Round.status == "scored")
+        .where(
+            Round.game_id.in_(game_ids),
+            Round.status.in_(("scored", "complete")),
+        )
         .order_by(Round.game_id, Round.round_num)
     )
     rounds_by_game: dict[int, list] = {}

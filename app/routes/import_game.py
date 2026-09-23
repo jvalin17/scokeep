@@ -121,7 +121,7 @@ async def _create_game_with_rounds(
                 bids=rd.bids,
                 hands_won=rd.hands_won,
                 scores=scores,
-                status="complete",
+                status="scored",
             )
         )
     await db.commit()

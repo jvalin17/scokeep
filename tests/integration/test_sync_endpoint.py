@@ -291,6 +291,36 @@ class TestSyncRoundRejectsMismatchedKeys:
         )
 
 
+async def test_sync_round_maps_complete_status_to_scored(client: AsyncClient):
+    """IDB engine uses status=complete; server must store scored for stats."""
+    game = await _setup_game(client, settings={"num_sets": 1, "rounds_per_set": 8})
+    payload = _valid_sync_payload()
+    payload["status"] = "complete"
+
+    response = await client.post(
+        f"/api/game/{game['id']}/sync-round",
+        json=payload,
+        cookies=game["cookies"],
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["status"] == "scored"
+
+    await client.post(f"/api/game/{game['id']}/end", cookies=game["cookies"])
+    await client.post(f"/api/game/{game['id']}/confirm-final", cookies=game["cookies"])
+
+    auth = await client.post(
+        "/api/playground/auth",
+        json={"name": "Sync Test Group", "pin": "5678"},
+    )
+    share = auth.json()["share_code"]
+    stats = await client.get(
+        f"/api/playground/{share}/stats",
+        cookies={"scokeep_session": auth.cookies.get("scokeep_session")},
+    )
+    assert stats.status_code == 200
+    assert stats.json()["total_games"] >= 1
+
+
 async def test_validate_round_metadata_rejects_wrong_cards(client: AsyncClient):
     """_validate_round_metadata raises 409 on cards_dealt mismatch (via endpoint)."""
     game = await _setup_game(client)

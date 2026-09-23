@@ -525,14 +525,22 @@ function _bindQuickTab(container, navigate) {
         try {
             let room = await getRoom(shareCode);
 
-            // Room not cached — try online auth and cache it
+            // Room not cached / no verifier — try online auth and cache it
             if (!room || !room.pin_verifier) {
                 try {
                     const serverRoom = await authPlayground(selectedRoomName, pin);
                     await _cacheRoom(serverRoom, pin);
                     room = await getRoom(shareCode);
-                } catch {
-                    errorEl.textContent = 'Room not cached — connect to internet to verify';
+                } catch (authError) {
+                    // Online auth failed: wrong PIN vs truly offline
+                    const message = (authError && authError.message) || '';
+                    const looksOffline = !navigator.onLine
+                        || message.toLowerCase().includes('offline')
+                        || message.toLowerCase().includes('network')
+                        || message.toLowerCase().includes('failed to fetch');
+                    errorEl.textContent = looksOffline
+                        ? 'Room not cached — connect to internet to verify'
+                        : 'Wrong PIN';
                     errorEl.classList.remove('hidden');
                     return;
                 }

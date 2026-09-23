@@ -50,7 +50,10 @@ async def _get_scored_rounds(db: AsyncSession, game_id: int) -> list:
     """Fetch all scored rounds for a game, ordered by round_num."""
     result = await db.execute(
         select(Round)
-        .where(Round.game_id == game_id, Round.status == "scored")
+        .where(
+            Round.game_id == game_id,
+            Round.status.in_(("scored", "complete")),
+        )
         .order_by(Round.round_num)
     )
     return result.scalars().all()

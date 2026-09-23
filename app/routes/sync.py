@@ -79,7 +79,8 @@ async def _upsert_round(db: AsyncSession, game_id: int, body: SyncRoundRequest) 
     round_obj.bids = body.bids
     round_obj.hands_won = body.hands_won
     round_obj.scores = body.scores
-    round_obj.status = body.status
+    # Client engine uses "complete"; server analytics/insights expect "scored"
+    round_obj.status = "scored" if body.status == "complete" else body.status
     await db.commit()
     await db.refresh(round_obj)
     return round_obj

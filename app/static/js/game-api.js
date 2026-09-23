@@ -416,9 +416,10 @@ export async function undoRound(gameId) {
 }
 
 /**
- * Confirm the game is final, then background-sync.
- * Online room games: retry queued rounds + POST /end then /confirm-final
- * so the server game leaves "active" (otherwise lobby Resume never clears).
+ * Confirm the game is final, then sync to server.
+ * Online room games: retry queued rounds + await /end then /confirm-final
+ * so the server game leaves "active" before the caller navigates away
+ * (otherwise stats/Resume race on unfinished server status).
  * Offline Quick Games: import via syncGame when sync_pending.
  *
  * @param {string} gameId
@@ -428,25 +429,22 @@ export async function confirmFinal(gameId) {
   const game = await engine.confirmFinal(gameId);
 
   if (game.server_game_id) {
-    syncManager.retrySyncQueue().catch(error =>
-      logger.warn('sync', `confirmFinal queue retry failed: ${error.message}`),
-    );
-    finalizeServerGameQuiet(game.server_game_id)
-      .then(async () => {
-        const latest = await engine.getGame(gameId);
-        if (latest?.server_end_pending) {
-          latest.server_end_pending = false;
-          await storeSaveGame(latest);
-        }
-      })
-      .catch(async (error) => {
-        logger.warn('sync', `confirmFinal server finalize failed: ${error.message}`);
-        const latest = await engine.getGame(gameId);
-        if (latest) {
-          latest.server_end_pending = true;
-          await storeSaveGame(latest);
-        }
-      });
+    try {
+      await syncManager.retrySyncQueue();
+    } catch (error) {
+      logger.warn('sync', `confirmFinal queue retry failed: ${error.message}`);
+    }
+    try {
+      await finalizeServerGameQuiet(game.server_game_id);
+      if (game.server_end_pending) {
+        game.server_end_pending = false;
+        await storeSaveGame(game);
+      }
+    } catch (error) {
+      logger.warn('sync', `confirmFinal server finalize failed: ${error.message}`);
+      game.server_end_pending = true;
+      await storeSaveGame(game);
+    }
   } else if (game.linked_room && game.sync_pending) {
     syncManager.syncGame(game).catch(error =>
       logger.warn('sync', `confirmFinal auto-sync failed: ${error.message}`),
