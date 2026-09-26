@@ -35,9 +35,7 @@ def resolve_database_url(explicit: str | None = None) -> str:
     if not url:
         url = os.environ.get("PROD_DATABASE_URL", "").strip()
     if not url:
-        raise SystemExit(
-            "ERROR: Set DATABASE_URL or PROD_DATABASE_URL (or pass --url)"
-        )
+        raise SystemExit("ERROR: Set DATABASE_URL or PROD_DATABASE_URL (or pass --url)")
     if url.startswith("sqlite"):
         raise SystemExit("ERROR: backup_db.py only supports PostgreSQL URLs")
     return _normalize_url(url)
@@ -106,11 +104,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     database_url = resolve_database_url(args.url)
-    output_path = (
-        Path(args.out)
-        if args.out
-        else default_backup_path(args.label, Path(args.dir))
-    )
+    output_path = Path(args.out) if args.out else default_backup_path(args.label, Path(args.dir))
 
     print(f"Backing up to {output_path} ...")
     path = asyncio.run(run_backup(database_url, output_path))
