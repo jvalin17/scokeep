@@ -372,25 +372,46 @@ export async function purgeOldGames(maxCount = 50) {
   const allGames = await _wrap(tx.objectStore('games').getAll());
   const games = allGames ?? [];
 
-  if (games.length <= maxCount) return 0;
+  // Prefer purging finished games; never drop active games under the cap.
+  const finished = games.filter((game) => game.status === 'finished');
+  const active = games.filter((game) => game.status !== 'finished');
+  if (finished.length === 0) return 0;
 
-  const sorted = games.sort((a, b) => {
+  const keepFinished = Math.max(0, maxCount - active.length);
+  if (finished.length <= keepFinished) return 0;
+
+  const sortedFinished = finished.sort((a, b) => {
     if (a.started_at > b.started_at) return -1;
     if (a.started_at < b.started_at) return 1;
     return 0;
   });
 
-  const toDelete = sorted.slice(maxCount);
-  const deleteTx = db.transaction('games', 'readwrite');
-  const store = deleteTx.objectStore('games');
+  const toDelete = sortedFinished.slice(keepFinished);
   for (const game of toDelete) {
-    store.delete(_normalizeId(game.id));
+    const rounds = await getRoundsForGame(game.id);
+    for (const round of rounds) {
+      await deleteRound(game.id, round.round_num);
+    }
+    await _del('games', _normalizeId(game.id));
   }
-  await new Promise((resolve, reject) => {
-    deleteTx.oncomplete = () => resolve();
-    deleteTx.onerror = () => reject(deleteTx.error);
-  });
   return toDelete.length;
+}
+
+/**
+ * Find a local game that mirrors the given server game id, or null.
+ * @param {number|string} serverGameId
+ * @returns {Promise<Object|null>}
+ */
+export async function findGameByServerId(serverGameId) {
+  const numericId = Number(serverGameId);
+  const db = await _open();
+  const tx = db.transaction('games', 'readonly');
+  const allGames = await _wrap(tx.objectStore('games').getAll());
+  return (allGames ?? []).find(
+    (game) => game.server_game_id === serverGameId
+      || game.server_game_id === numericId
+      || String(game.server_game_id) === String(serverGameId),
+  ) ?? null;
 }
 
 // ─── test helpers (no-op in production) ──────────────────────────────────────

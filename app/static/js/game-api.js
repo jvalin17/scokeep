@@ -17,7 +17,7 @@
  */
 
 import * as engine from './engine/game-engine.js';
-import { saveGame as storeSaveGame, saveRound as storeSaveRound, getRound as storeGetRound } from './engine/store.js';
+import { saveGame as storeSaveGame, saveRound as storeSaveRound, getRound as storeGetRound, findGameByServerId } from './engine/store.js';
 import { syncManager } from './engine/sync-manager.js';
 import { logger } from './components/logger.js';
 
@@ -104,9 +104,20 @@ export async function loadGameFromServer(gameId) {
     }
   } catch { /* current round may not exist yet */ }
 
-  game.server_game_id = game.server_game_id ?? game.id;
+  const serverNumericId = game.id;
+  game.server_game_id = game.server_game_id ?? serverNumericId;
+
+  // Prefer existing local mirror (game-…) so Resume does not fork identity
+  const existingLocal = await findGameByServerId(serverNumericId);
+  if (existingLocal) {
+    game.id = existingLocal.id;
+    game.client_game_id = existingLocal.client_game_id ?? existingLocal.id;
+    game.linked_room = existingLocal.linked_room ?? game.linked_room;
+  }
+
   await storeSaveGame(game);
   for (const round of roundsData) {
+    round.game_id = game.id;
     await storeSaveRound(round);
   }
   return game;
@@ -429,11 +440,25 @@ export async function confirmFinal(gameId) {
   const game = await engine.confirmFinal(gameId);
 
   if (game.server_game_id) {
+    let queueResult = { drained: true, remaining: 0, failed: false };
     try {
-      await syncManager.retrySyncQueue();
+      queueResult = await syncManager.retrySyncQueue();
     } catch (error) {
       logger.warn('sync', `confirmFinal queue retry failed: ${error.message}`);
+      queueResult = { drained: false, remaining: -1, failed: true };
     }
+
+    if (!queueResult.drained) {
+      game.sync_pending = true;
+      game.server_end_pending = true;
+      await storeSaveGame(game);
+      logger.warn(
+        'sync',
+        `confirmFinal blocked — sync queue not drained (remaining=${queueResult.remaining})`,
+      );
+      return game;
+    }
+
     try {
       await finalizeServerGameQuiet(game.server_game_id);
       if (game.server_end_pending) {

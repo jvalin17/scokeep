@@ -403,11 +403,86 @@ describe('test_retry_sync_queue', () => {
     const fetchSpy = vi.fn().mockResolvedValue({ ok: true, status: 200 });
     vi.stubGlobal('fetch', fetchSpy);
 
-    await syncManager.retrySyncQueue();
+    const result = await syncManager.retrySyncQueue();
 
     expect(fetchSpy).toHaveBeenCalledTimes(2);
     expect(fetchSpy.mock.calls[0][0]).toBe('/api/game/42/sync-round');
     const queue = await getSyncQueue();
     expect(queue).toHaveLength(0);
+    expect(result.drained).toBe(true);
+    expect(result.remaining).toBe(0);
+  });
+});
+
+describe('test_retry_sync_queue_reports_drained', () => {
+  it('returns drained:true when all items sync successfully', async () => {
+    await saveSyncQueueItem(42, makeRound({ round_num: 1 }));
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200 }));
+
+    const result = await syncManager.retrySyncQueue();
+
+    expect(result).toEqual({ drained: true, remaining: 0, failed: false });
+  });
+});
+
+describe('test_retry_sync_queue_stops_on_non_ok', () => {
+  it('keeps queue items and reports drained:false when sync-round returns non-OK', async () => {
+    await saveSyncQueueItem(42, makeRound({ round_num: 1 }));
+    await saveSyncQueueItem(42, makeRound({ round_num: 2 }));
+    const fetchSpy = vi.fn().mockResolvedValue({ ok: false, status: 409 });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const result = await syncManager.retrySyncQueue();
+
+    expect(result.drained).toBe(false);
+    expect(result.failed).toBe(true);
+    expect(result.remaining).toBeGreaterThan(0);
+    const queue = await getSyncQueue();
+    expect(queue.length).toBeGreaterThan(0);
+    // Stop after first failure — do not keep POSTing
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('test_retry_sync_queue_marks_round_synced', () => {
+  it('sets round.synced true in IDB when queue item syncs successfully', async () => {
+    const round = makeRound({ game_id: 'game-1726400000-abc', round_num: 3, synced: false });
+    await saveRound(round);
+    await saveSyncQueueItem(42, round);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200 }));
+
+    await syncManager.retrySyncQueue();
+
+    const updated = await getRound('game-1726400000-abc', 3);
+    expect(updated.synced).toBe(true);
+  });
+});
+
+describe('test_sync_game_triggers_purge', () => {
+  it('calls purge path after successful import (finished games capped)', async () => {
+    // Seed 55 finished linked games so purge has work after sync
+    for (let i = 0; i < 55; i++) {
+      await saveGame(makeLinkedGame({
+        id: `game-old-${i}`,
+        client_game_id: `game-old-${i}`,
+        sync_pending: false,
+        status: 'finished',
+        started_at: new Date(2025, 0, 1, 0, 0, i).toISOString(),
+      }));
+    }
+    const game = makeLinkedGame({ sync_pending: true, status: 'finished' });
+    await saveGame(game);
+    await saveRound(makeRound({ game_id: game.id, round_num: 1 }));
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ game_id: 99 }),
+    }));
+
+    const result = await syncManager.syncGame(game);
+    expect(result.success).toBe(true);
+
+    const stillThere = await getGame('game-old-0');
+    expect(stillThere).toBeFalsy();
   });
 });

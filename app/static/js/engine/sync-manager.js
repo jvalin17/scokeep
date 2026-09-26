@@ -7,9 +7,9 @@
 
 import { logger } from '../components/logger.js';
 import {
-  saveGame, saveRound, getRoundsForGame,
+  saveGame, saveRound, getRound, getRoundsForGame,
   getFinishedGames, getSyncPendingGames as storeGetSyncPendingGames,
-  saveSyncQueueItem, getSyncQueue, deleteSyncQueueItem,
+  saveSyncQueueItem, getSyncQueue, deleteSyncQueueItem, purgeOldGames,
 } from './store.js';
 
 const SYNC_TIMEOUT_MS = 15000;
@@ -81,8 +81,9 @@ class SyncManager {
         const next = this.#queue.shift();
         try {
           await next();
-        } catch {
-          // Rejection already forwarded to the waiter's promise.
+        } catch (error) {
+          // Rejection already forwarded to the waiter's promise; log for diagnosis.
+          this.#log('warn', 'lock', `queued sync rejected: ${error?.message ?? error}`);
         }
       }
       this.#syncing = false;
@@ -148,6 +149,11 @@ class SyncManager {
       if (response.ok) {
         game.sync_pending = false;
         await saveGame(game);
+        try {
+          await purgeOldGames(50);
+        } catch (error) {
+          this.#log('warn', 'syncGame', `purge after sync failed: ${error.message}`);
+        }
         this.#log('info', 'syncGame', `game synced: ${rounds.length} rounds to ${shareCode}`);
         return { success: true };
       }
@@ -222,6 +228,7 @@ class SyncManager {
 
   async #doRetrySyncQueue() {
     const queue = await getSyncQueue();
+    let failed = false;
     for (const item of queue) {
       try {
         const response = await this.#postWithTimeout(
@@ -230,13 +237,32 @@ class SyncManager {
         );
         if (response.ok) {
           await deleteSyncQueueItem(item.id);
+          try {
+            const localRound = await getRound(item.round.game_id ?? item.game_id, item.round.round_num);
+            if (localRound) {
+              localRound.synced = true;
+              await saveRound(localRound);
+            } else if (item.round) {
+              item.round.synced = true;
+              await saveRound({ ...item.round, game_id: item.round.game_id ?? item.game_id });
+            }
+          } catch (error) {
+            this.#log('warn', 'retrySyncQueue', `could not mark round synced: ${error.message}`);
+          }
           this.#log('info', 'retrySyncQueue', `queued round synced and removed`);
+        } else {
+          failed = true;
+          this.#log('warn', 'retrySyncQueue', `non-OK ${response.status} — stopping`);
+          break;
         }
       } catch {
+        failed = true;
         this.#log('warn', 'retrySyncQueue', 'retry failed — stopping');
         break;
       }
     }
+    const remaining = (await getSyncQueue()).length;
+    return { drained: remaining === 0, remaining, failed };
   }
 
   // ─── Private: helpers ───────────────────────────────────

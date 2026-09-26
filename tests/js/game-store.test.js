@@ -12,6 +12,8 @@ import {
   setIndexedDBForTesting,
   saveGame,
   getGame,
+  saveRound,
+  getRound,
   purgeOldGames,
 } from '../../app/static/js/engine/store.js';
 
@@ -58,5 +60,29 @@ describe('test_purge_old_games', () => {
 
     const purged = await purgeOldGames(20);
     expect(purged).toBe(0);
+  });
+});
+
+describe('test_purge_old_games_cascades_rounds', () => {
+  it('deletes rounds belonging to purged games', async () => {
+    for (let i = 0; i < 5; i++) {
+      await saveGame(makeGame(i));
+      await saveRound({
+        game_id: `game-${i}`,
+        round_num: 1,
+        cards_dealt: 8,
+        trump_suit: 'spades',
+        bids: {},
+        hands_won: {},
+        scores: {},
+        status: 'complete',
+      });
+    }
+
+    const purged = await purgeOldGames(2);
+    expect(purged).toBe(3);
+
+    expect(await getRound('game-0', 1)).toBeNull();
+    expect(await getRound('game-4', 1)).toBeTruthy();
   });
 });

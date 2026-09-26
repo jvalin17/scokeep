@@ -194,6 +194,16 @@ Current scale: personal use (< 100 concurrent users). The architecture supports 
 
 - **Offline Quick Game** — play without network using IndexedDB for local storage. Architecture designed (see `architecture/quick-game.md`): shared game engine with pluggable storage backends, same screens, zero code duplication.
 
+### Database backup
+
+Before schema changes on Neon prod:
+
+```bash
+PROD_DATABASE_URL='postgresql://...' python scripts/backup_db.py --label prod
+```
+
+Writes `backups/scokeep-prod-<utc>.json` (gitignored) with playground/game/round rows. Use Neon PITR as the primary restore; this dump is an app-level copy.
+
 ## Built With
 
 Built using [agent-toolkit](https://github.com/anthropics/claude-code) — a skill-driven development framework with TDD workflows (/implementation, /debug, /evaluate, /reviewer, /precommit), automated quality gates, and structured report-based code review. Every feature follows the slab-by-slab cycle: failing test first, then implementation, then precommit gate. 373 tests covering scoring, game lifecycle, security, insights, stats, and end-to-end flows.

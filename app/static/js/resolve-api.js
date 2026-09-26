@@ -5,6 +5,8 @@
  * api.js remains for room/auth/stats, not in-game taps.
  */
 
+import { isLocalId } from './engine/sync-manager.js';
+
 /**
  * Returns true if the game ID belongs to a local/quick game.
  * Local game IDs are strings starting with "game-".
@@ -14,7 +16,7 @@
  * @returns {boolean}
  */
 export function isLocalGame(gameId) {
-  return typeof gameId === 'string' && gameId.startsWith('game-');
+  return isLocalId(gameId);
 }
 
 /**

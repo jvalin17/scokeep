@@ -3,6 +3,7 @@
 Tests server-side round sync validation and game state sync.
 """
 
+import pytest
 from httpx import AsyncClient
 
 
@@ -361,3 +362,50 @@ async def test_validate_scores_rejects_mismatch(client: AsyncClient):
     )
     assert response.status_code == 409
     assert "Score mismatch" in response.json()["detail"]
+
+
+async def test_sync_round_rejects_finished_game(client: AsyncClient):
+    """Finished games must not accept further sync-round upserts."""
+    game = await _setup_game(client)
+    await client.post(f"/api/game/{game['id']}/end", cookies=game["cookies"])
+    await client.post(f"/api/game/{game['id']}/confirm-final", cookies=game["cookies"])
+
+    response = await client.post(
+        f"/api/game/{game['id']}/sync-round",
+        json=_valid_sync_payload(),
+        cookies=game["cookies"],
+    )
+    assert response.status_code == 409
+    assert "finished" in response.json()["detail"].lower()
+
+
+class TestSyncRoundRateLimit:
+    @pytest.fixture(autouse=True)
+    def enable_rate_limiter(self):
+        from app.routes.playground import limiter
+
+        original = limiter.enabled
+        limiter.enabled = True
+        limiter.reset()
+        yield
+        limiter.enabled = original
+
+    async def test_sync_round_rate_limited(self, client: AsyncClient):
+        """31st sync-round in a minute returns 429 (GAME_RATE_LIMIT=30/min)."""
+        game = await _setup_game(client)
+        payload = _valid_sync_payload()
+
+        for attempt in range(1, 31):
+            resp = await client.post(
+                f"/api/game/{game['id']}/sync-round",
+                json=payload,
+                cookies=game["cookies"],
+            )
+            assert resp.status_code != 429, f"Attempt {attempt} should not be 429"
+
+        blocked = await client.post(
+            f"/api/game/{game['id']}/sync-round",
+            json=payload,
+            cookies=game["cookies"],
+        )
+        assert blocked.status_code == 429

@@ -19,7 +19,7 @@ vi.mock('../../app/static/js/engine/sync-manager.js', () => ({
   syncManager: {
     syncRound: vi.fn(),
     syncGame: vi.fn(() => Promise.resolve({ success: true })),
-    retrySyncQueue: vi.fn(() => Promise.resolve()),
+    retrySyncQueue: vi.fn(() => Promise.resolve({ drained: true, remaining: 0, failed: false })),
   },
   isLocalId: (gameId) => typeof gameId === 'string' && gameId.startsWith('game-'),
 }));
@@ -32,6 +32,7 @@ import {
   getScoreboard,
   confirmFinal,
   endGame,
+  loadGameFromServer,
 } from '../../app/static/js/game-api.js';
 
 function setOnline(value) {
@@ -216,5 +217,85 @@ describe('test_confirm_final_ends_server_game', () => {
     await confirmFinal(game.id);
 
     expect(syncManager.syncGame).toHaveBeenCalledOnce();
+  });
+});
+
+describe('test_confirm_final_blocks_when_queue_not_drained', () => {
+  it('does not POST /end or /confirm-final when sync queue is not drained', async () => {
+    syncManager.retrySyncQueue.mockResolvedValueOnce({
+      drained: false,
+      remaining: 2,
+      failed: true,
+    });
+    const fetchSpy = vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const game = await createOnlineGame(42, makePlayers(), makeSettings(), 'KLCC');
+    await endGame(game.id);
+
+    await confirmFinal(game.id);
+
+    const urls = fetchSpy.mock.calls
+      .filter(([, options]) => options?.method === 'POST')
+      .map(([url]) => String(url));
+    expect(urls).not.toContain('/api/game/42/end');
+    expect(urls).not.toContain('/api/game/42/confirm-final');
+  });
+});
+
+describe('test_confirm_final_flags_pending_when_queue_stuck', () => {
+  it('sets sync_pending and server_end_pending when finalize is blocked by queue', async () => {
+    syncManager.retrySyncQueue.mockResolvedValueOnce({
+      drained: false,
+      remaining: 1,
+      failed: true,
+    });
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 200 })));
+
+    const game = await createOnlineGame(42, makePlayers(), makeSettings(), 'KLCC');
+    await endGame(game.id);
+
+    const result = await confirmFinal(game.id);
+    expect(result.sync_pending).toBe(true);
+    expect(result.server_end_pending).toBe(true);
+
+    const stored = await getGame(game.id);
+    expect(stored.sync_pending).toBe(true);
+    expect(stored.server_end_pending).toBe(true);
+  });
+});
+
+describe('test_load_game_from_server_reuses_local_id', () => {
+  it('maps server payload onto existing local game- mirror', async () => {
+    const local = await createOnlineGame(77, makePlayers(), makeSettings(), 'ROOM');
+    vi.stubGlobal('fetch', vi.fn(async (url) => {
+      const path = String(url);
+      if (path.endsWith('/api/game/77')) {
+        return new Response(JSON.stringify({
+          id: 77,
+          players: makePlayers(),
+          settings: {},
+          current_round: 2,
+          phase: 'bidding',
+          status: 'active',
+        }), { status: 200 });
+      }
+      if (path.includes('/history')) {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+      if (path.includes('/bids')) {
+        return new Response('{}', { status: 404 });
+      }
+      return new Response('{}', { status: 404 });
+    }));
+
+    const loaded = await loadGameFromServer(77);
+    expect(loaded.id).toBe(local.id);
+    expect(loaded.server_game_id).toBe(77);
+    expect(String(loaded.id).startsWith('game-')).toBe(true);
+
+    // Should not leave a numeric-keyed fork
+    expect(await getGame(77)).toBeFalsy();
+    expect(await getGame(local.id)).toBeTruthy();
   });
 });

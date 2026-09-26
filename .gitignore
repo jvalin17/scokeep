@@ -42,6 +42,7 @@ node_modules/
 # gates.json — needed by CI gate
 
 # Database files
+backups/
 *.db
 ui_test_server.log
 

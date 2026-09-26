@@ -1,11 +1,13 @@
 """Sync API routes — receive client-side round/state data for server-side validation and storage."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.constants import GAME_RATE_LIMIT
 from app.database import get_db
 from app.models.round import Round
+from app.routes.playground import limiter
 from app.schemas.round import RoundResponse
 from app.schemas.sync import SyncGameStateRequest, SyncRoundRequest
 from app.services.scoring import assert_scores_match
@@ -87,7 +89,9 @@ async def _upsert_round(db: AsyncSession, game_id: int, body: SyncRoundRequest) 
 
 
 @router.post("/{game_id}/sync-round", response_model=RoundResponse)
+@limiter.limit(GAME_RATE_LIMIT)
 async def sync_round(
+    request: Request,
     game_id: int,
     body: SyncRoundRequest,
     playground_id: int = Depends(require_auth),
@@ -95,6 +99,8 @@ async def sync_round(
 ):
     """Receive a completed round from the client, re-derive scores and upsert."""
     game = await get_game_with_auth(db, game_id, playground_id)
+    if game.status == "finished":
+        raise HTTPException(409, detail="Cannot sync rounds to a finished game")
     _validate_round_metadata(body, game)
     _validate_round_keys(body, len(game.players))
     formula = game.settings.get("scoring_formula", DEFAULT_SCORING_FORMULA)
@@ -103,7 +109,9 @@ async def sync_round(
 
 
 @router.post("/{game_id}/sync-state")
+@limiter.limit(GAME_RATE_LIMIT)
 async def sync_game_state(
+    request: Request,
     game_id: int,
     body: SyncGameStateRequest,
     playground_id: int = Depends(require_auth),
@@ -111,6 +119,8 @@ async def sync_game_state(
 ):
     """Receive client-side game state and update phase, round, dealer, status."""
     game = await get_game_with_auth(db, game_id, playground_id)
+    if game.status == "finished":
+        raise HTTPException(409, detail="Cannot sync state to a finished game")
 
     game.phase = body.phase
     game.current_round = body.current_round

@@ -7,8 +7,9 @@ import { escapeHtml } from '../components/game-utils.js';
 import { renderSettingsGrid, readSettings } from '../components/game-settings.js';
 import { isMuted, toggleMute, soundEndGame } from '../components/sounds.js';
 import { showConfirmDialog } from '../components/confirm-dialog.js';
-import { getSyncPendingGames, attemptSyncBack } from '../engine/sync-manager.js';
-import { getActiveGameForRoom } from '../engine/store.js';
+import { getSyncPendingGames, attemptSyncBack, retrySyncQueue } from '../engine/sync-manager.js';
+import { getActiveGameForRoom, getSyncQueue } from '../engine/store.js';
+import { logger } from '../components/logger.js';
 
 let syncTimer = null;
 
@@ -70,7 +71,7 @@ export const lobbyScreen = {
                                 <div class="lobby-player" data-index="${index}">
                                     <span class="drag-handle" data-drag="${index}">&#9776;</span>
                                     <span class="player-name-display">${escapeHtml(name)}</span>
-                                    <button class="btn-remove" data-remove="${index}">&times;</button>
+                                    <button class="btn-remove" data-remove="${index}" aria-label="Remove ${escapeHtml(name)}">&times;</button>
                                 </div>
                             `).join('')}
                         </div>
@@ -151,12 +152,31 @@ export const lobbyScreen = {
             if (endActiveBtn) {
                 endActiveBtn.addEventListener('click', async () => {
                     const confirmed = await showConfirmDialog('End this game? Scores so far will be saved.');
-                    if (confirmed) {
-                        const gameId = activeGame.id;
+                    if (!confirmed) return;
+                    const gameId = activeGame.id;
+                    const errorEl = container.querySelector('#lobby-error');
+                    endActiveBtn.disabled = true;
+                    try {
                         try { await endLocalGame(gameId); } catch { /* may already be finished */ }
-                        try { await confirmLocalFinal(gameId); } catch { /* server finalize retried on online */ }
+                        const finished = await confirmLocalFinal(gameId);
+                        if (finished.server_end_pending || finished.sync_pending) {
+                            if (errorEl) {
+                                errorEl.textContent = 'Could not finish on server — check connection and tap Sync now, then End Game again.';
+                                errorEl.classList.remove('hidden');
+                            }
+                            const syncSection = container.querySelector('#sync-section');
+                            if (syncSection) syncSection.classList.remove('hidden');
+                            return;
+                        }
                         soundEndGame();
                         navigate(`scoreboard/${gameId}`);
+                    } catch {
+                        if (errorEl) {
+                            errorEl.textContent = 'Could not end game — try again when online.';
+                            errorEl.classList.remove('hidden');
+                        }
+                    } finally {
+                        endActiveBtn.disabled = false;
                     }
                 });
             }
@@ -220,36 +240,42 @@ export const lobbyScreen = {
                 soundBtn.setAttribute('aria-label', muted ? 'Unmute sound' : 'Mute sound');
             });
 
-            // Sync button — uses SyncManager.syncPending (correct 4xx = failed)
+            // Sync button — retry round queue then pending imports
             const syncBtn = container.querySelector('#sync-now');
             if (syncBtn) {
                 syncBtn.addEventListener('click', async () => {
                     const resultEl = container.querySelector('#sync-result');
                     syncBtn.disabled = true;
+                    syncBtn.setAttribute('aria-busy', 'true');
                     resultEl.classList.remove('hidden');
                     resultEl.textContent = 'Syncing...';
 
+                    const queueResult = await retrySyncQueue();
                     const result = await attemptSyncBack(shareCode);
                     const synced = result.synced ?? 0;
                     const failed = result.failed ?? 0;
+                    const queueFailed = queueResult.failed || !queueResult.drained;
 
-                    if (result.skipped && synced === 0 && failed === 0) {
+                    if (result.skipped && synced === 0 && failed === 0 && queueResult.drained) {
                         resultEl.textContent = 'Could not reach server. Retry?';
                         syncBtn.disabled = false;
+                        syncBtn.removeAttribute('aria-busy');
                         return;
                     }
 
-                    if (failed === 0) {
+                    if (failed === 0 && !queueFailed) {
+                        const queueSynced = queueResult.remaining === 0 ? 'queue clear' : '';
                         resultEl.textContent = synced === 0
-                            ? 'Nothing to sync'
+                            ? (queueSynced ? 'Rounds synced' : 'Nothing to sync')
                             : `${synced} game${synced === 1 ? '' : 's'} synced!`;
                         syncTimer = setTimeout(() => {
                             container.querySelector('#sync-section')?.classList.add('hidden');
                         }, 3000);
                     } else {
-                        resultEl.textContent = `${synced} synced, ${failed} failed. Retry?`;
+                        resultEl.textContent = `${synced} synced, ${failed + (queueFailed ? 1 : 0)} failed. Retry?`;
                         syncBtn.disabled = false;
                     }
+                    syncBtn.removeAttribute('aria-busy');
                 });
             }
         }
@@ -257,16 +283,17 @@ export const lobbyScreen = {
         async function checkPendingSyncs() {
             try {
                 const pendingGames = await getSyncPendingGames(shareCode);
+                const queue = await getSyncQueue();
                 const syncSection = container.querySelector('#sync-section');
                 if (syncSection) {
-                    if (pendingGames.length > 0) {
+                    if (pendingGames.length > 0 || queue.length > 0) {
                         syncSection.classList.remove('hidden');
                     } else {
                         syncSection.classList.add('hidden');
                     }
                 }
             } catch (error) {
-                console.warn('Failed to check pending syncs:', error);
+                logger.warn('lobby', `Failed to check pending syncs: ${error.message}`);
             }
         }
 
