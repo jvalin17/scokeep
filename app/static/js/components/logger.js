@@ -7,6 +7,24 @@ function timestamp() {
     return new Date().toISOString().slice(11, 23);
 }
 
+const SENSITIVE_KEYS = new Set(['pin', 'password', 'pin_hint', 'token', 'secret']);
+
+function redactSensitive(value) {
+    if (value == null || typeof value !== 'object') return value;
+    if (Array.isArray(value)) return value.map(redactSensitive);
+    const copy = {};
+    for (const [key, nested] of Object.entries(value)) {
+        if (SENSITIVE_KEYS.has(key)) {
+            copy[key] = '[REDACTED]';
+        } else if (nested && typeof nested === 'object') {
+            copy[key] = redactSensitive(nested);
+        } else {
+            copy[key] = nested;
+        }
+    }
+    return copy;
+}
+
 function log(level, category, message, data = null) {
     const entry = { ts: timestamp(), level, cat: category, msg: message };
     if (data) entry.data = data;
@@ -26,7 +44,7 @@ function log(level, category, message, data = null) {
 export const logger = {
     // API calls
     apiCall(method, path, body) {
-        log('info', 'api', `${method} ${path}`, body || undefined);
+        log('info', 'api', `${method} ${path}`, body ? redactSensitive(body) : undefined);
     },
     apiOk(method, path, status) {
         log('info', 'api', `${method} ${path} → ${status}`);

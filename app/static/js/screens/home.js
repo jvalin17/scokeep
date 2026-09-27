@@ -273,7 +273,10 @@ function _bindJoinTab(container, state, navigate) {
                 recentEl.querySelectorAll('.recent-item').forEach(btn => {
                     btn.addEventListener('click', () => {
                         container.querySelector('#join-name').value = btn.textContent;
-                        container.querySelector('#join-pin').focus();
+                        const pinInput = container.querySelector('#join-pin');
+                        pinInput.value = '';
+                        container.querySelector('#join-error')?.classList.add('hidden');
+                        pinInput.focus();
                     });
                 });
             }
@@ -305,7 +308,10 @@ function _bindJoinTab(container, state, navigate) {
                 browsePanel.classList.add('hidden');
                 browseBtn.textContent = 'Browse all';
                 if (recentEl) recentEl.classList.remove('hidden');
-                container.querySelector('#join-pin').focus();
+                const pinInput = container.querySelector('#join-pin');
+                pinInput.value = '';
+                container.querySelector('#join-error')?.classList.add('hidden');
+                pinInput.focus();
             });
         });
     }
@@ -375,7 +381,7 @@ function _bindJoinTab(container, state, navigate) {
         errorElement.classList.add('hidden');
 
         const name = container.querySelector('#join-name').value.trim();
-        const pin = container.querySelector('#join-pin').value;
+        const pin = container.querySelector('#join-pin').value.trim();
 
         const joinBtn = container.querySelector('#join-form button[type="submit"]');
         const restoreBtn = _withLoading(joinBtn, 'Joining...');

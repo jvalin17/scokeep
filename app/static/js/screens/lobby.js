@@ -78,7 +78,7 @@ export const lobbyScreen = {
                         <div class="add-player-row">
                             <input type="text" id="new-player" placeholder="Add player"
                                 maxlength="15" autocomplete="off">
-                            <button id="add-player-btn" class="btn-small">Add</button>
+                            <button type="button" id="add-player-btn" class="btn-small">Add</button>
                         </div>
                     </section>
 
@@ -109,12 +109,26 @@ export const lobbyScreen = {
             // Add player
             const addBtn = container.querySelector('#add-player-btn');
             const newPlayerInput = container.querySelector('#new-player');
+            const showLobbyError = (message) => {
+                const errorEl = container.querySelector('#lobby-error');
+                if (!errorEl) return;
+                errorEl.textContent = message;
+                errorEl.classList.remove('hidden');
+            };
             addBtn.addEventListener('click', () => {
                 const name = newPlayerInput.value.trim();
-                if (name && players.length < 8) {
-                    players.push(name);
-                    renderLobby();
+                if (!name) {
+                    showLobbyError('Enter a player name first');
+                    newPlayerInput.focus();
+                    return;
                 }
+                if (players.length >= 8) {
+                    showLobbyError('Maximum 8 players');
+                    return;
+                }
+                container.querySelector('#lobby-error')?.classList.add('hidden');
+                players.push(name);
+                renderLobby();
             });
             newPlayerInput.addEventListener('keydown', (event) => {
                 if (event.key === 'Enter') {
@@ -197,10 +211,12 @@ export const lobbyScreen = {
 
             // Must-lose toggle label
             const mustLoseCheckbox = container.querySelector('#setting-must-lose');
-            mustLoseCheckbox.addEventListener('change', () => {
-                mustLoseCheckbox.nextElementSibling.textContent =
-                    mustLoseCheckbox.checked ? 'On' : 'Off';
-            });
+            if (mustLoseCheckbox) {
+                mustLoseCheckbox.addEventListener('change', () => {
+                    mustLoseCheckbox.nextElementSibling.textContent =
+                        mustLoseCheckbox.checked ? 'On' : 'Off';
+                });
+            }
 
             // Start game
             container.querySelector('#start-game').addEventListener('click', async () => {

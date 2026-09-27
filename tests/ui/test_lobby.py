@@ -70,3 +70,32 @@ def test_sound_mute_toggle(lobby_page):
     assert "🔇" in muted_text, f"Expected 🔇 after click, got: {muted_text!r}"
     stored = page.evaluate("() => localStorage.getItem('scokeep_mute')")
     assert stored == "1", f"Expected localStorage scokeep_mute='1', got: {stored!r}"
+
+
+def test_lobby_add_player(lobby_page):
+    """Typing a name and clicking Add appends that player to the list."""
+    page = lobby_page
+    page.wait_for_selector("#add-player-btn", timeout=5000)
+    before = page.locator(".lobby-player").count()
+    page.fill("#new-player", "Diana")
+    page.click("#add-player-btn")
+    page.wait_for_function(
+        f"() => document.querySelectorAll('.lobby-player').length === {before + 1}",
+        timeout=3000,
+    )
+    assert "Diana" in page.locator("#player-list").inner_text()
+
+
+def test_lobby_add_player_shows_error_at_max(page, server):
+    """At 8 players, Add must show an error instead of silently doing nothing."""
+    page.goto(server)
+    eight = [f"P{i}" for i in range(1, 9)]
+    create_playground(page, unique_name("Full"), "1234", eight)
+    page.wait_for_selector("#add-player-btn", timeout=5000)
+    assert page.locator(".lobby-player").count() == 8
+    page.fill("#new-player", "Ninth")
+    page.click("#add-player-btn")
+    err = page.locator("#lobby-error")
+    err.wait_for(state="visible", timeout=3000)
+    assert "8" in err.inner_text()
+    assert page.locator(".lobby-player").count() == 8

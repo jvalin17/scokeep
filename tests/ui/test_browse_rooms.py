@@ -135,3 +135,31 @@ def test_browse_click_populates_join_name(page, server):
 
     focused = page.evaluate("() => document.activeElement.id")
     assert focused == "join-pin", f"Expected PIN focused, got: {focused}"
+
+
+def test_selecting_room_clears_stale_pin(page, server):
+    """Switching rooms must clear the PIN so a leftover PIN cannot 401 the new room.
+
+    Reproduces: user types PIN for room A, then picks Trial1 from the list without
+    clearing the field — server correctly returns Invalid PIN for the wrong digits.
+    """
+    page.goto(server)
+    room_a = unique_name("RoomA")
+    room_b = unique_name("RoomB")
+    create_playground(page, room_a, "1111", ["Alice", "Bob"])
+    page.goto(server)
+    create_playground(page, room_b, "2222", ["Carol", "Dan"])
+
+    page.goto(server)
+    page.click('.tab[data-tab="join"]')
+    page.fill("#join-name", room_a)
+    page.fill("#join-pin", "1111")
+
+    page.click("#browse-rooms-btn")
+    page.wait_for_selector(".browse-item", timeout=5000)
+    page.locator(f'.browse-item:has-text("{room_b}")').click()
+
+    assert page.locator("#join-name").input_value() == room_b
+    assert page.locator("#join-pin").input_value() == "", (
+        "PIN must be cleared when selecting a different room"
+    )
