@@ -337,7 +337,9 @@ export async function getScoreboard(gameId) {
 }
 
 /**
- * Undo the most recently completed round: delete it and decrement round.
+ * Undo the most recently completed round: delete it and step phase back.
+ * Round 1 undo stays on round 1 in bidding and recreates an empty active round
+ * so rebidding can continue. Later rounds return to the previous scoreboard.
  *
  * @param {string} gameId
  * @returns {Promise<Object>} Updated game object.
@@ -362,6 +364,13 @@ export async function undoRound(gameId) {
   game.phase = wasAtRoundOne ? 'bidding' : 'scoreboard';
 
   await saveGame(game);
+
+  // Undoing round 1 deletes the only round row; recreate an empty active round
+  // so bidding can continue (otherwise submitBid → "Round not found").
+  if (game.phase === 'bidding') {
+    await saveRound(_makeRound(game, game.current_round));
+  }
+
   return game;
 }
 

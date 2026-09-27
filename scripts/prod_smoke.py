@@ -25,7 +25,7 @@ DEFAULT_BASE = "https://scokeep.com"
 USER_AGENT = "scokeep-prod-smoke/1.0"
 
 
-class SmokeFailure(Exception):
+class SmokeError(Exception):
     pass
 
 
@@ -39,8 +39,11 @@ def _request(
     timeout: float = 45,
 ) -> tuple[int, object]:
     data = None if body is None else json.dumps(body).encode()
-    req = urllib.request.Request(
-        f"{base.rstrip('/')}{path}",
+    url = f"{base.rstrip('/')}{path}"
+    if not url.startswith(("http://", "https://")):
+        raise SmokeError(f"refusing non-http(s) URL: {url!r}")
+    req = urllib.request.Request(  # noqa: S310 — scheme validated above
+        url,
         data=data,
         headers={
             "Content-Type": "application/json",
@@ -67,18 +70,18 @@ def _request(
 def check_health(opener: urllib.request.OpenerDirector, base: str) -> None:
     status, body = _request(opener, base, "/api/health")
     if status != 200:
-        raise SmokeFailure(f"health HTTP {status}: {body}")
+        raise SmokeError(f"health HTTP {status}: {body}")
     if not isinstance(body, dict) or body.get("status") != "healthy":
-        raise SmokeFailure(f"health not healthy: {body}")
+        raise SmokeError(f"health not healthy: {body}")
     if body.get("database") != "connected":
-        raise SmokeFailure(f"database not connected: {body}")
+        raise SmokeError(f"database not connected: {body}")
     print("OK  health")
 
 
 def check_openapi(opener: urllib.request.OpenerDirector, base: str) -> None:
     status, body = _request(opener, base, "/openapi.json")
     if status != 200 or not isinstance(body, dict):
-        raise SmokeFailure(f"openapi HTTP {status}")
+        raise SmokeError(f"openapi HTTP {status}")
     paths = body.get("paths") or {}
     required = [
         "/api/game/{game_id}/sync-round",
@@ -86,38 +89,38 @@ def check_openapi(opener: urllib.request.OpenerDirector, base: str) -> None:
     ]
     missing = [path for path in required if path not in paths]
     if missing:
-        raise SmokeFailure(f"openapi missing routes: {missing} (total={len(paths)})")
+        raise SmokeError(f"openapi missing routes: {missing} (total={len(paths)})")
     props = (body.get("components", {}).get("schemas", {}).get("GameResponse") or {}).get(
         "properties", {}
     )
     if "source" not in props:
-        raise SmokeFailure(f"GameResponse missing source field: {sorted(props)}")
+        raise SmokeError(f"GameResponse missing source field: {sorted(props)}")
     print(f"OK  openapi ({len(paths)} routes, sync-round present)")
 
 
 def check_sw(opener: urllib.request.OpenerDirector, base: str) -> None:
     status, body = _request(opener, base, "/static/sw.js")
     if status != 200 or not isinstance(body, str):
-        raise SmokeFailure(f"sw.js HTTP {status}")
+        raise SmokeError(f"sw.js HTTP {status}")
     match = re.search(r"CACHE_NAME\s*=\s*'([^']+)'", body)
     if not match:
-        raise SmokeFailure("sw.js missing CACHE_NAME")
+        raise SmokeError("sw.js missing CACHE_NAME")
     cache_name = match.group(1)
     # Prod promote includes scokeep-v74+; accept any v74 or higher.
     version_match = re.search(r"scokeep-v(\d+)", cache_name)
     if not version_match or int(version_match.group(1)) < 74:
-        raise SmokeFailure(f"unexpected SW cache {cache_name!r} (want scokeep-v74+)")
+        raise SmokeError(f"unexpected SW cache {cache_name!r} (want scokeep-v74+)")
     print(f"OK  sw {cache_name}")
 
 
 def check_seo(opener: urllib.request.OpenerDirector, base: str) -> None:
     status, body = _request(opener, base, "/")
     if status != 200 or not isinstance(body, str):
-        raise SmokeFailure(f"index HTML HTTP {status}")
+        raise SmokeError(f"index HTML HTTP {status}")
     if 'rel="canonical" href="https://scokeep.com"' not in body:
-        raise SmokeFailure("canonical link missing or not https://scokeep.com")
+        raise SmokeError("canonical link missing or not https://scokeep.com")
     if 'property="og:url" content="https://scokeep.com"' not in body:
-        raise SmokeFailure("og:url missing or not https://scokeep.com")
+        raise SmokeError("og:url missing or not https://scokeep.com")
     print("OK  seo canonical/og:url")
 
 
@@ -135,7 +138,7 @@ def check_gameplay(opener: urllib.request.OpenerDirector, base: str) -> None:
         body={"name": room, "pin": pin, "pin_hint": "ci", "players": ["Alice", "Bob"]},
     )
     if status not in (200, 201) or not isinstance(created, dict):
-        raise SmokeFailure(f"create playground HTTP {status}: {created}")
+        raise SmokeError(f"create playground HTTP {status}: {created}")
     playground_id = created["id"]
     print(f"OK  create room {room} id={playground_id}")
 
@@ -147,7 +150,7 @@ def check_gameplay(opener: urllib.request.OpenerDirector, base: str) -> None:
         body={"name": room, "pin": pin},
     )
     if status != 200:
-        raise SmokeFailure(f"auth HTTP {status}: {_auth}")
+        raise SmokeError(f"auth HTTP {status}: {_auth}")
     print("OK  auth")
 
     status, game = _request(
@@ -170,7 +173,7 @@ def check_gameplay(opener: urllib.request.OpenerDirector, base: str) -> None:
         },
     )
     if status not in (200, 201) or not isinstance(game, dict):
-        raise SmokeFailure(f"create game HTTP {status}: {game}")
+        raise SmokeError(f"create game HTTP {status}: {game}")
     game_id = game["id"]
     if game.get("source") not in (None, "online"):
         # source may be present after IDB-first promote
@@ -196,19 +199,19 @@ def check_gameplay(opener: urllib.request.OpenerDirector, base: str) -> None:
         body=sync_body,
     )
     if status != 200 or not isinstance(synced, dict):
-        raise SmokeFailure(f"sync-round HTTP {status}: {synced}")
+        raise SmokeError(f"sync-round HTTP {status}: {synced}")
     if synced.get("status") != "scored":
-        raise SmokeFailure(f"sync-round status want scored got {synced.get('status')}")
+        raise SmokeError(f"sync-round status want scored got {synced.get('status')}")
     print("OK  sync-round → scored")
 
     status, board = _request(opener, base, f"/api/game/{game_id}/scoreboard")
     if status != 200 or not isinstance(board, dict):
-        raise SmokeFailure(f"scoreboard HTTP {status}: {board}")
+        raise SmokeError(f"scoreboard HTTP {status}: {board}")
     rounds = board.get("rounds") or []
     if len(rounds) < 1:
-        raise SmokeFailure(f"scoreboard missing rounds: {board}")
+        raise SmokeError(f"scoreboard missing rounds: {board}")
     if rounds[0].get("scores") != {"0": -10, "1": -10}:
-        raise SmokeFailure(f"scoreboard scores mismatch: {rounds[0]}")
+        raise SmokeError(f"scoreboard scores mismatch: {rounds[0]}")
     print("OK  scoreboard has synced round")
 
     # Finish so Resume does not linger on that room
@@ -234,7 +237,7 @@ def main() -> int:
             check_gameplay(opener, base)
         else:
             print("SKIP gameplay (PROD_SMOKE_PLAY=0)")
-    except SmokeFailure as exc:
+    except SmokeError as exc:
         print(f"FAIL  {exc}", file=sys.stderr)
         return 1
     except Exception as exc:  # noqa: BLE001 — surface unexpected CI errors

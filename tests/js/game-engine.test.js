@@ -11,6 +11,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
   resetForTesting,
   setIndexedDBForTesting,
+  getRound,
 } from '../../app/static/js/engine/store.js';
 import {
   createGame,
@@ -301,28 +302,77 @@ describe('test_confirm_final_sets_final_phase', () => {
 });
 
 describe('test_undo_round_at_round_1_sets_bidding', () => {
-  it('undoRound from round 1 sets phase=bidding', async () => {
+  it('undoRound from round 1 sets phase=bidding and stays on round 1', async () => {
     const game = await createGame(makePlayers(), makeSettings());
     await playRound(game.id, [1, 0], [1, 7]);
-    // Still on round 1 after endRound (scoring phase), undo it
     const result = await undoRound(game.id);
 
     expect(result.current_round).toBe(1);
     expect(result.phase).toBe('bidding');
+    expect(result.status).toBe('active');
+  });
+});
+
+describe('test_undo_round_1_recreates_active_round_for_rebidding', () => {
+  it('after undoing scored round 1, a clean active round exists for rebidding', async () => {
+    const game = await createGame(makePlayers(), makeSettings());
+    await playRound(game.id, [1, 0], [1, 7]);
+
+    // Confirm scored data existed before undo (guards against a no-op undo).
+    const scored = await getRound(game.id, 1);
+    expect(scored.status).toBe('complete');
+    expect(scored.bids).toEqual({ '0': 1, '1': 0 });
+    expect(Object.keys(scored.scores).length).toBeGreaterThan(0);
+
+    await undoRound(game.id);
+
+    // Round row must be recreated — otherwise getBids/submitBid throw "Round not found".
+    const round = await getRound(game.id, 1);
+    expect(round).not.toBeNull();
+    expect(round.round_num).toBe(1);
+    expect(round.status).toBe('active');
+    expect(round.bids).toEqual({});
+    expect(round.hands_won).toEqual({});
+    expect(round.scores).toEqual({});
+    expect(round.cards_dealt).toBe(8);
+
+    const bids = await getBids(game.id);
+    expect(bids).toEqual({});
+
+    // Empty scoreboard — completed round was wiped.
+    const board = await getScoreboard(game.id);
+    expect(board.rounds).toHaveLength(0);
+
+    // Full re-play must succeed (the production failure path was "Round not found" on bid).
+    await playRound(game.id, [2, 0], [2, 6]);
+
+    const afterReplay = await getRound(game.id, 1);
+    expect(afterReplay.status).toBe('complete');
+    expect(afterReplay.bids).toEqual({ '0': 2, '1': 0 });
   });
 });
 
 describe('test_undo_round_after_round_2_sets_scoreboard', () => {
-  it('undoRound from round 2 sets phase=scoreboard', async () => {
+  it('undoRound from round 2 returns to scoreboard and preserves round 1', async () => {
     const game = await createGame(makePlayers(), makeSettings());
     await playRound(game.id, [1, 0], [1, 7]);
     await nextRound(game.id);
     await playRound(game.id, [1, 0], [1, 6]);
-    // Now on round 2 (scoring phase), undo round 2
+
     const result = await undoRound(game.id);
 
     expect(result.current_round).toBe(1);
     expect(result.phase).toBe('scoreboard');
+
+    // Round 2 must be gone; round 1 stays complete with original data.
+    expect(await getRound(game.id, 2)).toBeNull();
+    const round1 = await getRound(game.id, 1);
+    expect(round1).not.toBeNull();
+    expect(round1.status).toBe('complete');
+    expect(round1.bids).toEqual({ '0': 1, '1': 0 });
+
+    const board = await getScoreboard(game.id);
+    expect(board.rounds).toHaveLength(1);
   });
 });
 

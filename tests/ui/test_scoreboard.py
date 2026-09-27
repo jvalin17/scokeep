@@ -61,7 +61,7 @@ def test_scoreboard_buttons(scoreboard_page):
 
 
 def test_undo_round_navigates_to_bidding(page, server):
-    """Clicking #undo-round on the scoreboard navigates back to the bidding screen."""
+    """Undo on scoreboard returns to bidding and accepts new bids (round row recreated)."""
     page.goto(server)
     create_playground(page, unique_name("Undo"), "1234", ["Alice", "Bob", "Charlie"])
     start_game(page)
@@ -81,6 +81,11 @@ def test_undo_round_navigates_to_bidding(page, server):
     page.wait_for_function("() => location.hash.includes('bid')", timeout=5000)
     url_hash = page.evaluate("() => location.hash")
     assert "bid" in url_hash, f"Expected hash to contain 'bid' after undo, got: {url_hash}"
+
+    # Regression: undo used to delete round 1 without recreating it → "Round not found".
+    # Re-entering bids proves the active round row exists and bidding works.
+    enter_bids_for_all(page, [1, 2, 0])
+    confirm_bids(page)
 
 
 def test_scoreboard_scores_correct(scoreboard_page):
