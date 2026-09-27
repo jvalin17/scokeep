@@ -134,6 +134,11 @@ async def google_verification():
     return FileResponse(STATIC_DIR / "google58fff8f471367856.html")
 
 
+@app.get("/google90ca41c797c60c6e.html")
+async def google_verification_alt():
+    return FileResponse(STATIC_DIR / "google90ca41c797c60c6e.html")
+
+
 @app.get("/sitemap.xml")
 async def sitemap():
     xml = """<?xml version="1.0" encoding="UTF-8"?>
@@ -142,6 +147,11 @@ async def sitemap():
     <loc>https://scokeep.com/</loc>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://scokeep.com/static/privacy.html</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
   </url>
 </urlset>"""
     from starlette.responses import Response as StarletteResponse
@@ -153,7 +163,8 @@ async def sitemap():
 async def robots():
     content = """User-agent: *
 Allow: /
-Sitemap: https://scokeep.com/sitemap.xml"""
+Sitemap: https://scokeep.com/sitemap.xml
+"""
     from starlette.responses import Response as StarletteResponse
 
     return StarletteResponse(content=content, media_type="text/plain")

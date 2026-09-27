@@ -109,7 +109,7 @@ export function renderGameDetail(game, scoreboard, editMode) {
                         ${rounds.map(round => {
                             const trump = getTrump(round.round_num);
                             return `<tr>
-                                <td>${round.round_num}<span class="${trump.isRed ? 'trump-red' : ''}" style="font-size:0.7em;">${trump.symbol}</span></td>
+                                <td>${round.cards_dealt}<span class="${trump.isRed ? 'trump-red' : ''}" style="font-size:0.7em;">${trump.symbol}</span></td>
                                 ${players.map((_, idx) => {
                                     const key = String(idx);
                                     const score = round.scores[key] || 0;

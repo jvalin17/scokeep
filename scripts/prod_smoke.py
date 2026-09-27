@@ -123,6 +123,24 @@ def check_seo(opener: urllib.request.OpenerDirector, base: str) -> None:
         raise SmokeError("og:url missing or not https://scokeep.com")
     print("OK  seo canonical/og:url")
 
+    status, sitemap = _request(opener, base, "/sitemap.xml")
+    if status != 200 or not isinstance(sitemap, str):
+        raise SmokeError(f"sitemap HTTP {status}")
+    if "https://scokeep.com/</loc>" not in sitemap:
+        raise SmokeError("sitemap missing homepage")
+    if "https://scokeep.com/static/privacy.html</loc>" not in sitemap:
+        raise SmokeError("sitemap missing privacy page")
+    print("OK  seo sitemap home+privacy")
+
+    for path in (
+        "/google58fff8f471367856.html",
+        "/google90ca41c797c60c6e.html",
+    ):
+        status, _ = _request(opener, base, path)
+        if status != 200:
+            raise SmokeError(f"google verify {path} HTTP {status}")
+    print("OK  seo google verification files")
+
 
 def check_gameplay(opener: urllib.request.OpenerDirector, base: str) -> None:
     """Create ephemeral room, play one round, assert sync-round + scoreboard."""
