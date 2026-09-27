@@ -1,0 +1,34 @@
+name: Prod smoke
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Daily 13:00 UTC — catch silent prod regressions
+    - cron: "0 13 * * *"
+  push:
+    branches: [prod]
+
+jobs:
+  smoke:
+    name: Smoke scokeep.com
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Wait for Render deploy (push to prod only)
+        if: github.event_name == 'push'
+        run: |
+          echo "Waiting 90s for Render to pick up prod deploy..."
+          sleep 90
+
+      - name: Run prod smoke
+        env:
+          # Optional overrides via repo Variables; empty → script defaults
+          PROD_SMOKE_BASE_URL: ${{ vars.PROD_SMOKE_BASE_URL }}
+          PROD_SMOKE_PLAY: ${{ vars.PROD_SMOKE_PLAY }}
+        run: python scripts/prod_smoke.py

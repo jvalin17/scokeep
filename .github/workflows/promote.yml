@@ -82,3 +82,4 @@ jobs:
           git push origin prod
           echo ""
           echo "Promoted to prod. Render will auto-deploy."
+          echo "Prod smoke workflow runs on push to prod (after ~90s wait)."
