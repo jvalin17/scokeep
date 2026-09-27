@@ -368,6 +368,22 @@ describe('test_ensure_active_round_repairs_missing_row', () => {
   });
 });
 
+describe('test_undo_round_1_overwrites_round_row_not_delete_put', () => {
+  it('after undo, round row exists with active status (overwrite path)', async () => {
+    const game = await createGame(makePlayers(), makeSettings());
+    await playRound(game.id, [1, 0], [1, 7]);
+    expect((await getRound(game.id, 1)).status).toBe('complete');
+
+    await undoRound(game.id);
+
+    // Must not end up with zero rounds (Chromium delete+put same-key failure mode).
+    const round = await getRound(game.id, 1);
+    expect(round).not.toBeNull();
+    expect(round.status).toBe('active');
+    expect(round.bids).toEqual({});
+  });
+});
+
 describe('test_undo_round_after_round_2_sets_scoreboard', () => {
   it('undoRound from round 2 returns to scoreboard and preserves round 1', async () => {
     const game = await createGame(makePlayers(), makeSettings());

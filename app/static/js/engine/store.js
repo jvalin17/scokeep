@@ -236,9 +236,9 @@ export function deleteRound(gameId, roundNum) {
 }
 
 /**
- * Atomically apply an undo: delete the undone round, save game, optionally
- * recreate an empty active round. Waits for transaction complete so the next
- * read cannot miss the recreated row.
+ * Atomically apply an undo: overwrite the undone round with a fresh active
+ * row (or delete it when no replacement), and save the game. Waits for
+ * transaction complete so the next read cannot miss the replacement row.
  *
  * @param {Object} game
  * @param {number} deletedRoundNum
@@ -251,11 +251,18 @@ export async function commitUndoRound(game, deletedRoundNum, replacementRound = 
   return new Promise((resolve, reject) => {
     const tx = db.transaction(['games', 'rounds'], 'readwrite');
     const rounds = tx.objectStore('rounds');
-    rounds.delete([gameId, deletedRoundNum]);
-    tx.objectStore('games').put(game);
     if (replacementRound) {
-      rounds.put(replacementRound);
+      // Overwrite the undone round in place. Do NOT delete+put the same
+      // compound key in one transaction — Chromium can commit the delete and
+      // drop the put, leaving no round row (prod "Round not found" after undo).
+      const roundToSave = replacementRound.game_id === gameId
+        ? replacementRound
+        : { ...replacementRound, game_id: gameId };
+      rounds.put(roundToSave);
+    } else {
+      rounds.delete([gameId, deletedRoundNum]);
     }
+    tx.objectStore('games').put(game);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
     tx.onabort = () => reject(tx.error || new Error('Transaction aborted'));
