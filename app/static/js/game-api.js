@@ -11,7 +11,7 @@
  *   createGame, getGame, getBids, getScoreboard
  *   submitBid, editBid, startRound, enterRoundEnd, submitHands
  *   endRound, nextRound, endGame, extendGame
- *   undoRound, confirmFinal
+ *   undoRound, confirmFinal, ensureActiveRound
  *   guardPhase, resyncGame, loadGameFromServer
  *   enterRescore, rescoreRound, enterReview
  */
@@ -424,6 +424,15 @@ export async function extendGame(gameId) {
  */
 export async function undoRound(gameId) {
   return engine.undoRound(gameId);
+}
+
+/**
+ * Ensure the current round row exists (e.g. after undo wiped round 1).
+ * @param {string} gameId
+ * @returns {Promise<Object>} Round object.
+ */
+export async function ensureActiveRound(gameId) {
+  return engine.ensureActiveRound(gameId);
 }
 
 /**

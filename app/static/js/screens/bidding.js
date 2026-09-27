@@ -31,13 +31,23 @@ export const biddingScreen = {
 
         setScreenContext('bidding', game);
 
-        // Load existing bids
+        // Load existing bids; if undo left bidding without a round row, recreate it.
         try {
             const roundData = await api.getBids(gameId);
             bidsCollected = roundData.bids || {};
             bidPosition = Object.keys(bidsCollected).length;
             Object.keys(bidsCollected).forEach(key => backendHasBid.add(key));
-        } catch { /* first round — no bids yet */ }
+        } catch (err) {
+            const missing = err && /Round not found/i.test(String(err.message || err));
+            if (missing && typeof api.ensureActiveRound === 'function') {
+                const roundData = await api.ensureActiveRound(gameId);
+                bidsCollected = roundData.bids || {};
+                bidPosition = Object.keys(bidsCollected).length;
+                Object.keys(bidsCollected).forEach(key => backendHasBid.add(key));
+            } else if (!missing) {
+                showError(container, 'bid-error', err.message || String(err));
+            }
+        }
 
         function currentPlayer() { return biddingOrder[bidPosition]; }
 

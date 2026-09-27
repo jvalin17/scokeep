@@ -107,10 +107,12 @@ async function _put(storeName, value) {
   const db = await _open();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(storeName, 'readwrite');
-    const req = tx.objectStore(storeName).put(value);
-    req.onsuccess = () => resolve();
-    req.onerror = () => reject(req.error);
+    tx.objectStore(storeName).put(value);
+    // Resolve on complete — req.onsuccess can fire before the write is visible
+    // to later transactions (real Chromium; fake-indexeddb often hides this).
+    tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error || new Error('Transaction aborted'));
   });
 }
 
@@ -124,10 +126,10 @@ async function _del(storeName, key) {
   const db = await _open();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(storeName, 'readwrite');
-    const req = tx.objectStore(storeName).delete(key);
-    req.onsuccess = () => resolve();
-    req.onerror = () => reject(req.error);
+    tx.objectStore(storeName).delete(key);
+    tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error || new Error('Transaction aborted'));
   });
 }
 
@@ -231,6 +233,33 @@ export async function getRoundsForGame(gameId) {
  */
 export function deleteRound(gameId, roundNum) {
   return _del('rounds', [_normalizeId(gameId), roundNum]);
+}
+
+/**
+ * Atomically apply an undo: delete the undone round, save game, optionally
+ * recreate an empty active round. Waits for transaction complete so the next
+ * read cannot miss the recreated row.
+ *
+ * @param {Object} game
+ * @param {number} deletedRoundNum
+ * @param {Object|null} replacementRound  Fresh active round, or null.
+ * @returns {Promise<void>}
+ */
+export async function commitUndoRound(game, deletedRoundNum, replacementRound = null) {
+  const db = await _open();
+  const gameId = _normalizeId(game.id);
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(['games', 'rounds'], 'readwrite');
+    const rounds = tx.objectStore('rounds');
+    rounds.delete([gameId, deletedRoundNum]);
+    tx.objectStore('games').put(game);
+    if (replacementRound) {
+      rounds.put(replacementRound);
+    }
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error || new Error('Transaction aborted'));
+  });
 }
 
 /**

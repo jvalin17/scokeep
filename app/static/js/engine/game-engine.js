@@ -8,7 +8,7 @@
  *   createGame, getGame, submitBid, getBids, editBid
  *   startRound, enterRoundEnd, submitHands
  *   endRound, nextRound, endGame, extendGame
- *   getScoreboard, undoRound, confirmFinal
+ *   getScoreboard, undoRound, confirmFinal, ensureActiveRound
  */
 
 import { calculateRoundScores } from './scoring.js';
@@ -23,7 +23,7 @@ import {
   saveRound,
   getRound,
   getRoundsForGame,
-  deleteRound,
+  commitUndoRound,
 } from './store.js';
 
 // ─── internal helpers ────────────────────────────────────────────────────────
@@ -337,6 +337,23 @@ export async function getScoreboard(gameId) {
 }
 
 /**
+ * Ensure an active round row exists for the game's current_round.
+ * Used when bidding mounts after undo deleted the only round row.
+ *
+ * @param {string} gameId
+ * @returns {Promise<Object>} Round object.
+ */
+export async function ensureActiveRound(gameId) {
+  const game = await _requireGame(gameId);
+  let round = await getRound(game.id, game.current_round);
+  if (!round) {
+    round = _makeRound(game, game.current_round);
+    await saveRound(round);
+  }
+  return round;
+}
+
+/**
  * Undo the most recently completed round: delete it and step phase back.
  * Round 1 undo stays on round 1 in bidding and recreates an empty active round
  * so rebidding can continue. Later rounds return to the previous scoreboard.
@@ -352,8 +369,6 @@ export async function undoRound(gameId) {
   // If round_end/playing for round N, undo round N itself.
   const roundToUndo = game.current_round;
 
-  await deleteRound(gameId, roundToUndo);
-
   // Step back to the previous round (or stay at 1 if already round 1).
   const wasAtRoundOne = game.current_round <= 1;
   if (game.current_round > 1) {
@@ -363,13 +378,15 @@ export async function undoRound(gameId) {
   // Round 1 undo → back to bidding. Later rounds → scoreboard of previous round.
   game.phase = wasAtRoundOne ? 'bidding' : 'scoreboard';
 
-  await saveGame(game);
-
   // Undoing round 1 deletes the only round row; recreate an empty active round
   // so bidding can continue (otherwise submitBid → "Round not found").
-  if (game.phase === 'bidding') {
-    await saveRound(_makeRound(game, game.current_round));
-  }
+  const replacement = game.phase === 'bidding'
+    ? _makeRound(game, game.current_round)
+    : null;
+
+  // Single IDB transaction (waits for oncomplete) so navigate→getBids cannot
+  // race a still-open delete/put.
+  await commitUndoRound(game, roundToUndo, replacement);
 
   return game;
 }

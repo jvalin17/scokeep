@@ -12,6 +12,7 @@ import {
   resetForTesting,
   setIndexedDBForTesting,
   getRound,
+  deleteRound,
 } from '../../app/static/js/engine/store.js';
 import {
   createGame,
@@ -29,6 +30,7 @@ import {
   getScoreboard,
   undoRound,
   confirmFinal,
+  ensureActiveRound,
 } from '../../app/static/js/engine/game-engine.js';
 
 // ─── isolation ───────────────────────────────────────────────────────────────
@@ -349,6 +351,20 @@ describe('test_undo_round_1_recreates_active_round_for_rebidding', () => {
     const afterReplay = await getRound(game.id, 1);
     expect(afterReplay.status).toBe('complete');
     expect(afterReplay.bids).toEqual({ '0': 2, '1': 0 });
+  });
+});
+
+describe('test_ensure_active_round_repairs_missing_row', () => {
+  it('ensureActiveRound recreates round 1 when missing during bidding', async () => {
+    const game = await createGame(makePlayers(), makeSettings());
+    await deleteRound(game.id, 1);
+    expect(await getRound(game.id, 1)).toBeNull();
+
+    const round = await ensureActiveRound(game.id);
+    expect(round.status).toBe('active');
+    expect(round.bids).toEqual({});
+    expect(await getRound(game.id, 1)).not.toBeNull();
+    await expect(submitBid(game.id, 0, 1)).resolves.toMatchObject({ bids: { '0': 1 } });
   });
 });
 
