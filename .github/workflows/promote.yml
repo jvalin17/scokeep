@@ -50,9 +50,9 @@ jobs:
 
           echo "CI passed on main @ $SHA"
 
-  # ── Promote: merge main → prod (fast-forward) ────────────
+  # ── Promote: point prod at main (no PR) ───────────────────
   promote:
-    name: Merge main → prod
+    name: Reset prod to main
     needs: [check-ci]
     runs-on: ubuntu-latest
     permissions:
@@ -62,24 +62,34 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Show pending commits
+      - name: Show pending promote
         run: |
-          echo "=== Commits to promote ==="
-          COUNT=$(git log --oneline origin/prod..origin/main | wc -l | tr -d ' ')
-          echo "$COUNT commit(s) pending:"
+          git fetch origin main prod
+          MAIN=$(git rev-parse --short origin/main)
+          PROD=$(git rev-parse --short origin/prod)
+          echo "main: $MAIN"
+          echo "prod: $PROD"
           echo ""
-          git log --oneline origin/prod..origin/main
-          echo ""
-          if [ "$COUNT" = "0" ]; then
-            echo "::warning::Nothing to promote — main and prod are identical."
+
+          if [ "$(git rev-parse origin/prod)" = "$(git rev-parse origin/main)" ]; then
+            echo "::warning::Nothing to promote — prod already points at main."
             exit 1
           fi
 
-      - name: Fast-forward prod to main
+          NEW=$(git rev-list --count origin/prod..origin/main)
+          DROP=$(git rev-list --count origin/main..origin/prod)
+          echo "=== Commits on main not on prod ($NEW) ==="
+          git log --oneline origin/prod..origin/main || true
+          echo ""
+          echo "=== Commits on prod that will be dropped ($DROP) ==="
+          git log --oneline origin/main..origin/prod || true
+
+      - name: Point prod at main
         run: |
           git checkout prod
-          git merge origin/main --ff-only
-          git push origin prod
+          git reset --hard origin/main
+          git push --force-with-lease=refs/heads/prod:origin/prod origin prod
           echo ""
-          echo "Promoted to prod. Render will auto-deploy."
+          echo "Promoted to prod @ $(git rev-parse --short HEAD)."
+          echo "Render will auto-deploy."
           echo "Prod smoke workflow runs on push to prod (after ~90s wait)."
