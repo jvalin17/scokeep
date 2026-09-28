@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -14,6 +14,7 @@ from sqlalchemy import text
 from app.database import create_tables, engine
 from app.routes import game, import_game, playground, score, sync
 from app.routes import round as round_routes
+from app.services.service_worker import render_service_worker
 
 logging.basicConfig(
     level=logging.INFO,
@@ -73,6 +74,32 @@ async def lifespan(application: FastAPI):
 app = FastAPI(title="Scokeep", version="0.1.0", lifespan=lifespan)
 app.state.limiter = playground.limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+def _service_worker_response() -> Response:
+    body = render_service_worker(STATIC_DIR)
+    return Response(
+        content=body,
+        media_type="application/javascript; charset=utf-8",
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Service-Worker-Allowed": "/",
+        },
+    )
+
+
+@app.get("/sw.js")
+async def service_worker():
+    """Content-hashed SW — CACHE_NAME tracks app-shell files automatically."""
+    return _service_worker_response()
+
+
+@app.get("/static/sw.js")
+async def service_worker_static_alias():
+    """Same body as /sw.js so old register URLs still get a hashed worker."""
+    return _service_worker_response()
+
+
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 from starlette.middleware.base import BaseHTTPMiddleware  # noqa: E402
@@ -98,7 +125,14 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         )
         if not settings.debug:
             response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-        if settings.debug and request.url.path.startswith("/static/"):
+        path = request.url.path
+        # Service worker bootstrap must always revalidate.
+        if (
+            path == "/sw.js"
+            or path == "/static/sw.js"
+            or path == "/static/js/sw-register.js"
+            or (settings.debug and path.startswith("/static/"))
+        ):
             response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
         return response
 

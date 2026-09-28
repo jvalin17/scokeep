@@ -35,9 +35,33 @@ class TestPWAAssets:
         assert len(body["icons"]) >= 2
 
     async def test_service_worker(self, client: AsyncClient):
-        response = await client.get("/static/sw.js")
+        response = await client.get("/sw.js")
         assert response.status_code == 200
         assert "CACHE_NAME" in response.text
+        assert "__CACHE_NAME__" not in response.text
+        assert "scokeep-" in response.text
+
+    async def test_service_worker_is_not_long_cached(self, client: AsyncClient):
+        """SW must revalidate — a long-lived CDN cache freezes the old app shell."""
+        import app.main as main_module
+
+        original = main_module.settings.debug
+        try:
+            main_module.settings.debug = False
+            response = await client.get("/sw.js")
+        finally:
+            main_module.settings.debug = original
+        assert response.status_code == 200
+        cache_control = response.headers.get("cache-control", "").lower()
+        assert "no-cache" in cache_control or "max-age=0" in cache_control, (
+            f"sw.js must not be long-cached; got Cache-Control={cache_control!r}"
+        )
+
+    async def test_service_worker_static_alias_matches(self, client: AsyncClient):
+        primary = await client.get("/sw.js")
+        alias = await client.get("/static/sw.js")
+        assert primary.status_code == 200 and alias.status_code == 200
+        assert primary.text == alias.text
 
     async def test_icon_192(self, client: AsyncClient):
         response = await client.get("/static/icons/icon-192.png")
