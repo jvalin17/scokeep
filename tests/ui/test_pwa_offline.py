@@ -1,7 +1,8 @@
-"""PWA offline tests — app must load and Quick Game must work without network.
+"""PWA offline tests — Quick Game and home UI when API traffic is blocked.
 
-Uses page.route() to block all network requests, simulating airplane mode.
-The service worker must serve cached app shell and API calls must fail gracefully.
+Uses page.route() to abort /api/** after an online load (UI test contexts block
+service workers so Playwright routes control the network). App logic must handle
+failed API calls without crashing.
 """
 
 import pytest

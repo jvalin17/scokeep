@@ -130,8 +130,10 @@ def play_one_round(page: Page, bids: list[int], hands: list[int]):
 def end_game(page: Page):
     """End the game — clicks End Game, handles confirm dialog if present, waits for navigation."""
     current_hash = page.evaluate("() => location.hash")
-    # Bidding/play screens show a confirm overlay; scoreboard navigates directly
-    needs_confirm = "bid" in current_hash or "play" in current_hash
+    # First path segment only — "play" must not match "playground"
+    screen = current_hash.lstrip("#").split("/")[0]
+    # bid/play/roundend show a confirm overlay; scoreboard navigates directly
+    needs_confirm = screen in ("bid", "play", "roundend")
     end_btn = page.locator('#end-game, #end-game-btn, button:has-text("End Game")')
     end_btn.first.wait_for(state="visible", timeout=60000)
     end_btn.first.click()

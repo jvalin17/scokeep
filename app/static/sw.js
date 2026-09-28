@@ -65,16 +65,9 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
 
-    // API calls: network first, empty JSON fallback when offline
+    // Do not intercept API — leave fetch to the page so offline errors and
+    // Playwright page.route() aborts apply. App already handles network failures.
     if (url.pathname.startsWith('/api/')) {
-        event.respondWith(
-            fetch(event.request).catch(() =>
-                new Response(JSON.stringify({ offline: true, detail: 'You are offline' }), {
-                    status: 503,
-                    headers: { 'Content-Type': 'application/json' },
-                })
-            )
-        );
         return;
     }
 

@@ -16,6 +16,18 @@ import pytest
 collect_ignore_glob: list[str] = []
 
 
+@pytest.fixture(scope="session")
+def browser_context_args(browser_context_args):
+    """Block service workers so Playwright page.route() controls /api traffic.
+
+    A root-scoped /sw.js would otherwise fetch() APIs outside route aborts.
+    """
+    return {
+        **browser_context_args,
+        "service_workers": "block",
+    }
+
+
 # Override the root conftest's event_loop and setup_database fixtures
 # to prevent them from interfering with Playwright's sync tests
 @pytest.fixture(scope="session")

@@ -66,6 +66,23 @@ def test_render_service_worker_injects_cache_name(tmp_path: Path):
     assert f"const CACHE_NAME = '{expected}'" in rendered
 
 
+def test_service_worker_does_not_intercept_api_requests():
+    """SW must not respondWith(/api/*) — keeps Playwright page.route and real offline fetch."""
+    sw_source = Path("app/static/sw.js").read_text(encoding="utf-8")
+    api_marker = "pathname.startsWith('/api/')"
+    assert api_marker in sw_source
+    api_block_start = sw_source.index(api_marker)
+    # API branch ends at the blank line / app-shell comment after its closing brace
+    app_shell_marker = "// App shell:"
+    assert app_shell_marker in sw_source[api_block_start:]
+    api_block = sw_source[api_block_start : sw_source.index(app_shell_marker, api_block_start)]
+    assert "respondWith" not in api_block, (
+        "Service worker must not intercept /api/ — Playwright routes need a direct network path"
+    )
+    assert "return;" in api_block
+    assert "You are offline" not in sw_source
+
+
 @pytest.mark.asyncio
 async def test_sw_route_is_content_hashed_and_not_long_cached(client):
     response = await client.get("/sw.js")
