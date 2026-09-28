@@ -81,9 +81,7 @@ def _high_wire(ctx: GameContext) -> list[dict]:
                 continue
             if round_info["paid_risk"] > best:
                 best = round_info["paid_risk"]
-                best_detail = (
-                    f"risk {best:.2f} on bid {round_info['bid']}/{round_info['cards']}"
-                )
+                best_detail = f"risk {best:.2f} on bid {round_info['bid']}/{round_info['cards']}"
         if best < RISKY_MAKE_THRESHOLD:
             continue
         out.append(

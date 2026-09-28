@@ -8,8 +8,19 @@ from app.services.podium import (
     build_podium_table,
     init_podium_player,
     place_points,
+    places_from_totals,
     record_game,
 )
+
+
+def test_places_from_totals_ranks_by_score():
+    places = places_from_totals({"0": 100, "1": 50, "2": 10}, ["A", "B", "C"])
+    assert places == {"A": 1, "B": 2, "C": 3}
+
+
+def test_places_from_totals_tiebreak_by_seat_index():
+    places = places_from_totals({"0": 40, "1": 40, "2": 40}, ["A", "B", "C"])
+    assert places == {"A": 1, "B": 2, "C": 3}
 
 
 def test_last_place_gets_positive_base():

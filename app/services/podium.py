@@ -51,19 +51,14 @@ def place_points(totals_by_index: dict[str, int], player_names: list[str]) -> di
     return points
 
 
-def places_from_totals(
-    totals_by_index: dict[str, int], player_names: list[str]
-) -> dict[str, int]:
+def places_from_totals(totals_by_index: dict[str, int], player_names: list[str]) -> dict[str, int]:
     """Map player name → finish place (1 = best)."""
     num_players = len(player_names)
     ranked_indices = sorted(
         range(num_players),
         key=lambda index: (-int(totals_by_index.get(str(index), 0)), index),
     )
-    return {
-        player_names[index]: place
-        for place, index in enumerate(ranked_indices, start=1)
-    }
+    return {player_names[index]: place for place, index in enumerate(ranked_indices, start=1)}
 
 
 def record_game(

@@ -44,11 +44,7 @@ def _ranks_before_round(ctx: GameContext, round_index: int) -> dict[str, int]:
         return {player: index + 1 for index, player in enumerate(ctx.players)}
     prev = round_index - 1
     scores = {
-        player: (
-            ctx.score_history[player][prev]
-            if prev < len(ctx.score_history[player])
-            else 0
-        )
+        player: (ctx.score_history[player][prev] if prev < len(ctx.score_history[player]) else 0)
         for player in ctx.players
     }
     # Higher score = better rank; roster order breaks ties
@@ -93,9 +89,7 @@ def compute_game_risk(ctx: GameContext) -> dict[str, dict]:
             denom = max(num_players - 1, 1)
             pressure = (rank - 1) / denom
             claimed = claim_risk(bid=bid, cards=cards, rank=rank, num_players=num_players)
-            paid = paid_risk(
-                bid=bid, hands=hands, cards=cards, rank=rank, num_players=num_players
-            )
+            paid = paid_risk(bid=bid, hands=hands, cards=cards, rank=rank, num_players=num_players)
             entry = result[player]
             entry["rounds"].append(
                 {

@@ -289,10 +289,7 @@ def _process_game_for_career(game, rounds_by_game, career, podium=None):
         career,
     )
     if podium is not None:
-        totals_by_index = {
-            str(i): acc["game_totals"][players[i]]
-            for i in range(len(players))
-        }
+        totals_by_index = {str(i): acc["game_totals"][players[i]] for i in range(len(players))}
         record_game(podium, totals_by_index, players)
 
 
