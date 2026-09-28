@@ -410,15 +410,6 @@ DECLARATIVE_TITLES = [
         "score_weight": 20,
     },
     {
-        "key": "clutch",
-        "emoji": "🎪",
-        "title": "Clutch Player",
-        "desc": "Most bids made on 5+ card rounds",
-        "metric": _clutch,
-        "mode": "per_player",
-        "score_weight": 12,
-    },
-    {
         "key": "perfectionist",
         "emoji": "💎",
         "title": "Perfectionist",

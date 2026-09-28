@@ -69,7 +69,7 @@ def _trump_master(ctx: GameContext) -> list[dict]:
                 _candidate(
                     "trump_master",
                     "♠️",
-                    "Trump Master",
+                    "Fat-Hand Reader",
                     "Best accuracy on 6-8 card rounds",
                     player,
                     f"{made} of {total} bids correct on high-card rounds",
@@ -185,7 +185,7 @@ def _last_laugh(ctx: GameContext) -> list[dict]:
             _candidate(
                 "last_laugh",
                 "😏",
-                "Last Laugh",
+                "Final Frame",
                 "Worst 1st half, best 2nd half",
                 worst_first,
                 f"{first_half[worst_first]}→{second_half[worst_first]}",

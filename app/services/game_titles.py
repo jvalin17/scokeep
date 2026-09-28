@@ -1,14 +1,10 @@
-"""Post-game title system — thin facade over title_registry + title_patterns.
+"""Post-game title system — facade over registry, patterns, and selection.
 
-GameContext + build_context: data extraction from rounds.
-evaluate_titles + select_titles: orchestration and selection.
-Declarative titles: title_registry.py (13 simple titles).
-Complex evaluators: title_patterns.py (27 complex titles).
+Last Game uses sophisticated complex patterns only (risk + trajectory).
+Declarative titles remain for career/tests but are excluded from Last Game.
 """
 
 from __future__ import annotations
-
-import random
 
 from app.services.round_utils import _iter_round_bids
 from app.services.title_patterns import (
@@ -16,15 +12,24 @@ from app.services.title_patterns import (
     _avg_bid_pattern,  # noqa: F401 — re-export for tests
     _variance_pattern,  # noqa: F401 — re-export for tests
 )
-
-# ── Registry (backward compat — guard tests check TITLE_REGISTRY) ────────────
-# Includes both complex patterns AND wrappers for declarative titles.
 from app.services.title_registry import (
     DECLARATIVE_TITLES,
     GameContext,  # noqa: F401 — re-export
     _candidate,  # noqa: F401 — re-export for tests
     _evaluate_one,
-    evaluate_declarative,
+    evaluate_declarative,  # noqa: F401 — re-export for tests
+)
+from app.services.title_selection import select_titles
+
+# Straightforward / safe-bet titles — not emitted on Last Game.
+LAST_GAME_EXCLUDED_KEYS = frozenset(
+    {
+        *(d["key"] for d in DECLARATIVE_TITLES),
+        "conservative",
+        "daredevil",
+        "rollercoaster",
+        "metronome",
+    }
 )
 
 
@@ -111,9 +116,7 @@ def _process_context_bid(state: dict, name: str, bid: int, hand: int, score: int
     state["round_scores"][name].append(score)
     state["totals"][name] += score
     state["score_history"][name].append(state["totals"][name])
-
     _update_bid_result(state, name, bid, hand)
-
     if bid == 0:
         state["zero_bids_attempted"][name] += 1
     state["longest_miss_streak"][name] = max(
@@ -153,93 +156,12 @@ def _finalize_context(players: list[str], state: dict) -> GameContext:
     )
 
 
-# ── Selection ────────────────────────────────────────────────────────────────
-
-
-def _assign_exclusive(candidates: list[dict]) -> list[dict]:
-    """Assign each title to the best player. Drop ties (same score for same key)."""
-    by_key: dict[str, list[dict]] = {}
-    for cand in candidates:
-        by_key.setdefault(cand["key"], []).append(cand)
-
-    exclusive: list[dict] = []
-    for _key, cands in by_key.items():
-        cands.sort(key=lambda c: -c["score"])
-        best_score = cands[0]["score"]
-        winners = [c for c in cands if c["score"] == best_score]
-        if len(winners) == 1:
-            exclusive.append(winners[0])
-        # else: tie — drop this title entirely
-    return exclusive
-
-
-def _phase1_coverage(
-    players: list[str], exclusive: list[dict], all_candidates: list[dict], used_keys: set
-) -> list[dict]:
-    """Give every player at least one title (coverage pass).
-
-    Prefer exclusive titles; fall back to any candidate if player has none exclusive.
-    """
-    result = []
-    for player in players:
-        player_excl = sorted(
-            [c for c in exclusive if c["player"] == player and c["key"] not in used_keys],
-            key=lambda c: -c["score"],
-        )
-        if player_excl:
-            best = player_excl[0]
-            result.append(best)
-            used_keys.add(best["key"])
-        else:
-            # Fallback: pick best available from all candidates for this player
-            fallback = sorted(
-                [c for c in all_candidates if c["player"] == player and c["key"] not in used_keys],
-                key=lambda c: -c["score"],
-            )
-            if fallback:
-                best = fallback[0]
-                result.append(best)
-                used_keys.add(best["key"])
-    return result
-
-
-def _phase2_random_fill(
-    exclusive: list[dict], used_keys: set, result: list[dict], target: int
-) -> None:
-    """Fill remaining slots randomly from exclusive pool."""
-    remaining = [c for c in exclusive if c["key"] not in used_keys]
-    random.shuffle(remaining)
-    for cand in remaining:
-        if len(result) >= target:
-            break
-        if cand["key"] not in used_keys:
-            result.append(cand)
-            used_keys.add(cand["key"])
-
-
-def select_titles(
-    candidates: list[dict], players: list[str], target: int | None = None
-) -> list[dict]:
-    if target is None:
-        target = max(4, min(2 * len(players), 14))
-
-    exclusive = _assign_exclusive(candidates)
-    used_keys: set = set()
-    result = _phase1_coverage(players, exclusive, candidates, used_keys)
-    _phase2_random_fill(exclusive, used_keys, result, target)
-    return result
-
-
-# ── Orchestrator ─────────────────────────────────────────────────────────────
-
-
 def evaluate_titles(players: list[str], game_rounds) -> list[dict]:
     if not game_rounds:
         return []
     ctx = build_context(players, game_rounds)
     if ctx.round_count == 0:
         return []
-
     return _evaluate_from_context(ctx, players)
 
 
@@ -247,13 +169,11 @@ def build_context_from_metrics(gm) -> GameContext:
     """Build a GameContext from a GameMetrics object (shared pipeline)."""
     players = gm.players
     state = _init_context_state(players)
-
     for player in players:
         pm = gm.player_metrics.get(player)
         if pm is None:
             continue
         _fill_state_from_player_metrics(state, player, pm, gm)
-
     return _finalize_context(players, state)
 
 
@@ -287,9 +207,22 @@ def evaluate_titles_from_metrics(gm) -> list[dict]:
 
 
 def _evaluate_from_context(ctx: GameContext, players: list[str]) -> list[dict]:
-    """Collect candidates from declarative + complex titles and select."""
+    """Collect sophisticated pattern candidates and select fairly."""
     candidates: list[dict] = []
-    candidates.extend(evaluate_declarative(ctx))
     for fn in COMPLEX_PATTERNS:
-        candidates.extend(fn(ctx))
+        for cand in fn(ctx):
+            if cand["key"] not in LAST_GAME_EXCLUDED_KEYS:
+                candidates.append(cand)
     return select_titles(candidates, players)
+
+
+# Re-export for tests that imported selection helpers from game_titles
+__all__ = [
+    "LAST_GAME_EXCLUDED_KEYS",
+    "TITLE_REGISTRY",
+    "build_context",
+    "build_context_from_metrics",
+    "evaluate_titles",
+    "evaluate_titles_from_metrics",
+    "select_titles",
+]

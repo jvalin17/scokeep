@@ -253,22 +253,26 @@ def test_select_titles():
 
 
 def test__phase1_coverage():
-    from app.services.game_titles import _phase1_coverage
+    from app.services.title_selection import phase1_coverage
 
     cands = [{"key": "a", "player": "A", "score": 10.0}]
     used = set()
-    r = _phase1_coverage(["A"], cands, cands, used)
+    r = phase1_coverage(["A"], cands, cands, used)
     assert len(r) == 1
 
 
 def test__phase2_random_fill():
-    from app.services.game_titles import _phase2_random_fill
+    from app.services.title_selection import phase2_fair_fill
 
-    cands = [{"key": "a", "player": "A", "score": 10.0}, {"key": "b", "player": "B", "score": 5.0}]
+    exclusive = [
+        {"key": "a", "player": "A", "score": 10.0},
+        {"key": "b", "player": "B", "score": 5.0},
+    ]
     used = {"a"}
-    result = []
-    _phase2_random_fill(cands, used, result, 1)
-    assert len(result) == 1
+    result = [{"key": "a", "player": "A", "score": 10.0}]
+    phase2_fair_fill(exclusive, used, result, target=2, max_per_player=2)
+    assert len(result) == 2
+    assert result[1]["key"] == "b"
 
 
 # ── personality_engine.py helpers ────────────────────────────────────────────

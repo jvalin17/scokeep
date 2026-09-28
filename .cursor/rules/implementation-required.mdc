@@ -1,0 +1,18 @@
+---
+description: All development must use the /implementation skill workflow
+alwaysApply: true
+---
+
+# Implementation skill required
+
+For **any** code change (feature, fix, refactor, UI polish, config that affects runtime):
+
+1. Read and follow `~/.claude/skills/implementation/SKILL.md` (or the agent-toolkit copy).
+2. Detect mode (Build / Fix / Refactor / Demo / Direct) from the request — do not ask.
+3. Before writing code: show an execution plan (or Fix cycle: failing test → fix → verify). Wait for approval when the skill requires it (new slabs / non-trivial work).
+4. TDD: meaningful test first, then implement. Update `.scratch/test-plan_*.json` for slabs.
+5. Do not treat “small polish” as exempt — still use Fix-mode TDD and update `project-state.md`.
+6. Before commit: `/precommit`. Never commit unless the user asks.
+7. Feature/fix is not done until the user has tried it locally when UI is involved.
+
+Exceptions: pure docs/README with no behavior change; answering questions with no code edits.

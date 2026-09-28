@@ -4,7 +4,7 @@ import { getPlaygroundStats, clearPlaygroundStats, getScoreboard } from '../api.
 import { showPromptDialog } from '../components/confirm-dialog.js';
 import { escapeHtml } from '../components/game-utils.js';
 import { renderPersonalityCards } from '../components/personality-card.js';
-import { renderCareerTable, renderLastGameAwards } from '../components/stats-awards.js';
+import { renderCareerTable, renderLastGameAwards, renderPodiumBoard, bindStatsInfoTips } from '../components/stats-awards.js';
 import { renderGameDetail } from '../components/stats-charts.js';
 
 async function patchScore(gameId, roundNum, playerIndex, score, adminKey) {
@@ -143,6 +143,7 @@ export const statsScreen = {
 
             bindSettingsListeners();
             bindHistoryListeners();
+            if (activeTab === 'highlights') bindStatsInfoTips(container);
             if (editMode) bindEditListeners();
         }
 
@@ -315,7 +316,7 @@ export const statsScreen = {
                     ${renderCareerTable('Sniper', '🎯', 'Bid exactly 1 and made it', career.sniper)}
                     ${renderCareerTable('Zero Master', '🥷', 'Bid 0 and won no tricks', career.zero_master)}
                     ${renderCareerTable('High Roller', '🎲', 'Bid 3 or more and made it', career.high_roller)}
-                    ${renderCareerTable('All-in', '💎', 'Bid all cards dealt and made it', career.all_in)}
+                    ${renderCareerTable('All-in', '💎', 'Bid all cards dealt (2+) and made it', career.all_in)}
                     ${renderCareerTable('Jinxed', '😵', 'Longest streak of missed bids', career.jinxed, 'longest')}
                     ${renderCareerTable('Perfect Set', '⭐', 'Made every bid in a full set', career.perfect_set)}
                     ${renderCareerTable('Hot Hand', '🔥', 'Longest streak of positive rounds', career.hot_hand, 'longest')}
@@ -326,10 +327,10 @@ export const statsScreen = {
                     ${renderCareerTable('Sweep', '🧹', 'Games won (highest score)', career.sweep)}
                     ${renderCareerTable('Iron Wall', '🛡️', 'Longest streak of successful zero bids', career.iron_wall, 'longest')}
                     ${renderCareerTable('Heartbreaker', '💔', 'Rounds where bid was off by exactly 1', career.heartbreaker)}
-                    ${renderCareerTable('Triple Crown', '👑', 'Games with best accuracy AND highest score', career.triple_crown)}
                     ${!career.sniper?.some(p => p.count > 0)
                         ? '<p class="stats-muted">Play more games to unlock awards!</p>'
                         : ''}
+                    ${renderPodiumBoard(highlights.podium)}
                 </div>
             `;
         }

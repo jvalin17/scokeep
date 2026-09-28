@@ -87,7 +87,7 @@ def _underdog(ctx: GameContext) -> list[dict]:
                     _candidate(
                         "underdog",
                         "🐕",
-                        "Underdog",
+                        "From the Cellar",
                         "Climbed from bottom half to top half",
                         p,
                         f"+{climbed} positions",
@@ -215,7 +215,7 @@ def _high_roller(ctx: GameContext) -> list[dict]:
                 _candidate(
                     "high_roller",
                     "🎰",
-                    "High Roller",
+                    "Heavy Contract",
                     "Made a bid of 4+",
                     p,
                     f"bid {bid} made",
@@ -230,13 +230,13 @@ def _all_in(ctx: GameContext) -> list[dict]:
     out = []
     for p in ctx.players:
         for (bid, hand), cards in zip(ctx.bid_sequence[p], ctx.cards_per_round, strict=False):
-            if bid == cards and bid == hand:
+            if bid == cards and bid == hand and cards > 1:
                 out.append(
                     _candidate(
                         "all_in",
                         "🃏",
-                        "All In",
-                        "Bid = cards dealt and made it",
+                        "Max Contract",
+                        "Bid = cards dealt (2+) and made it",
                         p,
                         f"bid {bid} on {cards} cards",
                         55,
@@ -389,7 +389,7 @@ def _comeback_king(ctx: GameContext) -> list[dict]:
                 _candidate(
                     "comeback_king",
                     "👑",
-                    "Comeback King",
+                    "The Climb",
                     "Last place at halfway, top 2 at end",
                     p,
                     f"rank {n}→{end_ranks[p]}",
@@ -413,7 +413,7 @@ def _slow_starter(ctx: GameContext) -> list[dict]:
                 _candidate(
                     "slow_starter",
                     "🐢",
-                    "Slow Starter",
+                    "Long Fuse",
                     "Negative at halfway, positive at end",
                     p,
                     f"{mid_total}→{end_total}",
@@ -439,7 +439,7 @@ def _fast_fade(ctx: GameContext) -> list[dict]:
                 _candidate(
                     "fast_fade",
                     "💨",
-                    "Fast Fade",
+                    "Blew the Lead",
                     "Led at halfway, bottom half at end",
                     p,
                     f"rank 1→{end_ranks[p]}",
@@ -463,7 +463,7 @@ def _closer(ctx: GameContext) -> list[dict]:
                 _candidate(
                     "closer",
                     "🔒",
-                    "Closer",
+                    "Finishing Kick",
                     "Best avg score in final third",
                     p,
                     f"avg {avg:.1f} last {third} rounds",
@@ -474,5 +474,7 @@ def _closer(ctx: GameContext) -> list[dict]:
 
 
 # Extra patterns (bid style, card-range, streaks, mirrors) are in title_patterns_extra.py.
+# Risk-based awards are in title_patterns_risk.py.
 # Importing triggers their registration into COMPLEX_PATTERNS.
 import app.services.title_patterns_extra as _extra  # noqa: F401, E402
+import app.services.title_patterns_risk as _risk  # noqa: F401, E402

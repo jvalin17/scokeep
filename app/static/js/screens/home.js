@@ -50,7 +50,7 @@ function _howtoHtml() {
                 <div class="howto-step"><strong>7. Stats & Insights</strong><p>Career awards, game history, score charts. After first game, each player unlocks a Personality Card.</p></div>
                 <div class="howto-step"><strong>8. Install as App</strong><p>Scokeep is a PWA - tap "Add to Home Screen" for offline support and no browser chrome.</p></div>
                 <div class="howto-step"><strong>9. Post-Game Awards</strong><p>Fun titles based on how you played - 40 possible titles. Every player gets at least one.</p></div>
-                <div class="howto-step"><strong>10. Career Records</strong><p>Lifetime achievements: Sniper, Zero Master, High Roller, All-in, Perfect Set, Sweep, Hot Hand, Iron Wall, Biggest Bid, Comeback King, Set Champion, Set Disaster, Heartbreaker, Triple Crown.</p></div>
+                <div class="howto-step"><strong>10. Career Records</strong><p>Lifetime achievements: Sniper, Zero Master, High Roller, All-in, Perfect Set, Sweep, Hot Hand, Iron Wall, Biggest Bid, Comeback King, Set Champion, Set Disaster, Heartbreaker.</p></div>
             </div>
             <h4>Game Modes</h4>
             <table class="howto-table"><thead><tr><th>Mode</th><th>What You See</th><th>Best For</th></tr></thead>

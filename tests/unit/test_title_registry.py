@@ -128,7 +128,6 @@ class TestEvaluateDeclarative:
             "iron_nerve",
             "marathon",
             "anchor",
-            "clutch",
             "perfectionist",
         }
         actual_keys = {t["key"] for t in DECLARATIVE_TITLES}
@@ -430,33 +429,33 @@ class TestEvalHelpers:
 
 class TestAssignExclusive:
     def test__assign_exclusive_drops_ties(self):
-        from app.services.game_titles import _assign_exclusive
+        from app.services.title_selection import assign_exclusive
 
         cands = [
             {"key": "t1", "player": "A", "score": 50.0},
             {"key": "t1", "player": "B", "score": 50.0},
             {"key": "t2", "player": "A", "score": 40.0},
         ]
-        result = _assign_exclusive(cands)
+        result = assign_exclusive(cands)
         keys = [c["key"] for c in result]
         assert "t1" not in keys  # tied — dropped
         assert "t2" in keys
 
     def test__assign_exclusive_keeps_clear_winner(self):
-        from app.services.game_titles import _assign_exclusive
+        from app.services.title_selection import assign_exclusive
 
         cands = [
             {"key": "t1", "player": "A", "score": 80.0},
             {"key": "t1", "player": "B", "score": 50.0},
         ]
-        result = _assign_exclusive(cands)
+        result = assign_exclusive(cands)
         assert len(result) == 1
         assert result[0]["player"] == "A"
 
 
 class TestPhase1Coverage:
     def test__phase1_coverage_fallback_on_no_exclusive(self):
-        from app.services.game_titles import _phase1_coverage
+        from app.services.title_selection import phase1_coverage
 
         exclusive = [{"key": "t1", "player": "A", "score": 50.0}]
         all_cands = [
@@ -464,7 +463,7 @@ class TestPhase1Coverage:
             {"key": "t2", "player": "B", "score": 30.0},
         ]
         used = set()
-        result = _phase1_coverage(["A", "B"], exclusive, all_cands, used)
+        result = phase1_coverage(["A", "B"], exclusive, all_cands, used)
         players = {c["player"] for c in result}
         assert "A" in players
         assert "B" in players  # fell back to all_cands

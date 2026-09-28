@@ -13,7 +13,7 @@ CAREER_RULES = {
     "sniper": lambda bid, hand, cards: bid == 1 and bid == hand,
     "zero_master": lambda bid, hand, cards: bid == 0 and bid == hand,
     "high_roller": lambda bid, hand, cards: bid >= HIGH_ROLLER_MIN_BID and bid == hand,
-    "all_in": lambda bid, hand, cards: bid == cards and bid == hand,
+    "all_in": lambda bid, hand, cards: cards > 1 and bid == cards and bid == hand,
 }
 
 
@@ -53,9 +53,9 @@ def _build_empty_highlights() -> dict:
             "sweep": [],
             "iron_wall": [],
             "heartbreaker": [],
-            "triple_crown": [],
         },
         "last_game": None,
+        "podium": [],
     }
 
 
@@ -72,7 +72,7 @@ class AnalyticsService:
         # empty_highlights keys must match _career_tables output:
         # "sniper","zero_master","high_roller","all_in","jinxed","perfect_set",
         # "hot_hand","biggest_bid","set_champion","set_disaster","comeback_king",
-        # "sweep","iron_wall","heartbreaker","triple_crown"
+        # "sweep","iron_wall","heartbreaker"
         games, all_rounds = await AnalyticsService._load_data(db, playground_id)
         if not games:
             fallback_highlights = (insights_blob or {}).get("highlights", _build_empty_highlights())
@@ -139,12 +139,18 @@ class AnalyticsService:
 
     @staticmethod
     def calc_highlights(games, rounds_by_game) -> dict:
-        """Career records: one pass, rule-driven."""
+        """Career records + The Podium: one pass, rule-driven."""
+        from app.services.podium import build_podium_table
+
         all_players = {name for g in games for name in g.players}
         career = _init_career(all_players)
+        podium: dict = {}
         for game in sorted(games, key=lambda g: g.started_at or g.id):
-            _process_game_for_career(game, rounds_by_game, career)
-        return {"career": _career_tables(career)}
+            _process_game_for_career(game, rounds_by_game, career, podium)
+        return {
+            "career": _career_tables(career),
+            "podium": build_podium_table(podium),
+        }
 
     @staticmethod
     def calc_last_game_awards(games, rounds_by_game) -> dict | None:
@@ -194,7 +200,12 @@ def _resolve_highlights(insights_blob, games, rounds_by_game):
     games_with_rounds = [g for g in games if g.id in rounds_by_game]
     cached = (insights_blob or {}).get("highlights")
     cached_total = (insights_blob or {}).get("total_games", 0)
-    if cached and cached_total == len(games_with_rounds):
+    if (
+        cached
+        and cached_total == len(games_with_rounds)
+        and "podium" in cached
+        and "triple_crown" not in (cached.get("career") or {})
+    ):
         return cached
 
     highlights = AnalyticsService.calc_highlights(
@@ -246,8 +257,10 @@ def _init_game_accumulators(players):
     }
 
 
-def _process_game_for_career(game, rounds_by_game, career):
-    """Process one game's rounds for career record counting."""
+def _process_game_for_career(game, rounds_by_game, career, podium=None):
+    """Process one game's rounds for career + podium counting."""
+    from app.services.podium import record_game
+
     players = game.players
     game_rounds = rounds_by_game.get(game.id, [])
     if not game_rounds:
@@ -275,6 +288,12 @@ def _process_game_for_career(game, rounds_by_game, career):
         acc["cumulative"],
         career,
     )
+    if podium is not None:
+        totals_by_index = {
+            str(i): acc["game_totals"][players[i]]
+            for i in range(len(players))
+        }
+        record_game(podium, totals_by_index, players)
 
 
 def _apply_games_won(game_totals, career):
@@ -295,24 +314,12 @@ def _apply_biggest_comeback(players, cumulative, career):
             career[name]["biggest_comeback"] = recovery
 
 
-def _apply_triple_crown(players, game_totals, game_bids_made, game_bids_total, career):
-    """Award triple_crown when a sole leader tops both score and accuracy."""
-    accs = {n: game_bids_made[n] / game_bids_total[n] for n in players if game_bids_total.get(n)}
-    if not accs or not game_totals:
-        return
-    acc_leaders = [n for n, a in accs.items() if a == max(accs.values())]
-    score_leaders = [n for n, s in game_totals.items() if s == max(game_totals.values())]
-    if len(acc_leaders) == 1 and len(score_leaders) == 1 and acc_leaders[0] == score_leaders[0]:
-        career[acc_leaders[0]]["triple_crowns"] += 1
-
-
 def _post_game_career_sweeps(
     players, game_totals, game_bids_made, game_bids_total, cumulative, career
 ):
     """Dispatcher: run all post-game career sweep checks."""
     _apply_games_won(game_totals, career)
     _apply_biggest_comeback(players, cumulative, career)
-    _apply_triple_crown(players, game_totals, game_bids_made, game_bids_total, career)
 
 
 def _apply_zero_bid_streak(player_career, bid, made):
@@ -397,7 +404,6 @@ def _init_career(all_players):
             "longest_zero_streak": 0,
             "current_zero_streak": 0,
             "off_by_one_total": 0,
-            "triple_crowns": 0,
             "total_rounds_played": 0,
         }
         for name in all_players
@@ -421,7 +427,6 @@ def _career_tables(career):
         "sweep": _career_table(career, "games_won"),
         "iron_wall": _career_table(career, "longest_zero_streak", "longest"),
         "heartbreaker": _career_table(career, "off_by_one_total"),
-        "triple_crown": _career_table(career, "triple_crowns"),
     }
 
 

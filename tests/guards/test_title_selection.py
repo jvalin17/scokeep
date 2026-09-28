@@ -130,14 +130,31 @@ class TestSelectAlgorithm:
         assert t1["player"] == "Alice"
         assert t2["player"] == "Bob"
 
+    def test_max_per_player_cap(self):
+        """Dominant player cannot take more than ceil(target/N) titles."""
+        candidates = [_make_candidate(f"a_{i}", "Alice", 90 - i) for i in range(8)] + [
+            _make_candidate("b_only", "Bob", 10),
+            _make_candidate("c_only", "Charlie", 9),
+        ]
+        result = select_titles(candidates, ["Alice", "Bob", "Charlie"], target=6)
+        counts = {}
+        for item in result:
+            counts[item["player"]] = counts.get(item["player"], 0) + 1
+        assert counts.get("Alice", 0) <= 2
+        assert "Bob" in counts
+        assert "Charlie" in counts
+
     def test_random_fill_respects_coverage(self):
-        """Even with random fill, every player must have ≥1 title."""
+        """Even with fair fill, every player must have ≥1 title."""
         candidates = [_make_candidate(f"a_{i}", "Alice", 90 - i) for i in range(8)] + [
             _make_candidate("b_only", "Bob", 10),
         ]
         result = select_titles(candidates, ["Alice", "Bob"], target=4)
         players_in_result = {t["player"] for t in result}
         assert "Bob" in players_in_result
+        # max_per_player = ceil(4/2) = 2
+        alice_count = sum(1 for t in result if t["player"] == "Alice")
+        assert alice_count <= 2
 
 
 class TestHypothesisInvariants:

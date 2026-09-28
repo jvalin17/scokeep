@@ -217,6 +217,7 @@ class TestBug025026CacheStalenessWithEmptyGames:
                 "perfect_set": [],
             },
             "last_game": None,
+            "podium": [],
         }
         blob = {"total_games": 3, "highlights": cached_highlights}
 
@@ -228,6 +229,40 @@ class TestBug025026CacheStalenessWithEmptyGames:
             "_resolve_highlights must return cached highlights when total_games "
             "matches the count of games-with-rounds (empty game excluded)"
         )
+
+    def test_cache_miss_when_podium_missing(self):
+        """Legacy blobs without podium must recompute."""
+        from app.services.analytics import _resolve_highlights
+
+        real_games = [self._make_simple_game(i) for i in range(1, 4)]
+        rounds_by_game = self._rounds_by_game([1, 2, 3])
+        legacy = {
+            "career": {"sniper": [], "all_in": []},
+            "last_game": None,
+        }
+        blob = {"total_games": 3, "highlights": legacy}
+        result = _resolve_highlights(blob, real_games, rounds_by_game)
+        assert result is not legacy
+        assert "podium" in result
+
+    def test_cache_miss_when_legacy_triple_crown_present(self):
+        """Blobs that still list triple_crown must recompute."""
+        from app.services.analytics import _resolve_highlights
+
+        real_games = [self._make_simple_game(i) for i in range(1, 4)]
+        rounds_by_game = self._rounds_by_game([1, 2, 3])
+        legacy = {
+            "career": {
+                "sniper": [],
+                "triple_crown": [{"name": "Ghost", "count": 9}],
+            },
+            "last_game": None,
+            "podium": [],
+        }
+        blob = {"total_games": 3, "highlights": legacy}
+        result = _resolve_highlights(blob, real_games, rounds_by_game)
+        assert result is not legacy
+        assert "triple_crown" not in result.get("career", {})
 
     def test_cache_miss_when_total_uses_all_games_including_empty(self):
         """Demonstrate the bug: if the cache comparison incorrectly used
@@ -283,6 +318,7 @@ class TestBug025026CacheStalenessWithEmptyGames:
                 "perfect_set": [],
             },
             "last_game": None,
+            "podium": [],
         }
         blob = {"total_games": 5, "highlights": cached}
 

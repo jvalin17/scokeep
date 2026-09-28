@@ -93,6 +93,9 @@ class TestCareerRulesConfig:
         assert CAREER_RULES["all_in"](8, 8, 8) is True
         assert CAREER_RULES["all_in"](7, 7, 8) is False
         assert CAREER_RULES["all_in"](8, 5, 8) is False
+        # 1-card all-in is too trivial — do not count
+        assert CAREER_RULES["all_in"](1, 1, 1) is False
+        assert CAREER_RULES["all_in"](2, 2, 2) is True
 
     def test_rules_are_callable(self):
         for rule_name, rule_fn in CAREER_RULES.items():
@@ -170,6 +173,16 @@ class TestNewCareerAwards:
         career = self._run_career(["A"], rounds)
         assert career["A"]["longest_positive_streak"] == 3
 
+    def test_all_in_skips_one_card_rounds(self):
+        """Career all_in ignores 1-card max bids; counts 2+ card makes."""
+        one_card = [self._make_round({"0": 1}, {"0": 1}, {"0": 11}, cards=1)]
+        career_one = self._run_career(["A"], one_card)
+        assert career_one["A"]["all_in"] == 0
+
+        two_card = [self._make_round({"0": 2}, {"0": 2}, {"0": 20}, cards=2)]
+        career_two = self._run_career(["A"], two_card)
+        assert career_two["A"]["all_in"] == 1
+
     def test_biggest_bid_made(self):
         """Track highest bid successfully made."""
         rounds = [
@@ -239,18 +252,8 @@ class TestNewCareerAwards:
         career = self._run_career(["A"], rounds)
         assert career["A"]["off_by_one_total"] == 2
 
-    def test_triple_crown_same_best_accuracy_and_score(self):
-        """Player with both best accuracy AND highest score gets triple crown."""
-        rounds = [
-            self._make_round({"0": 3, "1": 0}, {"0": 3, "1": 2}, {"0": 30, "1": -10}),
-            self._make_round({"0": 2, "1": 1}, {"0": 2, "1": 0}, {"0": 20, "1": -11}),
-        ]
-        career = self._run_career(["A", "B"], rounds)
-        assert career["A"]["triple_crowns"] == 1
-        assert career["B"]["triple_crowns"] == 0
-
     def test_career_tables_include_new_awards(self):
-        """_career_tables must include all 10 new award keys."""
+        """_career_tables must include the newer award keys (no triple_crown)."""
         from app.services.analytics import _career_tables, _init_career
 
         career = _init_career({"A"})
@@ -264,10 +267,10 @@ class TestNewCareerAwards:
             "sweep",
             "iron_wall",
             "heartbreaker",
-            "triple_crown",
         ]
         for key in new_keys:
             assert key in tables, f"Missing career table: {key}"
+        assert "triple_crown" not in tables
 
 
 class TestCheckSetScores:
@@ -390,19 +393,6 @@ class TestPostGameCareerSweeps:
         )
         assert career["A"]["biggest_comeback"] == 50
 
-    def test_triple_crown_requires_sole_leader_both(self):
-
-        career = _init_career({"A", "B"})
-        _post_game_career_sweeps(
-            ["A", "B"],
-            game_totals={"A": 50, "B": 30},
-            game_bids_made={"A": 2, "B": 1},
-            game_bids_total={"A": 2, "B": 2},
-            cumulative={"A": [20, 50], "B": [10, 30]},
-            career=career,
-        )
-        assert career["A"]["triple_crowns"] == 1
-
 
 class TestCalcHighlights:
     """calc_highlights computes career records from games and rounds."""
@@ -412,12 +402,71 @@ class TestCalcHighlights:
 
         result = AnalyticsService.calc_highlights([], {})
         assert "career" in result
+        assert "podium" in result
+        assert result["podium"] == []
 
     def test_calc_highlights_with_no_games_empty_career(self):
         from app.services.analytics import AnalyticsService
 
         result = AnalyticsService.calc_highlights([], {})
         assert all(v == [] for v in result["career"].values())
+
+    def test_calc_highlights_builds_podium_from_game_totals(self):
+        """Fixtures are synthetic (factory). Two-player game → podium standings."""
+        from app.services.analytics import AnalyticsService
+
+        class FakeGame:
+            def __init__(self):
+                self.id = 42
+                self.players = ["Lala", "Anjum"]
+                self.settings = {"rounds_per_set": 2}
+                self.started_at = None
+
+        class FakeRound:
+            def __init__(self, bids, hands, scores, cards=3):
+                self.bids = bids
+                self.hands_won = hands
+                self.scores = scores
+                self.cards_dealt = cards
+
+        game = FakeGame()
+        rounds = [
+            FakeRound({"0": 2, "1": 0}, {"0": 2, "1": 0}, {"0": 20, "1": 10}),
+            FakeRound({"0": 1, "1": 1}, {"0": 1, "1": 0}, {"0": 11, "1": -11}),
+        ]
+        result = AnalyticsService.calc_highlights([game], {42: rounds})
+        podium = result["podium"]
+        assert len(podium) == 2
+        assert podium[0]["player"] == "Lala"
+        assert podium[0]["games_count"] == 1
+        assert podium[0]["standing"] > podium[1]["standing"]
+        assert "triple_crown" not in result["career"]
+
+    def test__process_game_for_career_records_podium(self):
+        """_process_game_for_career fills podium when accumulator provided."""
+        from app.services.analytics import _init_career, _process_game_for_career
+        from app.services.podium import build_podium_table
+
+        class FakeGame:
+            def __init__(self):
+                self.id = 7
+                self.players = ["Jj", "Masood"]
+                self.settings = {"rounds_per_set": 8}
+
+        class FakeRound:
+            def __init__(self):
+                self.bids = {"0": 2, "1": 1}
+                self.hands_won = {"0": 2, "1": 0}
+                self.scores = {"0": 20, "1": -11}
+                self.cards_dealt = 3
+
+        career = _init_career({"Jj", "Masood"})
+        podium: dict = {}
+        _process_game_for_career(FakeGame(), {7: [FakeRound()]}, career, podium)
+        table = build_podium_table(podium)
+        assert len(table) == 2
+        assert table[0]["player"] == "Jj"
+        assert career["Jj"]["games_won"] == 1
 
 
 class TestCalcLastGameAwards:
@@ -472,33 +521,3 @@ class TestApplyBiggestComeback:
             career=career,
         )
         assert career["A"]["biggest_comeback"] == 50
-
-
-class TestApplyTripleCrown:
-    """_apply_triple_crown awards when sole leader tops score and accuracy."""
-
-    def test_apply_triple_crown_awarded(self):
-        from app.services.analytics import _apply_triple_crown, _init_career
-
-        career = _init_career({"A", "B"})
-        _apply_triple_crown(
-            ["A", "B"],
-            game_totals={"A": 50, "B": 30},
-            game_bids_made={"A": 3, "B": 1},
-            game_bids_total={"A": 3, "B": 3},
-            career=career,
-        )
-        assert career["A"]["triple_crowns"] == 1
-
-    def test_apply_triple_crown_not_awarded_tie(self):
-        from app.services.analytics import _apply_triple_crown, _init_career
-
-        career = _init_career({"A", "B"})
-        _apply_triple_crown(
-            ["A", "B"],
-            game_totals={"A": 50, "B": 50},
-            game_bids_made={"A": 2, "B": 2},
-            game_bids_total={"A": 3, "B": 3},
-            career=career,
-        )
-        assert career["A"]["triple_crowns"] == 0
