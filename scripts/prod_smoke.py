@@ -98,18 +98,24 @@ def check_openapi(opener: urllib.request.OpenerDirector, base: str) -> None:
     print(f"OK  openapi ({len(paths)} routes, sync-round present)")
 
 
+def validate_sw_cache_name(cache_name: str) -> None:
+    """Require content-hashed CACHE_NAME: scokeep-<12 lowercase hex>."""
+    if not re.fullmatch(r"scokeep-[0-9a-f]{12}", cache_name):
+        raise SmokeError(
+            f"unexpected SW cache {cache_name!r} "
+            "(want content-hash scokeep-<12 hex>, not legacy scokeep-vNN)"
+        )
+
+
 def check_sw(opener: urllib.request.OpenerDirector, base: str) -> None:
-    status, body = _request(opener, base, "/static/sw.js")
+    status, body = _request(opener, base, "/sw.js")
     if status != 200 or not isinstance(body, str):
         raise SmokeError(f"sw.js HTTP {status}")
     match = re.search(r"CACHE_NAME\s*=\s*'([^']+)'", body)
     if not match:
         raise SmokeError("sw.js missing CACHE_NAME")
     cache_name = match.group(1)
-    # Prod promote includes scokeep-v74+; accept any v74 or higher.
-    version_match = re.search(r"scokeep-v(\d+)", cache_name)
-    if not version_match or int(version_match.group(1)) < 74:
-        raise SmokeError(f"unexpected SW cache {cache_name!r} (want scokeep-v74+)")
+    validate_sw_cache_name(cache_name)
     print(f"OK  sw {cache_name}")
 
 
