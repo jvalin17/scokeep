@@ -4,14 +4,17 @@ import re
 from pathlib import Path
 
 CSS_PATH = Path("app/static/css/style.css")
-TOUCH_SELECTORS = [".btn-refresh", ".btn-home", ".island-toggle", ".btn-end-game"]
+TOUCH_SELECTORS = [".btn-refresh", ".btn-settings", ".btn-home", ".island-toggle", ".btn-end-game"]
 
 
 def _extract_rule(css: str, selector: str) -> str:
-    """Extract the CSS rule block for a selector."""
-    pattern = re.compile(re.escape(selector) + r"\s*\{([^}]+)\}", re.DOTALL)
+    """Extract the CSS rule block for a selector (including multi-selector rules)."""
+    pattern = re.compile(
+        r"([^{}]*" + re.escape(selector) + r"[^{}]*)\{([^}]+)\}",
+        re.DOTALL,
+    )
     match = pattern.search(css)
-    return match.group(1) if match else ""
+    return match.group(2) if match else ""
 
 
 class TestTouchTargets:

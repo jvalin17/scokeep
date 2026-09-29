@@ -77,13 +77,16 @@ export const statsScreen = {
                     <div class="round-info">
                         <span>Stats</span>
                         <span>${stats.total_games} game${stats.total_games !== 1 ? 's' : ''}</span>
-                        <button class="btn-refresh" id="stats-gear" title="Settings">⚙</button>
+                        <button class="btn-settings" id="stats-gear" aria-label="Settings" title="Settings">⚙</button>
                     </div>
                     ${editMode ? '<div class="edit-mode-bar">✏️ Edit Mode — tap scores to correct</div>' : ''}
 
                     <div class="action-overlay hidden">
                         <div class="action-dialog">
-                            <button class="action-dialog-close">&times;</button>
+                            <div class="action-dialog-header">
+                                <h3 class="action-dialog-title">Stats settings</h3>
+                                <button type="button" class="action-dialog-close" aria-label="Close">&times;</button>
+                            </div>
                             <button class="action-btn action-btn-warning" id="toggle-edit">${editMode ? '✏️ Exit Edit Mode' : '✏️ Edit Mode'}</button>
                             <div id="edit-auth-slot"></div>
                             <button class="action-btn action-btn-danger" id="clear-stats">🗑️ Clear All Stats</button>

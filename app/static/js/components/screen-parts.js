@@ -26,6 +26,7 @@ export function renderGameIsland(game, roundsPerSet) {
     const enlarged = localStorage.getItem('scokeep_island_enlarged') === '1';
     const cls = enlarged ? 'game-island island-enlarged' : 'game-island';
     const icon = enlarged ? '−' : '+';
+    const islandLabel = enlarged ? 'Shrink scores' : 'Enlarge scores';
     return `
         <div class="${cls}">
             <span>${escapeHtml(dealerName)} deals</span>
@@ -33,7 +34,7 @@ export function renderGameIsland(game, roundsPerSet) {
             <span>${cardsDealt} card${cardsDealt > 1 ? 's' : ''}</span>
             <span class="island-sep">·</span>
             <span>R${game.current_round}/${game.total_rounds}</span>
-            <button class="island-toggle">${icon}</button>
+            <button type="button" class="island-toggle" aria-label="${islandLabel}">${icon}</button>
         </div>
     `;
 }
@@ -48,6 +49,7 @@ export function attachIslandToggle(container) {
         const island = container.querySelector('.game-island');
         const isEnlarged = island.classList.toggle('island-enlarged');
         toggle.textContent = isEnlarged ? '−' : '+';
+        toggle.setAttribute('aria-label', isEnlarged ? 'Shrink scores' : 'Enlarge scores');
         localStorage.setItem('scokeep_island_enlarged', isEnlarged ? '1' : '0');
     });
 }
@@ -58,7 +60,7 @@ export function attachIslandToggle(container) {
 export function renderRoundInfoBar(state) {
     return `
         <div class="round-info">
-            ${state.playground ? `<button class="btn-home" data-nav="playground/${state.playground.share_code}">🏠</button>` : ''}
+            ${state.playground ? `<button class="btn-home" data-nav="playground/${state.playground.share_code}" aria-label="Back to room">🏠</button>` : ''}
             <button class="btn-end-game" id="end-game-btn">End Game</button>
         </div>
     `;

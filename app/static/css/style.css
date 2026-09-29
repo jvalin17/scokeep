@@ -308,12 +308,14 @@ input::placeholder { color: var(--text-muted); }
 .trump-label { color: var(--text-secondary); font-size: 1.5rem; display: block; font-weight: 600; }
 .dealer-info { text-align: center; color: var(--text-muted); font-size: 0.95rem; }
 .share-code-mini { font-family: monospace; font-size: 0.8rem; color: var(--text-muted); letter-spacing: 0.05em; }
-.btn-refresh {
+.btn-refresh,
+.btn-settings {
     background: none; border: 1px solid var(--border); border-radius: 50%;
     width: 44px; height: 44px; min-width: 44px; min-height: 44px; font-size: 1.2rem; cursor: pointer;
     color: var(--text-secondary); display: flex; align-items: center; justify-content: center;
 }
-.btn-refresh:active { background: var(--border); }
+.btn-refresh:active,
+.btn-settings:active { background: var(--border); }
 .btn-home {
     background: none; border: 1px solid var(--border); border-radius: 50%;
     width: 44px; height: 44px; min-width: 44px; min-height: 44px; font-size: 1.1rem; cursor: pointer;
@@ -1246,8 +1248,24 @@ input::placeholder { color: var(--text-muted); }
     width: 90%; max-width: 320px; position: relative;
     box-shadow: 0 8px 32px rgba(0,0,0,0.2);
 }
+.action-dialog-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 0 0 12px;
+    min-height: 44px;
+}
+.action-dialog-title {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
 .action-dialog-close {
-    position: absolute; top: 8px; right: 12px; background: none; border: none;
+    position: static;
+    flex-shrink: 0;
+    background: none; border: none;
     font-size: 1.5rem; color: var(--text-muted); cursor: pointer;
     width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
 }

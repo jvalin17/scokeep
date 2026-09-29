@@ -111,7 +111,7 @@ export const scoreboardScreen = {
                 ${isGameOver ? winnerHtml : `
                     <div class="round-info">
                         <span>After Round ${game.current_round}</span>
-                        ${state.playground ? `<button class="btn-home" data-nav="playground/${state.playground.share_code}">🏠</button>` : ''}
+                        ${state.playground ? `<button class="btn-home" data-nav="playground/${state.playground.share_code}" aria-label="Back to room">🏠</button>` : ''}
                     </div>
                 `}
 

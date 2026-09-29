@@ -210,7 +210,7 @@ function _bindCreateTab(container, state, navigate) {
         row.innerHTML = `
                 <input type="text" placeholder="Player ${playerCount}" class="player-name"
                     maxlength="15" autocomplete="off">
-                <button type="button" class="btn-remove" title="Remove">&times;</button>
+                <button type="button" class="btn-remove" aria-label="Remove player">&times;</button>
             `;
         row.querySelector('.btn-remove').addEventListener('click', () => {
             row.remove();
@@ -345,7 +345,7 @@ function _bindJoinTab(container, state, navigate) {
         filterPlayer.value = '';
         renderBrowseList(allRooms);
         browsePanel.classList.remove('hidden');
-        browseBtn.textContent = 'Close ×';
+        browseBtn.textContent = 'Close';
         filterRoom.focus();
     });
 
@@ -495,7 +495,7 @@ function _bindQuickTab(container, navigate) {
         quickBrowseFilter.value = '';
         renderRoomButtons(quickBrowseList, quickAllRooms);
         quickBrowsePanel.classList.remove('hidden');
-        quickBrowseBtn.textContent = 'Close ×';
+        quickBrowseBtn.textContent = 'Close';
         quickBrowseFilter.focus();
     });
 
@@ -608,7 +608,7 @@ function _bindQuickTab(container, navigate) {
         row.innerHTML = `
                 <input type="text" placeholder="Player ${quickPlayerCount}" class="quick-player-name"
                     maxlength="15" autocomplete="off">
-                <button type="button" class="btn-remove" title="Remove">&times;</button>
+                <button type="button" class="btn-remove" aria-label="Remove player">&times;</button>
             `;
         row.querySelector('.btn-remove').addEventListener('click', () => {
             row.remove();

@@ -9,7 +9,7 @@ const PODIUM_INFO =
 function renderInfoBtn(description) {
     if (!description) return '';
     return `
-        <button type="button" class="stats-info-btn" aria-label="About"
+        <button type="button" class="stats-info-btn" aria-label="About this award"
             aria-expanded="false" data-info="${escapeHtml(description)}">ℹ</button>
     `;
 }
