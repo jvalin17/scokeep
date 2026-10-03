@@ -148,100 +148,127 @@ def check_seo(opener: urllib.request.OpenerDirector, base: str) -> None:
     print("OK  seo google verification files")
 
 
+def cleanup_smoke_playground(
+    opener: urllib.request.OpenerDirector,
+    base: str,
+    room: str,
+    pin: str,
+) -> None:
+    """Best-effort DELETE of ephemeral smoke playground (name + PIN)."""
+    try:
+        status, body = _request(
+            opener,
+            base,
+            "/api/playground",
+            method="DELETE",
+            body={"name": room, "pin": pin},
+        )
+    except Exception as exc:  # noqa: BLE001 — never mask gameplay result
+        print(f"WARN cleanup smoke room {room}: {exc}")
+        return
+    if status == 200:
+        print(f"OK  deleted smoke room {room}")
+    else:
+        print(f"WARN cleanup smoke room {room} HTTP {status}: {body}")
+
+
 def check_gameplay(opener: urllib.request.OpenerDirector, base: str) -> None:
     """Create ephemeral room, play one round, assert sync-round + scoreboard."""
     run_id = os.environ.get("GITHUB_RUN_ID") or str(int(time.time()))
     room = f"CISmoke{run_id[-6:]}"
     pin = "4321"
 
-    status, created = _request(
-        opener,
-        base,
-        "/api/playground",
-        method="POST",
-        body={"name": room, "pin": pin, "pin_hint": "ci", "players": ["Alice", "Bob"]},
-    )
-    if status not in (200, 201) or not isinstance(created, dict):
-        raise SmokeError(f"create playground HTTP {status}: {created}")
-    playground_id = created["id"]
-    print(f"OK  create room {room} id={playground_id}")
+    try:
+        status, created = _request(
+            opener,
+            base,
+            "/api/playground",
+            method="POST",
+            body={"name": room, "pin": pin, "pin_hint": "ci", "players": ["Alice", "Bob"]},
+        )
+        if status not in (200, 201) or not isinstance(created, dict):
+            raise SmokeError(f"create playground HTTP {status}: {created}")
+        playground_id = created["id"]
+        print(f"OK  create room {room} id={playground_id}")
 
-    status, _auth = _request(
-        opener,
-        base,
-        "/api/playground/auth",
-        method="POST",
-        body={"name": room, "pin": pin},
-    )
-    if status != 200:
-        raise SmokeError(f"auth HTTP {status}: {_auth}")
-    print("OK  auth")
+        status, _auth = _request(
+            opener,
+            base,
+            "/api/playground/auth",
+            method="POST",
+            body={"name": room, "pin": pin},
+        )
+        if status != 200:
+            raise SmokeError(f"auth HTTP {status}: {_auth}")
+        print("OK  auth")
 
-    status, game = _request(
-        opener,
-        base,
-        "/api/game",
-        method="POST",
-        body={
-            "playground_id": playground_id,
-            "players": ["Alice", "Bob"],
-            "settings": {
-                "game_type": "kachuful",
-                "mode": "rookie",
-                "appearance": "interactive",
-                "num_sets": 1,
-                "rounds_per_set": 2,
-                "must_lose": True,
-                "scoring_formula": "kachuful_standard",
+        status, game = _request(
+            opener,
+            base,
+            "/api/game",
+            method="POST",
+            body={
+                "playground_id": playground_id,
+                "players": ["Alice", "Bob"],
+                "settings": {
+                    "game_type": "kachuful",
+                    "mode": "rookie",
+                    "appearance": "interactive",
+                    "num_sets": 1,
+                    "rounds_per_set": 2,
+                    "must_lose": True,
+                    "scoring_formula": "kachuful_standard",
+                },
             },
-        },
-    )
-    if status not in (200, 201) or not isinstance(game, dict):
-        raise SmokeError(f"create game HTTP {status}: {game}")
-    game_id = game["id"]
-    if game.get("source") not in (None, "online"):
-        # source may be present after IDB-first promote
-        pass
-    print(f"OK  create game id={game_id} source={game.get('source')}")
+        )
+        if status not in (200, 201) or not isinstance(game, dict):
+            raise SmokeError(f"create game HTTP {status}: {game}")
+        game_id = game["id"]
+        if game.get("source") not in (None, "online"):
+            # source may be present after IDB-first promote
+            pass
+        print(f"OK  create game id={game_id} source={game.get('source')}")
 
-    # Server-side bid/score path still exists on prod; sync-round is the IDB path.
-    # Exercise sync-round directly (same payload the client sends after scoring).
-    sync_body = {
-        "round_num": 1,
-        "cards_dealt": 2,
-        "trump_suit": "spades",
-        "bids": {"0": 0, "1": 0},
-        "hands_won": {"0": 1, "1": 1},
-        "scores": {"0": -10, "1": -10},
-        "status": "complete",
-    }
-    status, synced = _request(
-        opener,
-        base,
-        f"/api/game/{game_id}/sync-round",
-        method="POST",
-        body=sync_body,
-    )
-    if status != 200 or not isinstance(synced, dict):
-        raise SmokeError(f"sync-round HTTP {status}: {synced}")
-    if synced.get("status") != "scored":
-        raise SmokeError(f"sync-round status want scored got {synced.get('status')}")
-    print("OK  sync-round → scored")
+        # Server-side bid/score path still exists on prod; sync-round is the IDB path.
+        # Exercise sync-round directly (same payload the client sends after scoring).
+        sync_body = {
+            "round_num": 1,
+            "cards_dealt": 2,
+            "trump_suit": "spades",
+            "bids": {"0": 0, "1": 0},
+            "hands_won": {"0": 1, "1": 1},
+            "scores": {"0": -10, "1": -10},
+            "status": "complete",
+        }
+        status, synced = _request(
+            opener,
+            base,
+            f"/api/game/{game_id}/sync-round",
+            method="POST",
+            body=sync_body,
+        )
+        if status != 200 or not isinstance(synced, dict):
+            raise SmokeError(f"sync-round HTTP {status}: {synced}")
+        if synced.get("status") != "scored":
+            raise SmokeError(f"sync-round status want scored got {synced.get('status')}")
+        print("OK  sync-round → scored")
 
-    status, board = _request(opener, base, f"/api/game/{game_id}/scoreboard")
-    if status != 200 or not isinstance(board, dict):
-        raise SmokeError(f"scoreboard HTTP {status}: {board}")
-    rounds = board.get("rounds") or []
-    if len(rounds) < 1:
-        raise SmokeError(f"scoreboard missing rounds: {board}")
-    if rounds[0].get("scores") != {"0": -10, "1": -10}:
-        raise SmokeError(f"scoreboard scores mismatch: {rounds[0]}")
-    print("OK  scoreboard has synced round")
+        status, board = _request(opener, base, f"/api/game/{game_id}/scoreboard")
+        if status != 200 or not isinstance(board, dict):
+            raise SmokeError(f"scoreboard HTTP {status}: {board}")
+        rounds = board.get("rounds") or []
+        if len(rounds) < 1:
+            raise SmokeError(f"scoreboard missing rounds: {board}")
+        if rounds[0].get("scores") != {"0": -10, "1": -10}:
+            raise SmokeError(f"scoreboard scores mismatch: {rounds[0]}")
+        print("OK  scoreboard has synced round")
 
-    # Finish so Resume does not linger on that room
-    _request(opener, base, f"/api/game/{game_id}/end", method="POST", body={})
-    _request(opener, base, f"/api/game/{game_id}/confirm-final", method="POST", body={})
-    print("OK  end + confirm-final")
+        # Finish so Resume does not linger on that room
+        _request(opener, base, f"/api/game/{game_id}/end", method="POST", body={})
+        _request(opener, base, f"/api/game/{game_id}/confirm-final", method="POST", body={})
+        print("OK  end + confirm-final")
+    finally:
+        cleanup_smoke_playground(opener, base, room, pin)
 
 
 def main() -> int:
