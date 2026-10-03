@@ -25,21 +25,36 @@ def _extra_pattern(fn):
 @_extra_pattern
 def _conservative(ctx: GameContext) -> list[dict]:
     return _avg_bid_pattern(
-        ctx, "conservative", "🛡️", "The Soft Bid", "Had the lowest average bid across the game.", highest=False
+        ctx,
+        "conservative",
+        "🛡️",
+        "The Soft Bid",
+        "Had the lowest average bid across the game.",
+        highest=False,
     )
 
 
 @_extra_pattern
 def _daredevil(ctx: GameContext) -> list[dict]:
     return _avg_bid_pattern(
-        ctx, "daredevil", "🤸", "The High Bid", "Had the highest average bid across the game.", highest=True
+        ctx,
+        "daredevil",
+        "🤸",
+        "The High Bid",
+        "Had the highest average bid across the game.",
+        highest=True,
     )
 
 
 @_extra_pattern
 def _rollercoaster(ctx: GameContext) -> list[dict]:
     return _variance_pattern(
-        ctx, "rollercoaster", "🎢", "The Swing", "Had the widest swing in round-to-round scores.", highest=True
+        ctx,
+        "rollercoaster",
+        "🎢",
+        "The Swing",
+        "Had the widest swing in round-to-round scores.",
+        highest=True,
     )
 
 
@@ -48,7 +63,12 @@ def _metronome(ctx: GameContext) -> list[dict]:
     if ctx.round_count < 3:
         return []
     return _variance_pattern(
-        ctx, "metronome", "⏱️", "The Metronome", "Had the steadiest scores from round to round.", highest=False
+        ctx,
+        "metronome",
+        "⏱️",
+        "The Metronome",
+        "Had the steadiest scores from round to round.",
+        highest=False,
     )
 
 

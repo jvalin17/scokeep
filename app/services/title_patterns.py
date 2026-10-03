@@ -108,7 +108,13 @@ def _landslide(ctx: GameContext) -> list[dict]:
     winner = max(ctx.players, key=lambda p: (ctx.totals[p], -ctx.players.index(p)))
     return [
         _candidate(
-            "landslide", "🏔️", "The Avalanche", "Won the game by 20 or more points.", winner, f"+{margin} margin", margin / 2
+            "landslide",
+            "🏔️",
+            "The Avalanche",
+            "Won the game by 20 or more points.",
+            winner,
+            f"+{margin} margin",
+            margin / 2,
         )
     ]
 
