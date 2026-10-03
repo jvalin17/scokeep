@@ -125,7 +125,7 @@ class TestGameTitlesFacade:
             {
                 "key": "cursed",
                 "emoji": "😵",
-                "title": "Cursed",
+                "title": "Miss Streak",
                 "desc": "test",
                 "player": "Bob",
                 "detail": "3",

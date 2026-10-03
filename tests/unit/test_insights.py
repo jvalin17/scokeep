@@ -105,9 +105,9 @@ class TestBackfillMeta:
             },
         }
         result = backfill_meta(blob)
-        assert result["players"]["Ravi"]["meta"]["name"] == "The Sniper"
+        assert result["players"]["Ravi"]["meta"]["name"] == "Dhurandhar"
         assert result["players"]["Ravi"]["meta"]["icon"] == "🎯"
-        assert result["players"]["Meera"]["meta"]["name"] == "The Phoenix"
+        assert result["players"]["Meera"]["meta"]["name"] == "Sultan"
 
     def test_preserves_existing_meta(self):
         custom_meta = {"name": "Custom", "tagline": "T", "color": "#000", "icon": "X"}
@@ -626,10 +626,11 @@ class TestEmaUpdate:
         new_vector = [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         stored = [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         result = ema_update(new_vector, stored)
-        # alpha=0.4: result[0] = 0.4*1.0 + 0.6*0.0 = 0.4
-        assert result[0] == pytest.approx(0.4)
-        # result[1] = 0.4*0.0 + 0.6*1.0 = 0.6
-        assert result[1] == pytest.approx(0.6)
+        # alpha=EMA_ALPHA: result blends toward the new vector
+        from app.services.personality_engine import EMA_ALPHA
+
+        assert result[0] == pytest.approx(EMA_ALPHA * 1.0)
+        assert result[1] == pytest.approx((1.0 - EMA_ALPHA) * 1.0)
 
     def test_preserves_dimensions(self):
         """Output has 10 dimensions."""
@@ -1467,11 +1468,11 @@ class TestCentroidSeparation:
                 )
                 assert sim < 0.95, f"{names[i]} and {names[j]} too similar: {sim:.4f}"
 
-    def test_ema_alpha_is_0_4(self):
-        """EMA alpha should be 0.4 for faster personality updates."""
+    def test_ema_alpha_is_highly_reactive(self):
+        """EMA alpha should be high so each finished game can shift personality."""
         from app.services.personality_engine import EMA_ALPHA
 
-        assert EMA_ALPHA == 0.4
+        assert EMA_ALPHA >= 0.75
 
 
 class TestInsightsStability:

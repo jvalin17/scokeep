@@ -86,9 +86,9 @@ def _underdog(ctx: GameContext) -> list[dict]:
                 out.append(
                     _candidate(
                         "underdog",
-                        "🐕",
-                        "From the Cellar",
-                        "Climbed from bottom half to top half",
+                        "📈",
+                        "The Climber",
+                        "Moved from the bottom half into the top half.",
                         p,
                         f"+{climbed} positions",
                         climbed * 15,
@@ -108,7 +108,7 @@ def _landslide(ctx: GameContext) -> list[dict]:
     winner = max(ctx.players, key=lambda p: (ctx.totals[p], -ctx.players.index(p)))
     return [
         _candidate(
-            "landslide", "🏔️", "Landslide", "Won by ≥20 pts", winner, f"+{margin} margin", margin / 2
+            "landslide", "🏔️", "The Avalanche", "Won the game by 20 or more points.", winner, f"+{margin} margin", margin / 2
         )
     ]
 
@@ -124,8 +124,8 @@ def _photo_finish(ctx: GameContext) -> list[dict]:
         _candidate(
             "photo_finish",
             "📸",
-            "Photo Finish",
-            "Top 2 within 5 pts",
+            "The Finish",
+            "Finished within five points of another top player.",
             sorted_players[0],
             f"{ctx.totals[sorted_players[0]]} pts",
             30,
@@ -133,8 +133,8 @@ def _photo_finish(ctx: GameContext) -> list[dict]:
         _candidate(
             "photo_finish",
             "📸",
-            "Photo Finish",
-            "Top 2 within 5 pts",
+            "The Finish",
+            "Finished within five points of another top player.",
             sorted_players[1],
             f"{ctx.totals[sorted_players[1]]} pts",
             30,
@@ -153,8 +153,8 @@ def _perfect_game(ctx: GameContext) -> list[dict]:
                 _candidate(
                     "perfect_game",
                     "⭐",
-                    "Perfect Game",
-                    "100% accuracy, min 4 rounds",
+                    "The Perfect",
+                    "Made every bid across at least four rounds.",
                     p,
                     f"{ctx.bids_made[p]}/{ctx.bids_total[p]}",
                     95,
@@ -176,8 +176,8 @@ def _nearly_perfect(ctx: GameContext) -> list[dict]:
                 _candidate(
                     "nearly_perfect",
                     "🌟",
-                    "Nearly Perfect",
-                    "Missed exactly 1 bid",
+                    "The Almost",
+                    "Missed exactly one bid all game.",
                     p,
                     f"{ctx.bids_made[p]}/{total}",
                     80,
@@ -195,8 +195,8 @@ def _zero_hero(ctx: GameContext) -> list[dict]:
                 _candidate(
                     "zero_hero",
                     "👻",
-                    "Zero Hero",
-                    "Bid 0 three+ times and made all",
+                    "The Ghost",
+                    "Bid zero three or more times and made them all.",
                     p,
                     f"{ctx.zero_bids_made[p]} zeros made",
                     60,
@@ -215,8 +215,8 @@ def _high_roller(ctx: GameContext) -> list[dict]:
                 _candidate(
                     "high_roller",
                     "🎰",
-                    "Heavy Contract",
-                    "Made a bid of 4+",
+                    "The Heavy",
+                    "Successfully made a bid of four or more.",
                     p,
                     f"bid {bid} made",
                     bid * 18,
@@ -235,8 +235,8 @@ def _all_in(ctx: GameContext) -> list[dict]:
                     _candidate(
                         "all_in",
                         "🃏",
-                        "Max Contract",
-                        "Bid = cards dealt (2+) and made it",
+                        "The All-In",
+                        "Bid the full hand size (two or more) and made it.",
                         p,
                         f"bid {bid} on {cards} cards",
                         55,
@@ -263,8 +263,8 @@ def _fortune_teller(ctx: GameContext) -> list[dict]:
                 _candidate(
                     "fortune_teller",
                     "🔮",
-                    "Fortune Teller",
-                    "3+ consecutive correct bids",
+                    "The Oracle",
+                    "Made three or more correct bids in a row.",
                     p,
                     f"{best} in a row",
                     best * 18,
@@ -286,9 +286,9 @@ def _scatterbrain(ctx: GameContext) -> list[dict]:
             out.append(
                 _candidate(
                     "scatterbrain",
-                    "🤪",
-                    "Scatterbrain",
-                    "Never bid same twice in a row",
+                    "🔀",
+                    "The Mixer",
+                    "Never repeated the same bid two rounds in a row.",
                     p,
                     f"{len(seq)} rounds",
                     25,
@@ -310,8 +310,8 @@ def _one_trick(ctx: GameContext) -> list[dict]:
                 _candidate(
                     "one_trick",
                     "🐴",
-                    "One Trick",
-                    "Same bid 4+ times",
+                    "The Habit",
+                    "Used the same bid value four or more times.",
                     p,
                     f"bid {most_common_bid} × {count}",
                     30,
@@ -336,9 +336,9 @@ def _hot_streak(ctx: GameContext) -> list[dict]:
             out.append(
                 _candidate(
                     "hot_streak",
-                    "🔥",
-                    "Hot Streak",
-                    "4+ consecutive positive rounds",
+                    "⚡",
+                    "The Sprinter",
+                    "Scored positive points in four or more rounds in a row.",
                     p,
                     f"{best} in a row",
                     best * 12,
@@ -363,9 +363,9 @@ def _ice_cold(ctx: GameContext) -> list[dict]:
             out.append(
                 _candidate(
                     "ice_cold",
-                    "🥶",
-                    "Ice Cold",
-                    "3+ consecutive negative rounds",
+                    "❄️",
+                    "The Freeze",
+                    "Had three or more negative rounds in a row.",
                     p,
                     f"{best} in a row",
                     best * 10,
@@ -388,9 +388,9 @@ def _comeback_king(ctx: GameContext) -> list[dict]:
             out.append(
                 _candidate(
                     "comeback_king",
-                    "👑",
-                    "The Climb",
-                    "Last place at halfway, top 2 at end",
+                    "🔥",
+                    "The Phoenix",
+                    "Went from last at halfway to top two at the end.",
                     p,
                     f"rank {n}→{end_ranks[p]}",
                     70,
@@ -412,9 +412,9 @@ def _slow_starter(ctx: GameContext) -> list[dict]:
             out.append(
                 _candidate(
                     "slow_starter",
-                    "🐢",
-                    "Long Fuse",
-                    "Negative at halfway, positive at end",
+                    "🕯️",
+                    "The Fuse",
+                    "Was negative at halfway and finished positive.",
                     p,
                     f"{mid_total}→{end_total}",
                     40,
@@ -438,9 +438,9 @@ def _fast_fade(ctx: GameContext) -> list[dict]:
             out.append(
                 _candidate(
                     "fast_fade",
-                    "💨",
-                    "Blew the Lead",
-                    "Led at halfway, bottom half at end",
+                    "🔄",
+                    "The Slip",
+                    "Led at halfway but finished in the bottom half.",
                     p,
                     f"rank 1→{end_ranks[p]}",
                     25,
@@ -463,8 +463,8 @@ def _closer(ctx: GameContext) -> list[dict]:
                 _candidate(
                     "closer",
                     "🔒",
-                    "Finishing Kick",
-                    "Best avg score in final third",
+                    "The Closer",
+                    "Had the best average score in the final third.",
                     p,
                     f"avg {avg:.1f} last {third} rounds",
                     avg * 2,

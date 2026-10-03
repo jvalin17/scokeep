@@ -1,4 +1,4 @@
-"""Risk-based Last Game title patterns — Ice in the Veins, Tightrope, From the Hole.
+"""Risk-based Last Game title patterns — The Clutch, The Wire, The Dig.
 
 Registers into COMPLEX_PATTERNS. Safe exacts (low ambition) do not qualify.
 """
@@ -34,7 +34,7 @@ def _has_qualifying_clutch_round(player_agg: dict) -> bool:
 
 @_risk_pattern
 def _clutch_risk(ctx: GameContext) -> list[dict]:
-    """Ice in the Veins — highest total paid risk with a qualifying pressure make."""
+    """The Clutch — highest total paid risk with a qualifying pressure make."""
     aggregates = compute_game_risk(ctx)
     out = []
     for player in ctx.players:
@@ -56,9 +56,9 @@ def _clutch_risk(ctx: GameContext) -> list[dict]:
         out.append(
             _candidate(
                 "clutch",
-                "❄️",
-                "Ice in the Veins",
-                "Highest paid risk when the board was thick",
+                "🧊",
+                "The Clutch",
+                "Took on the most risk when rounds were tough.",
                 player,
                 detail,
                 agg["total_paid_risk"] * 40,
@@ -88,8 +88,8 @@ def _high_wire(ctx: GameContext) -> list[dict]:
             _candidate(
                 "high_wire",
                 "🌉",
-                "Tightrope",
-                "One swing: biggest single paid-risk make",
+                "The Wire",
+                "Made the single riskiest bid that still hit.",
                 player,
                 best_detail,
                 best * 50,
@@ -100,7 +100,7 @@ def _high_wire(ctx: GameContext) -> list[dict]:
 
 @_risk_pattern
 def _pressure_cooker(ctx: GameContext) -> list[dict]:
-    """From the Hole — most risky makes while already trailing."""
+    """The Dig — most risky makes while already trailing."""
     aggregates = compute_game_risk(ctx)
     out = []
     for player in ctx.players:
@@ -118,9 +118,9 @@ def _pressure_cooker(ctx: GameContext) -> list[dict]:
         out.append(
             _candidate(
                 "pressure_cooker",
-                "🕳️",
-                "From the Hole",
-                "Most risky makes while already trailing",
+                "🧗",
+                "The Dig",
+                "Made the most risky bids while trailing.",
                 player,
                 f"{count} trailing pressure makes",
                 count * 25,

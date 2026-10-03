@@ -135,19 +135,19 @@ class TestNewArchetypeMeta:
         from app.services.personality_engine import PERSONALITY_META
 
         assert "reader" in PERSONALITY_META
-        assert PERSONALITY_META["reader"]["name"] == "The Reader"
+        assert PERSONALITY_META["reader"]["name"] == "Rancho"
 
     def test_surgeon_meta(self):
         from app.services.personality_engine import PERSONALITY_META
 
         assert "surgeon" in PERSONALITY_META
-        assert PERSONALITY_META["surgeon"]["name"] == "The Surgeon"
+        assert PERSONALITY_META["surgeon"]["name"] == "Bajirao"
 
     def test_tilter_meta(self):
         from app.services.personality_engine import PERSONALITY_META
 
         assert "tilter" in PERSONALITY_META
-        assert PERSONALITY_META["tilter"]["name"] == "The Tilter"
+        assert PERSONALITY_META["tilter"]["name"] == "Gabbar"
 
     def test_phoenix_meta_updated(self):
         """Phoenix absorbed Comeback Kid — tagline should reflect resilience."""
