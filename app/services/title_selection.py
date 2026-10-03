@@ -22,8 +22,6 @@ _FILLER_TITLES = (
 )
 
 
-
-
 def assign_exclusive(candidates: list[dict]) -> list[dict]:
     """Assign each title to the best player. Drop ties (same score for same key)."""
     by_key: dict[str, list[dict]] = {}

@@ -84,7 +84,7 @@ class TestTitleCountFormula:
         assert len(result) == 3
 
     def test_fewer_candidates_than_target(self):
-        """When candidates < target, return all candidates without error."""
+        """Sparse candidates still cover every player with unique titles."""
         from app.services.game_titles import select_titles
 
         candidates = [
@@ -98,8 +98,10 @@ class TestTitleCountFormula:
                 "score": 100.0,
             },
         ]
-        result = select_titles(candidates, ["P0", "P1", "P2", "P3"], target=8)
-        assert len(result) == 1  # only 1 candidate available
+        players = ["P0", "P1", "P2", "P3"]
+        result = select_titles(candidates, players, target=8)
+        assert {t["player"] for t in result} == set(players)
+        assert len({t["title"] for t in result}) == len(result)
 
     def test_1_player_gets_4_titles(self):
         """1 player → clamp(2, 4, 14) = 4."""
