@@ -14,11 +14,11 @@ from tests.guards.fixtures import (
 )
 
 
-def _make_candidate(key, player, score):
+def _make_candidate(key, player, score, title=None):
     return {
         "key": key,
         "emoji": "T",
-        "title": "Test",
+        "title": title or key.replace("_", " ").title(),
         "desc": "Test",
         "player": player,
         "detail": "test",
@@ -95,6 +95,19 @@ class TestSelectAlgorithm:
         ]
         result = select_titles(candidates, ["Alice", "Bob"], target=2)
         assert len({t["key"] for t in result}) == len(result)
+
+    def test_coverage_does_not_reuse_title_text(self):
+        """Coverage must not clone Alice's Champion onto Bob via arc_ fallback."""
+        candidates = [
+            _make_candidate("t1", "Alice", 100, title="Champion"),
+            _make_candidate("t1", "Bob", 50, title="Champion"),
+            _make_candidate("t2", "Alice", 90, title="Sharpshooter"),
+        ]
+        result = select_titles(candidates, ["Alice", "Bob"], target=4)
+        titles = [t["title"] for t in result]
+        assert len(titles) == len(set(titles)), titles
+        assert {t["player"] for t in result} == {"Alice", "Bob"}
+        assert not any(str(t["key"]).startswith("arc_") for t in result)
 
     def test_fewer_than_target(self):
         result = select_titles([_make_candidate("t1", "Alice", 100)], ["Alice"], target=10)

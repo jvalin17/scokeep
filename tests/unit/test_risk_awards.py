@@ -20,7 +20,7 @@ def _ctx_from_rounds(players, rounds):
 
 
 def test_safe_bet_clutch_loses_to_risky_make():
-    """Trailing bid-5/8 make beats leader's safe 0/1 exacts for Ice in the Veins."""
+    """Trailing bid-5/8 make beats leader's safe 0/1 exacts for The Clutch."""
     players = ["Lala", "Masood"]
     # R1: Masood leads (safe). R2: Lala trails and nails bid 5/8.
     rounds = [
@@ -132,4 +132,4 @@ def test_ice_in_the_veins_display_name():
     ctx = _ctx_from_rounds(players, rounds)
     candidates = _clutch_risk(ctx)
     assert candidates
-    assert candidates[0]["title"] == "Ice in the Veins"
+    assert candidates[0]["title"] == "The Clutch"
