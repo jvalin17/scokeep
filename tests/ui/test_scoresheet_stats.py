@@ -49,8 +49,15 @@ class TestScoresheetStats:
             timeout=15000,
         )
         navigate_to_stats(page, server, room_name, "4242")
-        page.wait_for_selector(".stats-tab", timeout=10000)
+        # Finish path leaves Scoresheet tab selected → filter hides Judgement awards.
+        page.wait_for_selector('[data-game-type-filter="scoresheet"]', timeout=10000)
+        page.locator('[data-game-type-filter="scoresheet"]').click()
+        page.wait_for_function(
+            "() => location.hash.includes('scoresheet')",
+            timeout=10000,
+        )
+        page.wait_for_selector('.stats-tab[data-tab="highlights"]', timeout=15000)
         page.click('.stats-tab[data-tab="highlights"]')
-        page.wait_for_timeout(400)
+        page.wait_for_selector(".stats-content", timeout=5000)
         assert page.locator(".awards-card-title:has-text('Sniper')").count() == 0
         assert page.locator("text=Bid exactly 1").count() == 0

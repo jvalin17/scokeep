@@ -42,37 +42,53 @@ def stats_page(page, server):
 @pytest.mark.parametrize("viewport", VIEWPORTS, ids=lambda v: v["name"])
 def test_stats_renders(stats_page, viewport):
     stats_page.set_viewport_size(viewport)
-    tabs = stats_page.locator(".stats-tab")
-    assert tabs.count() >= 2, "Stats tabs not rendered"
+    section_tabs = stats_page.locator(".stats-tab[data-tab]")
+    assert section_tabs.count() >= 2, "Stats section tabs not rendered"
 
 
 def test_tabs_exist(stats_page):
-    tabs = stats_page.locator(".stats-tab")
-    assert tabs.count() >= 2
+    section_tabs = stats_page.locator(".stats-tab[data-tab]")
+    assert section_tabs.count() >= 2
 
 
 def test_tab_switching(stats_page):
-    tabs = stats_page.locator(".stats-tab")
-    if tabs.count() >= 2:
-        tabs.nth(1).click()
+    section_tabs = stats_page.locator(".stats-tab[data-tab]")
+    if section_tabs.count() >= 2:
+        section_tabs.nth(1).click()
         stats_page.wait_for_selector(".stats-content, .stats-game-card", timeout=5000)
-        tabs.nth(0).click()
+        section_tabs.nth(0).click()
         stats_page.wait_for_selector(".stats-content", timeout=5000)
-        # First tab should render stats content
         stats_content = stats_page.locator(".stats-content")
         assert stats_content.count() > 0, "Stats content not rendered after tab switch"
 
 
 def test_game_history_shows(stats_page):
-    games_tab = stats_page.locator('.stats-tab:has-text("Games"), .stats-tab:has-text("History")')
-    if games_tab.count() > 0:
+    # Prefer Judgement filter so a standard fixture game is visible, then open Games.
+    judgement_filter = stats_page.locator('[data-game-type-filter="kachuful"]')
+    if judgement_filter.count() > 0:
+        judgement_filter.click()
+        stats_page.wait_for_function(
+            "() => location.hash.includes('/kachuful') || location.hash.endsWith('/kachuful')",
+            timeout=10000,
+        )
+        stats_page.wait_for_selector(
+            ".stats-content, .stats-empty, .stats-tab[data-tab]", timeout=10000
+        )
+
+    games_tab = stats_page.locator('.stats-tab[data-tab="history"]')
+    expect_games = games_tab.count() > 0
+    if expect_games:
         games_tab.click()
-        stats_page.wait_for_selector(".stats-game-card", timeout=5000)
+        stats_page.wait_for_selector(".stats-game-card", timeout=10000)
     game_cards = stats_page.locator(".stats-game-card")
     assert game_cards.count() > 0, "No game cards in history tab"
 
 
 def test_expand_game_scoresheet(stats_page):
+    games_tab = stats_page.locator('.stats-tab[data-tab="history"]')
+    if games_tab.count() > 0:
+        games_tab.click()
+        stats_page.wait_for_selector(".stats-game-card", timeout=10000)
     expand_btn = stats_page.locator(".expand-game-btn, button:has-text('▶'), button:has-text('▸')")
     if expand_btn.count() > 0:
         expand_btn.first.click()
@@ -91,7 +107,7 @@ def test_no_horizontal_overflow(stats_page):
 
 
 def test_stats_empty_state(page, server):
-    """A brand-new playground with no games shows the empty-state message, not stats tabs."""
+    """A brand-new playground with no games shows empty-state; section tabs stay hidden."""
     page.goto(server)
     create_playground(page, unique_name("EmptyStats"), "1234", ["Alice", "Bob", "Charlie"])
     page.wait_for_selector("#view-stats", timeout=5000)
@@ -105,20 +121,29 @@ def test_stats_empty_state(page, server):
         f"Empty state text does not mention 'No games': {text!r}"
     )
 
-    tabs = page.locator(".stats-tab")
-    assert tabs.count() == 0, (
-        f"Expected no .stats-tab elements in empty state, found {tabs.count()}"
+    # Game-type filter tabs remain; Insights/Awards/Games section tabs must not.
+    section_tabs = page.locator(".stats-tab[data-tab]")
+    assert section_tabs.count() == 0, (
+        f"Expected no section .stats-tab[data-tab] in empty state, found {section_tabs.count()}"
     )
+    assert page.locator("[data-game-type-filter]").count() >= 3
 
 
 def test_personality_card_flip(stats_page):
     """Personality cards toggle .flipped on click; locked cards do NOT flip."""
     page = stats_page
 
-    # Navigate to Insights tab (default, but be explicit)
-    insights_tab = page.locator('.stats-tab:has-text("Insights"), .stats-tab:has-text("Players")')
+    judgement_filter = page.locator('[data-game-type-filter="kachuful"]')
+    if judgement_filter.count() > 0:
+        judgement_filter.click()
+        page.wait_for_function(
+            "() => location.hash.includes('kachuful')",
+            timeout=10000,
+        )
+
+    insights_tab = page.locator('.stats-tab[data-tab="insights"]')
     if insights_tab.count() > 0:
-        insights_tab.first.click()
+        insights_tab.click()
         page.wait_for_selector(".personality-card, .personality-card-locked", timeout=15000)
 
     unlocked = page.locator(".personality-card:not(.personality-card-locked)")
@@ -192,6 +217,15 @@ def test_locked_personality_card(page, server):
     )
 
     navigate_to_stats(page, server, name, "1234")
+
+    judgement_filter = page.locator('[data-game-type-filter="kachuful"]')
+    if judgement_filter.count() > 0:
+        judgement_filter.click()
+        page.wait_for_function("() => location.hash.includes('kachuful')", timeout=10000)
+
+    insights_tab = page.locator('.stats-tab[data-tab="insights"]')
+    if insights_tab.count() > 0:
+        insights_tab.click()
 
     # Wait for personality cards to render (insights computation can be slow on CI)
     page.wait_for_selector(".personality-card", timeout=15000)
