@@ -370,11 +370,13 @@ export async function undoRound(gameId) {
   const roundToUndo = game.current_round;
 
   // Step back to the previous round (or stay at 1 if already round 1).
+  // Dealer advances only on nextRound — undoing round 1 must NOT rotate.
   const wasAtRoundOne = game.current_round <= 1;
   if (game.current_round > 1) {
     game.current_round = game.current_round - 1;
+    game.dealer_index =
+      (game.dealer_index - 1 + game.players.length) % game.players.length;
   }
-  game.dealer_index = (game.dealer_index - 1 + game.players.length) % game.players.length;
   // Round 1 undo → back to bidding. Later rounds → scoreboard of previous round.
   game.phase = wasAtRoundOne ? 'bidding' : 'scoreboard';
 

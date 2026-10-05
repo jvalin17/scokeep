@@ -89,6 +89,8 @@ class ScoreboardService:
         if game.status == "finished":
             game.status = "active"
             game.finished_at = None
-        game.dealer_index = (game.dealer_index - 1) % len(game.players)
+        # Dealer advances only on next-round; undoing round 1 restarts in place.
+        if round_to_undo > 1:
+            game.dealer_index = (game.dealer_index - 1) % len(game.players)
         await db.commit()
         await db.refresh(game)
