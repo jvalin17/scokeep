@@ -184,3 +184,37 @@ class TestUndoLastRound:
 
         with pytest.raises(ValueError, match="No rounds to undo"):
             await ScoreboardService.undo_last_round(db_session, game)
+
+    async def test_undo_round_1_keeps_original_dealer(self, db_session: AsyncSession):
+        """Round-1 undo restarts the game — dealer must not rotate."""
+        playground = await PlaygroundService.create(
+            db=db_session,
+            name="Undo Dealer",
+            pin="1234",
+            players=["Alice", "Bob"],
+        )
+        game = await GameService.create(
+            db=db_session,
+            playground_id=playground.id,
+            players=["Alice", "Bob"],
+            settings={"num_sets": 1},
+        )
+        assert game.dealer_index == 0
+
+        round_obj = await RoundService.create_round(db_session, game)
+        round_obj.bids = {"0": 1, "1": 0}
+        round_obj.hands_won = {"0": 1, "1": 7}
+        round_obj.status = "round_end"
+        await db_session.commit()
+        await RoundService.end_round(
+            db_session, round_obj, player_count=2, formula="kachuful_standard"
+        )
+        await GameService.update_phase(db_session, game, "scoreboard")
+        assert game.current_round == 1
+        assert game.dealer_index == 0
+
+        await ScoreboardService.undo_last_round(db_session, game)
+
+        assert game.current_round == 1
+        assert game.phase == "bidding"
+        assert game.dealer_index == 0
