@@ -9,8 +9,9 @@ Centroid calibration: see architecture/player-insights.md for rationale.
 
 import math
 
-# EMA smoothing factor — lower = more stable, higher = more reactive
-EMA_ALPHA = 0.4
+# EMA smoothing factor — lower = more stable, higher = more reactive.
+# High alpha so each finished game can shift the personality.
+EMA_ALPHA = 0.8
 
 # Minimum gap between top-2 centroid matches for confident assignment
 MIN_CONFIDENCE_GAP = 0.1
@@ -178,55 +179,55 @@ def bayesian_shrink(
 # Single source of truth for personality display — served via API to frontend
 PERSONALITY_META = {
     "sniper": {
-        "name": "The Sniper",
+        "name": "Dhurandhar",
         "tagline": "Calls the shot. Makes the shot.",
         "color": "#1B5E20",
         "icon": "🎯",
     },
     "gambler": {
-        "name": "The Gambler",
+        "name": "Don",
         "tagline": "Goes big. Sometimes it pays off.",
         "color": "#E65100",
         "icon": "🎲",
     },
     "phoenix": {
-        "name": "The Phoenix",
+        "name": "Sultan",
         "tagline": "Rises when it matters most.",
         "color": "#BF360C",
         "icon": "🔥",
     },
     "rock": {
-        "name": "The Rock",
+        "name": "Bahubali",
         "tagline": "Steady hands. No surprises.",
         "color": "#37474F",
         "icon": "🪨",
     },
     "sprinter": {
-        "name": "The Sprinter",
+        "name": "Veeru",
         "tagline": "Out of the gate like lightning.",
         "color": "#0D47A1",
         "icon": "⚡",
     },
     "ghost": {
-        "name": "The Ghost",
+        "name": "Mr. India",
         "tagline": "Bids nothing. Wins everything.",
         "color": "#4A148C",
         "icon": "👻",
     },
     "reader": {
-        "name": "The Reader",
+        "name": "Rancho",
         "tagline": "More cards, more to read.",
         "color": "#006064",
         "icon": "📖",
     },
     "surgeon": {
-        "name": "The Surgeon",
+        "name": "Bajirao",
         "tagline": "Precision cuts. No wasted moves.",
         "color": "#3E2723",
-        "icon": "🔬",
+        "icon": "⚔️",
     },
     "tilter": {
-        "name": "The Tilter",
+        "name": "Gabbar",
         "tagline": "Hot or cold. Never lukewarm.",
         "color": "#FF6F00",
         "icon": "🎢",

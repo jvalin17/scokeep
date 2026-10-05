@@ -66,7 +66,7 @@ function renderCardFront(playerName, data, meta) {
 
     return `
         <div class="personality-front">
-            <div class="personality-badge" title="Based on all games played">ℹ overall insights</div>
+            <div class="personality-badge" title="Updates after every finished Judgement game">ℹ updates each game</div>
             <div class="personality-icon">${escapeHtml(meta.icon)}</div>
             <div class="personality-type">${escapeHtml(meta.name)}</div>
             <div class="personality-tagline">${escapeHtml(meta.tagline)}</div>

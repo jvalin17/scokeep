@@ -25,21 +25,36 @@ def _extra_pattern(fn):
 @_extra_pattern
 def _conservative(ctx: GameContext) -> list[dict]:
     return _avg_bid_pattern(
-        ctx, "conservative", "🛡️", "Conservative", "Lowest average bid", highest=False
+        ctx,
+        "conservative",
+        "🛡️",
+        "The Soft Bid",
+        "Had the lowest average bid across the game.",
+        highest=False,
     )
 
 
 @_extra_pattern
 def _daredevil(ctx: GameContext) -> list[dict]:
     return _avg_bid_pattern(
-        ctx, "daredevil", "🤸", "Daredevil", "Highest average bid", highest=True
+        ctx,
+        "daredevil",
+        "🤸",
+        "The High Bid",
+        "Had the highest average bid across the game.",
+        highest=True,
     )
 
 
 @_extra_pattern
 def _rollercoaster(ctx: GameContext) -> list[dict]:
     return _variance_pattern(
-        ctx, "rollercoaster", "🎢", "Rollercoaster", "Highest score variance", highest=True
+        ctx,
+        "rollercoaster",
+        "🎢",
+        "The Swing",
+        "Had the widest swing in round-to-round scores.",
+        highest=True,
     )
 
 
@@ -48,7 +63,12 @@ def _metronome(ctx: GameContext) -> list[dict]:
     if ctx.round_count < 3:
         return []
     return _variance_pattern(
-        ctx, "metronome", "⏱️", "Metronome", "Lowest score variance", highest=False
+        ctx,
+        "metronome",
+        "⏱️",
+        "The Metronome",
+        "Had the steadiest scores from round to round.",
+        highest=False,
     )
 
 
@@ -68,9 +88,9 @@ def _trump_master(ctx: GameContext) -> list[dict]:
             out.append(
                 _candidate(
                     "trump_master",
-                    "♠️",
-                    "Fat-Hand Reader",
-                    "Best accuracy on 6-8 card rounds",
+                    "📖",
+                    "The Reader",
+                    "Had the best accuracy on rounds with 6–8 cards.",
                     player,
                     f"{made} of {total} bids correct on high-card rounds",
                     pct * 100,
@@ -96,8 +116,8 @@ def _minimalist(ctx: GameContext) -> list[dict]:
                 _candidate(
                     "minimalist",
                     "✨",
-                    "Minimalist",
-                    "Best accuracy on 1-3 card rounds",
+                    "The Minimal",
+                    "Had the best accuracy on rounds with 1–3 cards.",
                     player,
                     f"{made} of {total} bids correct on low-card rounds",
                     pct * 100,
@@ -129,8 +149,8 @@ def _mirror(ctx: GameContext) -> list[dict]:
                     _candidate(
                         "mirror",
                         "🪞",
-                        "Mirror",
-                        f"Same score as {player_b} in 3+ rounds",
+                        "The Twin",
+                        f"Matched {player_b}'s score in three or more rounds.",
                         player_a,
                         f"{shared} matching rounds",
                         35,
@@ -140,8 +160,8 @@ def _mirror(ctx: GameContext) -> list[dict]:
                     _candidate(
                         "mirror",
                         "🪞",
-                        "Mirror",
-                        f"Same score as {player_a} in 3+ rounds",
+                        "The Twin",
+                        f"Matched {player_a}'s score in three or more rounds.",
                         player_b,
                         f"{shared} matching rounds",
                         35,
@@ -160,8 +180,8 @@ def _lucky_seven(ctx: GameContext) -> list[dict]:
                 _candidate(
                     "lucky_seven",
                     "🍀",
-                    "Lucky Seven",
-                    "Scored +10 or +11 in 7+ rounds",
+                    "The Lucky",
+                    "Scored +10 or +11 in seven or more rounds.",
                     player,
                     f"{count} rounds",
                     45,
@@ -185,8 +205,8 @@ def _last_laugh(ctx: GameContext) -> list[dict]:
             _candidate(
                 "last_laugh",
                 "😏",
-                "Final Frame",
-                "Worst 1st half, best 2nd half",
+                "The Second Half",
+                "Had the worst first half and the best second half.",
                 worst_first,
                 f"{first_half[worst_first]}→{second_half[worst_first]}",
                 50,
@@ -206,8 +226,8 @@ def _survivor(ctx: GameContext) -> list[dict]:
                 _candidate(
                     "survivor",
                     "🛟",
-                    "Survivor",
-                    "Played all rounds, positive total, no huge score",
+                    "The Survivor",
+                    "Played every round, finished positive, with no huge scores.",
                     player,
                     f"{ctx.totals[player]} pts steady",
                     15,

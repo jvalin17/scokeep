@@ -265,7 +265,7 @@ class TestPlaygroundStats:
             assert "tagline" in meta
             assert "color" in meta
             assert "icon" in meta
-            assert meta["name"].startswith("The ")
+            assert isinstance(meta["name"], str) and len(meta["name"]) > 0
 
     async def test_stats_insights_unlock_progress(self, client: AsyncClient):
         """After 1 game, players already have personality (MIN_GAMES_FOR_PERSONALITY=1)."""

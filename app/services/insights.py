@@ -40,6 +40,9 @@ from app.services.personality_engine import (
 # Minimum games before personality is assigned
 MIN_GAMES_FOR_PERSONALITY = 1
 
+# Latest finished game weighs more than full-career average so insights move.
+RECENT_GAME_WEIGHT = 0.65
+
 # Constants re-exported for backward compatibility
 CARD_COUNT_WEIGHTS = {1: 0.2, 2: 0.5}
 FEATURE_DIMENSIONS = [
@@ -69,7 +72,9 @@ __all__ = [
     "bayesian_shrink",
     "compute_accuracy_by_cards",
     "compute_feature_vector",
+    "RECENT_GAME_WEIGHT",
     "compute_insights",
+    "_blend_recent_career_vector",
     "compute_player_extras",
     "cosine_similarity",
     "ema_update",
@@ -171,13 +176,42 @@ async def compute_insights(db: AsyncSession, playground_id: int) -> dict | None:
     )
 
 
+def _blend_recent_career_vector(
+    career_vector: list[float], latest_vector: list[float]
+) -> list[float]:
+    """Blend career style with the latest game so each finish can shift insights."""
+    weight = RECENT_GAME_WEIGHT
+    return [
+        weight * latest + (1.0 - weight) * career
+        for career, latest in zip(career_vector, latest_vector, strict=True)
+    ]
+
+
+def _latest_game_vector(player_name: str, game_metrics_list: list) -> list[float] | None:
+    """Feature vector from the player's most recent finished game, if any."""
+    for game_metrics in reversed(game_metrics_list):
+        if player_name in game_metrics.players:
+            return aggregate_career(player_name, [game_metrics]).feature_vector
+    return None
+
+
 def _compute_raw_vectors(all_players, player_game_counts, game_metrics_list):
-    """Compute feature vectors for players with enough games."""
-    return {
-        name: aggregate_career(name, game_metrics_list).feature_vector
-        for name in all_players
-        if player_game_counts[name] >= MIN_GAMES_FOR_PERSONALITY
-    }
+    """Compute feature vectors for players with enough games.
+
+    Blends full-career style with the latest game so personalities can change
+    after each Judgement finish.
+    """
+    raw_vectors = {}
+    for name in all_players:
+        if player_game_counts[name] < MIN_GAMES_FOR_PERSONALITY:
+            continue
+        career_vector = aggregate_career(name, game_metrics_list).feature_vector
+        latest_vector = _latest_game_vector(name, game_metrics_list)
+        if latest_vector is None:
+            raw_vectors[name] = career_vector
+        else:
+            raw_vectors[name] = _blend_recent_career_vector(career_vector, latest_vector)
+    return raw_vectors
 
 
 def _assign_smoothed_players(
@@ -378,7 +412,8 @@ def _detect_evolution(name, assignment, existing_players):
         return None
     old = existing_players[name].get("personality")
     if old and old != assignment["personality"]:
-        return old
+        old_meta = existing_players[name].get("meta") or PERSONALITY_META.get(old, {})
+        return old_meta.get("name") or PERSONALITY_META.get(old, {}).get("name") or old
     return None
 
 
