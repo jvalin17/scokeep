@@ -315,6 +315,23 @@ describe('test_undo_round_at_round_1_sets_bidding', () => {
   });
 });
 
+describe('test_undo_round_1_keeps_original_dealer', () => {
+  it('undoing scored round 1 does not rotate dealer (restart same dealer)', async () => {
+    const game = await createGame(makePlayers(), makeSettings());
+    expect(game.dealer_index).toBe(0);
+
+    await playRound(game.id, [1, 0], [1, 7]);
+    // Still on round-1 scoreboard — Next Round has not advanced the dealer.
+    expect((await getGame(game.id)).dealer_index).toBe(0);
+
+    const result = await undoRound(game.id);
+
+    expect(result.current_round).toBe(1);
+    expect(result.phase).toBe('bidding');
+    expect(result.dealer_index).toBe(0);
+  });
+});
+
 describe('test_undo_round_1_recreates_active_round_for_rebidding', () => {
   it('after undoing scored round 1, a clean active round exists for rebidding', async () => {
     const game = await createGame(makePlayers(), makeSettings());
@@ -389,12 +406,14 @@ describe('test_undo_round_after_round_2_sets_scoreboard', () => {
     const game = await createGame(makePlayers(), makeSettings());
     await playRound(game.id, [1, 0], [1, 7]);
     await nextRound(game.id);
+    expect((await getGame(game.id)).dealer_index).toBe(1);
     await playRound(game.id, [1, 0], [1, 6]);
 
     const result = await undoRound(game.id);
 
     expect(result.current_round).toBe(1);
     expect(result.phase).toBe('scoreboard');
+    expect(result.dealer_index).toBe(0);
 
     // Round 2 must be gone; round 1 stays complete with original data.
     expect(await getRound(game.id, 2)).toBeNull();

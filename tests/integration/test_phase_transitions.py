@@ -284,15 +284,35 @@ class TestUndoConsistency:
         game = await _assert_phase(client, game_id, cookies, "bidding")
         assert game["current_round"] == 1
 
+    async def test_undo_round_1_keeps_original_dealer(self, client: AsyncClient):
+        """Round-1 undo restarts the game — dealer must stay at index 0."""
+        pg_id, cookies = await _setup(client)
+        game_id = await _create_game(client, pg_id, cookies)
+        before = await _assert_phase(client, game_id, cookies, "bidding")
+        assert before["dealer_index"] == 0
+
+        await _play_full_round(client, game_id, cookies)
+        after_score = await _assert_phase(client, game_id, cookies, "scoreboard")
+        assert after_score["dealer_index"] == 0
+
+        r = await client.post(f"/api/game/{game_id}/undo", cookies=cookies)
+        assert r.status_code == 200
+        game = await _assert_phase(client, game_id, cookies, "bidding")
+        assert game["current_round"] == 1
+        assert game["dealer_index"] == 0
+
     async def test_undo_round_2_goes_to_scoreboard(self, client: AsyncClient):
         pg_id, cookies = await _setup(client)
         game_id = await _create_game(client, pg_id, cookies)
         await _play_full_round(client, game_id, cookies)
         await client.post(f"/api/game/{game_id}/next-round", cookies=cookies)
+        after_next = await _assert_phase(client, game_id, cookies, "bidding")
+        assert after_next["dealer_index"] == 1
         await _play_full_round(client, game_id, cookies, bids=[0, 1, 0], hands=[0, 1, 0])
         r = await client.post(f"/api/game/{game_id}/undo", cookies=cookies)
         assert r.status_code == 200
-        await _assert_phase(client, game_id, cookies, "scoreboard")
+        game = await _assert_phase(client, game_id, cookies, "scoreboard")
+        assert game["dealer_index"] == 0
 
     async def test_undo_then_replay_works(self, client: AsyncClient):
         pg_id, cookies = await _setup(client)

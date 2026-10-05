@@ -184,3 +184,71 @@ class TestUndoLastRound:
 
         with pytest.raises(ValueError, match="No rounds to undo"):
             await ScoreboardService.undo_last_round(db_session, game)
+
+    async def test_undo_round_1_keeps_original_dealer(self, db_session: AsyncSession):
+        """Round-1 undo restarts the game — dealer must not rotate."""
+        playground = await PlaygroundService.create(
+            db=db_session,
+            name="Undo Dealer",
+            pin="1234",
+            players=["Alice", "Bob"],
+        )
+        game = await GameService.create(
+            db=db_session,
+            playground_id=playground.id,
+            players=["Alice", "Bob"],
+            settings={"num_sets": 1},
+        )
+        assert game.dealer_index == 0
+
+        round_obj = await RoundService.create_round(db_session, game)
+        round_obj.bids = {"0": 1, "1": 0}
+        round_obj.hands_won = {"0": 1, "1": 7}
+        round_obj.status = "round_end"
+        await db_session.commit()
+        await RoundService.end_round(
+            db_session, round_obj, player_count=2, formula="kachuful_standard"
+        )
+        await GameService.update_phase(db_session, game, "scoreboard")
+        # Still round 1 — Next Round has not advanced dealer.
+        assert game.current_round == 1
+        assert game.dealer_index == 0
+
+        await ScoreboardService.undo_last_round(db_session, game)
+
+        assert game.current_round == 1
+        assert game.phase == "bidding"
+        assert game.dealer_index == 0
+
+    async def test_undo_scoresheet_round_1_returns_to_entry(self, db_session: AsyncSession):
+        """Scoresheet pack starts at entry — round-1 undo must not force bidding."""
+        playground = await PlaygroundService.create(
+            db=db_session,
+            name="Undo Scoresheet Entry",
+            pin="1234",
+            players=["Maria", "Diego"],
+        )
+        game = await GameService.create(
+            db=db_session,
+            playground_id=playground.id,
+            players=["Maria", "Diego"],
+            settings={"game_type": "scoresheet", "label": "Declare"},
+        )
+        assert game.phase == "entry"
+        assert game.dealer_index == 0
+
+        round_obj = await RoundService.create_round(db_session, game)
+        round_obj.bids = {}
+        round_obj.hands_won = {}
+        round_obj.scores = {"0": 10, "1": 5}
+        round_obj.cards_dealt = 1
+        round_obj.trump_suit = "n/a"
+        round_obj.status = "complete"
+        await db_session.commit()
+        await GameService.update_phase(db_session, game, "scoreboard")
+
+        await ScoreboardService.undo_last_round(db_session, game)
+
+        assert game.current_round == 1
+        assert game.phase == "entry"
+        assert game.dealer_index == 0
