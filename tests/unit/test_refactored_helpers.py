@@ -7,9 +7,9 @@ import pytest
 from fastapi import HTTPException
 
 from app.routes.import_game import _build_game, _validate_round_scores
-from app.routes.sync import _validate_round_metadata, _validate_scores
 from app.schemas.import_game import ImportGameRequest, ImportRound
 from app.schemas.sync import SyncRoundRequest
+from app.services.packs.registry import get_pack
 from app.services.scoreboard import _round_to_dict
 
 # ---------------------------------------------------------------------------
@@ -66,9 +66,10 @@ def _make_sync_round(
     )
 
 
-def _make_game_mock(settings=None):
+def _make_game_mock(settings=None, players=None):
     game = MagicMock()
-    game.settings = settings or {"rounds_per_set": 8}
+    game.settings = settings or {"rounds_per_set": 8, "game_type": "kachuful"}
+    game.players = players or ["Alice", "Bob"]
     return game
 
 
@@ -188,70 +189,69 @@ def test_build_game_total_rounds_matches_round_count():
 
 
 # ---------------------------------------------------------------------------
-# _validate_round_metadata
+# Judgement pack.validate_sync_round (replaces private sync helpers)
 # ---------------------------------------------------------------------------
 
 
 def test_validate_round_metadata_passes_for_valid_round_1():
     """Round 1 with 8 rounds_per_set: cards=8, trump=spades — must not raise."""
     body = _make_sync_round(round_num=1, cards_dealt=8, trump_suit="spades")
-    game = _make_game_mock(settings={"rounds_per_set": 8})
-    _validate_round_metadata(body, game)  # should not raise
+    game = _make_game_mock(settings={"rounds_per_set": 8, "game_type": "kachuful"})
+    get_pack("kachuful").validate_sync_round(game, body)
 
 
 def test_validate_round_metadata_raises_on_wrong_cards_dealt():
     """Wrong cards_dealt value — must raise 409."""
-    # Round 1, rounds_per_set=8 -> expected 8 cards; send 5
     body = _make_sync_round(round_num=1, cards_dealt=5, trump_suit="spades")
-    game = _make_game_mock(settings={"rounds_per_set": 8})
+    game = _make_game_mock(settings={"rounds_per_set": 8, "game_type": "kachuful"})
 
     with pytest.raises(HTTPException) as exc_info:
-        _validate_round_metadata(body, game)
+        get_pack("kachuful").validate_sync_round(game, body)
     assert exc_info.value.status_code == 409
     assert "cards_dealt" in exc_info.value.detail
 
 
 def test_validate_round_metadata_raises_on_wrong_trump_suit():
     """Wrong trump_suit — must raise 409."""
-    # Round 1 -> expected "spades"; send "hearts"
     body = _make_sync_round(round_num=1, cards_dealt=8, trump_suit="hearts")
-    game = _make_game_mock(settings={"rounds_per_set": 8})
+    game = _make_game_mock(settings={"rounds_per_set": 8, "game_type": "kachuful"})
 
     with pytest.raises(HTTPException) as exc_info:
-        _validate_round_metadata(body, game)
+        get_pack("kachuful").validate_sync_round(game, body)
     assert exc_info.value.status_code == 409
     assert "trump_suit" in exc_info.value.detail
 
 
 def test_validate_round_metadata_uses_rounds_per_set_from_settings():
     """rounds_per_set comes from game.settings — must use it to derive cards."""
-    # With rounds_per_set=4, round 1 -> cards = 4 (descends 4→3→2→1)
     body = _make_sync_round(round_num=1, cards_dealt=4, trump_suit="spades")
-    game = _make_game_mock(settings={"rounds_per_set": 4})
-    _validate_round_metadata(body, game)  # should not raise
+    game = _make_game_mock(settings={"rounds_per_set": 4, "game_type": "kachuful"})
+    get_pack("kachuful").validate_sync_round(game, body)
 
 
 def test_validate_round_metadata_second_round_descends():
     """Round 2, rounds_per_set=8 -> cards=7, trump=diamonds."""
     body = _make_sync_round(round_num=2, cards_dealt=7, trump_suit="diamonds")
-    game = _make_game_mock(settings={"rounds_per_set": 8})
-    _validate_round_metadata(body, game)  # should not raise
+    game = _make_game_mock(settings={"rounds_per_set": 8, "game_type": "kachuful"})
+    get_pack("kachuful").validate_sync_round(game, body)
 
 
 # ---------------------------------------------------------------------------
-# _validate_scores
+# Judgement pack score re-derivation
 # ---------------------------------------------------------------------------
 
 
 def test_validate_scores_passes_when_scores_match():
     """Client scores that match server-derived scores — must not raise."""
-    # Alice bids 2, wins 2 -> 20; Bob bids 0, wins 0 -> 10
     body = _make_sync_round(
         bids={"0": 2, "1": 0},
         hands_won={"0": 2, "1": 0},
         scores={"0": 20, "1": 10},
     )
-    _validate_scores(body, "kachuful_standard")  # should not raise
+    game = _make_game_mock(
+        settings={"rounds_per_set": 8, "scoring_formula": "kachuful_standard"}
+    )
+    get_pack("kachuful").validate_sync_round(game, body)
 
 
 def test_validate_scores_raises_on_mismatched_scores():
@@ -259,10 +259,13 @@ def test_validate_scores_raises_on_mismatched_scores():
     body = _make_sync_round(
         bids={"0": 3, "1": 2},
         hands_won={"0": 3, "1": 2},
-        scores={"0": 0, "1": 0},  # wrong — should be 30 and 20
+        scores={"0": 0, "1": 0},
+    )
+    game = _make_game_mock(
+        settings={"rounds_per_set": 8, "scoring_formula": "kachuful_standard"}
     )
     with pytest.raises(HTTPException) as exc_info:
-        _validate_scores(body, "kachuful_standard")
+        get_pack("kachuful").validate_sync_round(game, body)
     assert exc_info.value.status_code == 409
     assert "Score mismatch" in exc_info.value.detail
 
@@ -270,33 +273,43 @@ def test_validate_scores_raises_on_mismatched_scores():
 def test_validate_scores_raises_422_on_unknown_formula():
     """Unknown formula name passed to scoring engine — must raise 422."""
     body = _make_sync_round(
-        bids={"0": 1},
-        hands_won={"0": 1},
-        scores={"0": 11},
+        bids={"0": 1, "1": 0},
+        hands_won={"0": 1, "1": 0},
+        scores={"0": 11, "1": 10},
+        cards_dealt=8,
+    )
+    game = _make_game_mock(
+        settings={"rounds_per_set": 8, "scoring_formula": "nonexistent_formula"}
     )
     with pytest.raises(HTTPException) as exc_info:
-        _validate_scores(body, "nonexistent_formula")
+        get_pack("kachuful").validate_sync_round(game, body)
     assert exc_info.value.status_code == 422
 
 
 def test_validate_scores_zeros_formula_bid_1_made_equals_10():
     """kachuful_zeros: bid 1, won 1 -> 10 (not 11)."""
     body = _make_sync_round(
-        bids={"0": 1},
-        hands_won={"0": 1},
-        scores={"0": 10},
+        bids={"0": 1, "1": 0},
+        hands_won={"0": 1, "1": 0},
+        scores={"0": 10, "1": 10},
     )
-    _validate_scores(body, "kachuful_zeros")  # should not raise
+    game = _make_game_mock(
+        settings={"rounds_per_set": 8, "scoring_formula": "kachuful_zeros"}
+    )
+    get_pack("kachuful").validate_sync_round(game, body)
 
 
 def test_validate_scores_standard_formula_bid_1_made_equals_11():
     """kachuful_standard: bid 1, won 1 -> 11."""
     body = _make_sync_round(
-        bids={"0": 1},
-        hands_won={"0": 1},
-        scores={"0": 11},
+        bids={"0": 1, "1": 0},
+        hands_won={"0": 1, "1": 0},
+        scores={"0": 11, "1": 10},
     )
-    _validate_scores(body, "kachuful_standard")  # should not raise
+    game = _make_game_mock(
+        settings={"rounds_per_set": 8, "scoring_formula": "kachuful_standard"}
+    )
+    get_pack("kachuful").validate_sync_round(game, body)
 
 
 # ---------------------------------------------------------------------------

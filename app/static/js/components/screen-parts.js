@@ -14,6 +14,7 @@ export function setScreenContext(phase, game) {
     document.body.setAttribute('data-phase', phase);
     if (game && game.settings) {
         document.body.setAttribute('data-appearance', game.settings.appearance || 'standard');
+        document.body.setAttribute('data-game-type', game.settings.game_type || 'kachuful');
     }
 }
 

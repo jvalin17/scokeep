@@ -4,12 +4,14 @@ import { getPlayground, createGame as createServerGame, getActiveGame as getServ
 import { createOnlineGame, loadGameFromServer, endGame as endLocalGame, confirmFinal as confirmLocalFinal } from '../game-api.js';
 import { initDragReorder } from '../components/drag-reorder.js';
 import { escapeHtml } from '../components/game-utils.js';
-import { renderSettingsGrid, readSettings } from '../components/game-settings.js';
+import { renderSettingsGrid, renderGameTypeTabs, readSettings, bindToggleLabels } from '../components/game-settings.js';
 import { isMuted, toggleMute, soundEndGame } from '../components/sounds.js';
 import { showConfirmDialog } from '../components/confirm-dialog.js';
 import { getSyncPendingGames, attemptSyncBack, retrySyncQueue } from '../engine/sync-manager.js';
 import { getActiveGameForRoom, getSyncQueue } from '../engine/store.js';
 import { logger } from '../components/logger.js';
+import { getPack, startRouteFor, routeFor } from '../packs/registry.js';
+import { initialGameTypeForLobby, renderResumeBlock } from './lobby-resume.js';
 
 let syncTimer = null;
 
@@ -20,7 +22,8 @@ export const lobbyScreen = {
         if (!state.playground) {
             try {
                 state.playground = await getPlayground(shareCode);
-            } catch {
+            } catch (error) {
+                logger.warn('lobby', `Failed to load playground: ${error?.message || error}`);
                 navigate('');
                 return;
             }
@@ -28,7 +31,6 @@ export const lobbyScreen = {
 
         const playground = state.playground;
         let players = [...playground.players];
-
         // Prefer local IDB active game for this room (IDB-first local game- ids).
         let activeGame = await getActiveGameForRoom(playground.share_code);
         if (!activeGame) {
@@ -37,8 +39,11 @@ export const lobbyScreen = {
                 if (serverActive) {
                     activeGame = await loadGameFromServer(serverActive.id);
                 }
-            } catch { /* no active game */ }
+            } catch (error) {
+                logger.warn('lobby', `No server active game: ${error?.message || error}`);
+            }
         }
+        let selectedGameType = initialGameTypeForLobby(activeGame);
 
         function renderLobby() {
             container.innerHTML = `
@@ -49,15 +54,7 @@ export const lobbyScreen = {
                         <p class="share-code">Code: <strong>${escapeHtml(playground.share_code)}</strong></p>
                     </div>
 
-                    ${activeGame ? `
-                        <div class="active-game-actions">
-                            <button id="resume-game" class="btn btn-primary btn-large">Resume Game (Round ${activeGame.current_round})</button>
-                            <button id="game-settings-toggle" class="btn-text" style="font-size:0.8rem;margin-top:8px;">⚙ Options</button>
-                            <div id="game-settings-panel" class="hidden" style="margin-top:8px;">
-                                <button id="end-active-game" class="btn-small" style="background:var(--danger);color:#fff;font-size:0.8rem;">End Game</button>
-                            </div>
-                        </div>
-                    ` : ''}
+                    ${renderResumeBlock(activeGame, selectedGameType)}
 
                     <div id="sync-section" class="hidden" style="margin-bottom:12px;">
                         <button id="sync-now" class="btn btn-primary btn-small">Sync now</button>
@@ -83,9 +80,16 @@ export const lobbyScreen = {
                     </section>
 
                     <section class="lobby-section">
-                        <h3>Settings</h3>
-                        ${renderSettingsGrid({ prefix: 'setting', playerCount: players.length })}
-
+                        <h3>Game</h3>
+                        ${renderGameTypeTabs(selectedGameType)}
+                        <div id="lobby-settings-host" class="lobby-game-settings" role="tabpanel"
+                            aria-labelledby="${selectedGameType === 'scoresheet' ? 'game-tab-scoresheet' : 'game-tab-kachuful'}">
+                        ${renderSettingsGrid({
+                            prefix: 'setting',
+                            playerCount: players.length,
+                            gameType: selectedGameType,
+                        })}
+                        </div>
                     </section>
 
                     <button id="start-game" class="btn btn-primary btn-large">Start Game</button>
@@ -101,20 +105,20 @@ export const lobbyScreen = {
             checkPendingSyncs();
         }
 
-        function bindEvents() {
-            // Home button
+
+        function showLobbyError(message) {
+            const errorEl = container.querySelector('#lobby-error');
+            if (!errorEl) return;
+            errorEl.textContent = message;
+            errorEl.classList.remove('hidden');
+        }
+
+        function bindHomeAndPlayers() {
             const homeBtn = container.querySelector('#lobby-home');
             if (homeBtn) homeBtn.addEventListener('click', () => { location.hash = ''; });
 
-            // Add player
             const addBtn = container.querySelector('#add-player-btn');
             const newPlayerInput = container.querySelector('#new-player');
-            const showLobbyError = (message) => {
-                const errorEl = container.querySelector('#lobby-error');
-                if (!errorEl) return;
-                errorEl.textContent = message;
-                errorEl.classList.remove('hidden');
-            };
             addBtn.addEventListener('click', () => {
                 const name = newPlayerInput.value.trim();
                 if (!name) {
@@ -137,65 +141,6 @@ export const lobbyScreen = {
                 }
             });
 
-            // Game settings toggle
-            const settingsToggle = container.querySelector('#game-settings-toggle');
-            if (settingsToggle) {
-                settingsToggle.addEventListener('click', () => {
-                    container.querySelector('#game-settings-panel').classList.toggle('hidden');
-                });
-            }
-
-            // Resume active game
-            const resumeBtn = container.querySelector('#resume-game');
-            if (resumeBtn) {
-                resumeBtn.addEventListener('click', () => {
-                    state.game = activeGame;
-                    document.body.setAttribute('data-appearance', activeGame.settings.appearance || 'standard');
-                    const phase = activeGame.phase;
-                    if (phase === 'bidding') { navigate(`bid/${activeGame.id}`); return; }
-                    if (phase === 'playing') { navigate(`play/${activeGame.id}`); return; }
-                    if (phase === 'round_end') { navigate(`roundend/${activeGame.id}`); return; }
-                    if (phase === 'final') { navigate(`final/${activeGame.id}`); return; }
-                    navigate(`scoreboard/${activeGame.id}`);
-                });
-            }
-
-            // End active game from lobby — must finish on server (/end + /confirm-final)
-            // or Resume stays forever (active endpoint keys off status=active).
-            const endActiveBtn = container.querySelector('#end-active-game');
-            if (endActiveBtn) {
-                endActiveBtn.addEventListener('click', async () => {
-                    const confirmed = await showConfirmDialog('End this game? Scores so far will be saved.');
-                    if (!confirmed) return;
-                    const gameId = activeGame.id;
-                    const errorEl = container.querySelector('#lobby-error');
-                    endActiveBtn.disabled = true;
-                    try {
-                        try { await endLocalGame(gameId); } catch { /* may already be finished */ }
-                        const finished = await confirmLocalFinal(gameId);
-                        if (finished.server_end_pending || finished.sync_pending) {
-                            if (errorEl) {
-                                errorEl.textContent = 'Could not finish on server — check connection and tap Sync now, then End Game again.';
-                                errorEl.classList.remove('hidden');
-                            }
-                            const syncSection = container.querySelector('#sync-section');
-                            if (syncSection) syncSection.classList.remove('hidden');
-                            return;
-                        }
-                        soundEndGame();
-                        navigate(`scoreboard/${gameId}`);
-                    } catch {
-                        if (errorEl) {
-                            errorEl.textContent = 'Could not end game — try again when online.';
-                            errorEl.classList.remove('hidden');
-                        }
-                    } finally {
-                        endActiveBtn.disabled = false;
-                    }
-                });
-            }
-
-            // Remove player
             container.querySelectorAll('[data-remove]').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const index = parseInt(btn.dataset.remove);
@@ -204,12 +149,72 @@ export const lobbyScreen = {
                 });
             });
 
-            // Touch drag to reorder
             const playerList = container.querySelector('#player-list');
             if (lobbyScreen._cleanupDrag) lobbyScreen._cleanupDrag();
             lobbyScreen._cleanupDrag = initDragReorder(container, playerList, players, renderLobby);
+        }
 
-            // Must-lose toggle label
+        function bindResumeAndEnd() {
+            const settingsToggle = container.querySelector('#game-settings-toggle');
+            if (settingsToggle) {
+                settingsToggle.addEventListener('click', () => {
+                    container.querySelector('#game-settings-panel').classList.toggle('hidden');
+                });
+            }
+
+            const resumeBtn = container.querySelector('#resume-game');
+            if (resumeBtn) {
+                resumeBtn.addEventListener('click', () => {
+                    state.game = activeGame;
+                    document.body.setAttribute('data-appearance', activeGame.settings.appearance || 'standard');
+                    const screen = routeFor(activeGame);
+                    navigate(`${screen}/${activeGame.id}`);
+                });
+            }
+
+            const endActiveBtn = container.querySelector('#end-active-game');
+            if (!endActiveBtn) return;
+            endActiveBtn.addEventListener('click', async () => {
+                const confirmed = await showConfirmDialog('End this game? Scores so far will be saved.');
+                if (!confirmed) return;
+                const gameId = activeGame.id;
+                const errorEl = container.querySelector('#lobby-error');
+                endActiveBtn.disabled = true;
+                try {
+                    try { await endLocalGame(gameId); } catch { /* may already be finished */ }
+                    const finished = await confirmLocalFinal(gameId);
+                    if (finished.server_end_pending || finished.sync_pending) {
+                        if (errorEl) {
+                            errorEl.textContent = 'Could not finish on server — check connection and tap Sync now, then End Game again.';
+                            errorEl.classList.remove('hidden');
+                        }
+                        const syncSection = container.querySelector('#sync-section');
+                        if (syncSection) syncSection.classList.remove('hidden');
+                        return;
+                    }
+                    soundEndGame();
+                    navigate(`scoreboard/${gameId}`);
+                } catch {
+                    if (errorEl) {
+                        errorEl.textContent = 'Could not end game — try again when online.';
+                        errorEl.classList.remove('hidden');
+                    }
+                } finally {
+                    endActiveBtn.disabled = false;
+                }
+            });
+        }
+
+        function bindGameTypeTabs() {
+            container.querySelectorAll('[data-game-tab]').forEach((tab) => {
+                tab.addEventListener('click', () => {
+                    const nextType = tab.getAttribute('data-game-tab') || 'kachuful';
+                    if (nextType === selectedGameType) return;
+                    selectedGameType = nextType;
+                    renderLobby();
+                });
+            });
+            bindToggleLabels(container);
             const mustLoseCheckbox = container.querySelector('#setting-must-lose');
             if (mustLoseCheckbox) {
                 mustLoseCheckbox.addEventListener('change', () => {
@@ -217,15 +222,19 @@ export const lobbyScreen = {
                         mustLoseCheckbox.checked ? 'On' : 'Off';
                 });
             }
+        }
 
-            // Start game
+        function bindStartAndChrome() {
             container.querySelector('#start-game').addEventListener('click', async () => {
                 const errorElement = container.querySelector('#lobby-error');
                 errorElement.classList.add('hidden');
 
+                const gameType = selectedGameType || 'kachuful';
+                const pack = getPack(gameType);
                 const settings = {
-                    game_type: 'kachuful',
-                    ...readSettings(container, 'setting'),
+                    ...pack.settingsDefaults,
+                    ...readSettings(container, 'setting', gameType),
+                    game_type: gameType,
                 };
 
                 try {
@@ -237,8 +246,10 @@ export const lobbyScreen = {
                         playground.share_code,
                     );
                     state.game = game;
-                    document.body.setAttribute('data-appearance', settings.appearance);
-                    navigate(`bid/${game.id}`);
+                    document.body.setAttribute('data-appearance', settings.appearance || 'standard');
+                    document.body.setAttribute('data-game-type', gameType || 'kachuful');
+                    const startScreen = startRouteFor(gameType);
+                    navigate(`${startScreen}/${game.id}`);
                 } catch (error) {
                     errorElement.textContent = error.message;
                     errorElement.classList.remove('hidden');
@@ -246,7 +257,7 @@ export const lobbyScreen = {
             });
 
             container.querySelector('#view-stats').addEventListener('click', () => {
-                navigate(`stats/${playground.share_code}`);
+                navigate(`stats/${playground.share_code}/${selectedGameType || 'kachuful'}`);
             });
 
             container.querySelector('#toggle-sound').addEventListener('click', () => {
@@ -256,44 +267,49 @@ export const lobbyScreen = {
                 soundBtn.setAttribute('aria-label', muted ? 'Unmute sound' : 'Mute sound');
             });
 
-            // Sync button — retry round queue then pending imports
             const syncBtn = container.querySelector('#sync-now');
-            if (syncBtn) {
-                syncBtn.addEventListener('click', async () => {
-                    const resultEl = container.querySelector('#sync-result');
-                    syncBtn.disabled = true;
-                    syncBtn.setAttribute('aria-busy', 'true');
-                    resultEl.classList.remove('hidden');
-                    resultEl.textContent = 'Syncing...';
+            if (!syncBtn) return;
+            syncBtn.addEventListener('click', async () => {
+                const resultEl = container.querySelector('#sync-result');
+                syncBtn.disabled = true;
+                syncBtn.setAttribute('aria-busy', 'true');
+                resultEl.classList.remove('hidden');
+                resultEl.textContent = 'Syncing...';
 
-                    const queueResult = await retrySyncQueue();
-                    const result = await attemptSyncBack(shareCode);
-                    const synced = result.synced ?? 0;
-                    const failed = result.failed ?? 0;
-                    const queueFailed = queueResult.failed || !queueResult.drained;
+                const queueResult = await retrySyncQueue();
+                const result = await attemptSyncBack(shareCode);
+                const synced = result.synced ?? 0;
+                const failed = result.failed ?? 0;
+                const queueFailed = queueResult.failed || !queueResult.drained;
 
-                    if (result.skipped && synced === 0 && failed === 0 && queueResult.drained) {
-                        resultEl.textContent = 'Could not reach server. Retry?';
-                        syncBtn.disabled = false;
-                        syncBtn.removeAttribute('aria-busy');
-                        return;
-                    }
-
-                    if (failed === 0 && !queueFailed) {
-                        const queueSynced = queueResult.remaining === 0 ? 'queue clear' : '';
-                        resultEl.textContent = synced === 0
-                            ? (queueSynced ? 'Rounds synced' : 'Nothing to sync')
-                            : `${synced} game${synced === 1 ? '' : 's'} synced!`;
-                        syncTimer = setTimeout(() => {
-                            container.querySelector('#sync-section')?.classList.add('hidden');
-                        }, 3000);
-                    } else {
-                        resultEl.textContent = `${synced} synced, ${failed + (queueFailed ? 1 : 0)} failed. Retry?`;
-                        syncBtn.disabled = false;
-                    }
+                if (result.skipped && synced === 0 && failed === 0 && queueResult.drained) {
+                    resultEl.textContent = 'Could not reach server. Retry?';
+                    syncBtn.disabled = false;
                     syncBtn.removeAttribute('aria-busy');
-                });
-            }
+                    return;
+                }
+
+                if (failed === 0 && !queueFailed) {
+                    const queueSynced = queueResult.remaining === 0 ? 'queue clear' : '';
+                    resultEl.textContent = synced === 0
+                        ? (queueSynced ? 'Rounds synced' : 'Nothing to sync')
+                        : `${synced} game${synced === 1 ? '' : 's'} synced!`;
+                    syncTimer = setTimeout(() => {
+                        container.querySelector('#sync-section')?.classList.add('hidden');
+                    }, 3000);
+                } else {
+                    resultEl.textContent = `${synced} synced, ${failed + (queueFailed ? 1 : 0)} failed. Retry?`;
+                    syncBtn.disabled = false;
+                }
+                syncBtn.removeAttribute('aria-busy');
+            });
+        }
+
+        function bindEvents() {
+            bindHomeAndPlayers();
+            bindResumeAndEnd();
+            bindGameTypeTabs();
+            bindStartAndChrome();
         }
 
         async function checkPendingSyncs() {

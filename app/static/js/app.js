@@ -14,6 +14,7 @@ import { scoreboardScreen } from './screens/scoreboard.js';
 import { reviewScreen } from './screens/review.js';
 import { finalScreen } from './screens/final.js';
 import { statsScreen } from './screens/stats.js';
+import { entryScreen } from './screens/entry.js';
 
 
 const state = {
@@ -27,7 +28,7 @@ let currentScreen = null;
 
 // Keep-alive: ping /api/health every 10 min on game screens to prevent Render spin-down
 const KEEP_ALIVE_INTERVAL_MS = 10 * 60 * 1000;
-const GAME_SCREENS = new Set(['bid', 'play', 'roundend', 'scoreboard', 'review']);
+const GAME_SCREENS = new Set(['bid', 'play', 'roundend', 'scoreboard', 'review', 'entry']);
 let keepAliveTimer = null;
 
 function startKeepAlive() {
@@ -56,7 +57,7 @@ const routes = {
     'review': reviewScreen,
     'final': finalScreen,
     'stats': statsScreen,
-
+    'entry': entryScreen,
 };
 
 function parseHash() {

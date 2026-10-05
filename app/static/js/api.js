@@ -141,9 +141,23 @@ export function getPlayground(shareCode) {
     return request('GET', `/playground/${shareCode}`);
 }
 
-export function getPlaygroundStats(shareCode, { offset = 0, limit = 40 } = {}) {
-    const params = offset > 0 ? `?offset=${offset}&limit=${limit}` : '';
-    return request('GET', `/playground/${shareCode}/stats${params}`);
+/**
+ * Build relative stats API path (no /api prefix).
+ * @param {string} shareCode
+ * @param {{ offset?: number, limit?: number, gameType?: string }} [options]
+ * @returns {string}
+ */
+export function buildPlaygroundStatsPath(shareCode, { offset = 0, limit = 40, gameType } = {}) {
+    const query = new URLSearchParams();
+    if (offset > 0) query.set('offset', String(offset));
+    if (offset > 0 || limit !== 40) query.set('limit', String(limit));
+    if (gameType) query.set('game_type', gameType);
+    const qs = query.toString();
+    return `/playground/${shareCode}/stats${qs ? `?${qs}` : ''}`;
+}
+
+export function getPlaygroundStats(shareCode, options = {}) {
+    return request('GET', buildPlaygroundStatsPath(shareCode, options));
 }
 
 export function clearPlaygroundStats(shareCode) {

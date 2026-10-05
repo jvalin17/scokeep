@@ -419,6 +419,34 @@ describe('test_create_game_has_client_game_id', () => {
   });
 });
 
+describe('test_create_scoresheet_preserves_type_and_entry_phase', () => {
+  it('createGame keeps game_type and starts Scoresheet at entry', async () => {
+    const game = await createGame(makePlayers(), {
+      game_type: 'scoresheet',
+      winner: 'lowest',
+      show_totals: false,
+      allow_negatives: true,
+      label: 'Declare',
+      appearance: 'interactive',
+      rounds_per_set: 8,
+      num_sets: 3,
+    });
+    expect(game.settings.game_type).toBe('scoresheet');
+    expect(game.settings.winner).toBe('lowest');
+    expect(game.settings.show_totals).toBe(false);
+    expect(game.settings.allow_negatives).toBe(true);
+    expect(game.settings.label).toBe('Declare');
+    expect(game.phase).toBe('entry');
+    expect(game.total_rounds).toBeGreaterThanOrEqual(100);
+  });
+
+  it('createGame defaults Judgement game_type and bidding phase', async () => {
+    const game = await createGame(makePlayers(), makeSettings());
+    expect(game.settings.game_type).toBe('kachuful');
+    expect(game.phase).toBe('bidding');
+  });
+});
+
 describe('test_create_game_linked_room_defaults_null', () => {
   it('createGame sets linked_room to null by default', async () => {
     const game = await createGame(makePlayers(), makeSettings());

@@ -20,6 +20,7 @@ import * as engine from './engine/game-engine.js';
 import { saveGame as storeSaveGame, saveRound as storeSaveRound, getRound as storeGetRound, findGameByServerId } from './engine/store.js';
 import { syncManager } from './engine/sync-manager.js';
 import { logger } from './components/logger.js';
+import { routeFor } from './packs/registry.js';
 
 /**
  * Quiet finalize for a server game — no reconnect banner, no long retries.
@@ -55,17 +56,6 @@ async function finalizeServerGameQuiet(serverGameId) {
   }
   return confirmResponse.json().catch(() => ({}));
 }
-
-const PHASE_ROUTES = {
-  bidding: 'bid',
-  playing: 'play',
-  round_end: 'roundend',
-  scoring: 'scoreboard',
-  scoreboard: 'scoreboard',
-  review: 'review',
-  final: 'final',
-  finished: 'scoreboard',
-};
 
 const FETCH_TIMEOUT_MS = 15000;
 
@@ -144,7 +134,7 @@ export async function guardPhase(gameId, expectedPhase) {
   if (!game) return null;
 
   if (game.phase !== expectedPhase) {
-    const route = PHASE_ROUTES[game.phase] || 'scoreboard';
+    const route = routeFor(game);
     window.location.hash = `${route}/${gameId}`;
     return null;
   }
@@ -163,7 +153,7 @@ export async function resyncGame(gameId) {
     game = await loadGameFromServer(gameId);
   }
   if (!game) throw new Error(`Game not found: ${gameId}`);
-  const route = PHASE_ROUTES[game.phase] || 'scoreboard';
+  const route = routeFor(game);
   window.location.hash = `${route}/${gameId}`;
   return game;
 }
@@ -212,8 +202,10 @@ export async function rescoreRound(gameId, roundNum) {
   }
 
   // Set current_round to the round being rescored so endRound targets it.
+  // Flag mirrors server enter_review_rescore so endRound returns to review.
   game.current_round = roundNum;
   game.phase = 'round_end';
+  game.settings = { ...(game.settings || {}), _review_rescore: true };
   await storeSaveGame(game);
   return game;
 }
@@ -382,6 +374,25 @@ export async function endRound(gameId) {
   const game = await engine.getGame(gameId);
   if (game && game.server_game_id) {
     syncManager.syncRound(game.server_game_id, round);
+  }
+  return round;
+}
+
+/**
+ * Lock Scoresheet scores locally then background-sync (never on keypress).
+ *
+ * @param {string} gameId
+ * @param {Object.<string|number, number>} scoresByPlayerIndex
+ * @returns {Promise<Object>} Completed round.
+ */
+export async function lockScoresheetRound(gameId, scoresByPlayerIndex) {
+  const round = await engine.lockScoresheetRound(gameId, scoresByPlayerIndex);
+  const game = await engine.getGame(gameId);
+  if (game && game.server_game_id) {
+    syncManager.syncRound(game.server_game_id, round);
+    if (typeof syncManager.syncState === 'function') {
+      syncManager.syncState(game.server_game_id, game).catch(() => {});
+    }
   }
   return round;
 }

@@ -7,6 +7,7 @@ from app.constants import HIGH_ROLLER_MIN_BID
 from app.models.game import Game
 from app.models.round import Round
 from app.services.round_utils import _iter_round_bids
+from app.services.stats_filter import filter_games_by_type
 
 # Career record rules: name → condition(bid, hand, cards_dealt)
 CAREER_RULES = {
@@ -68,29 +69,41 @@ class AnalyticsService:
         *,
         offset: int = 0,
         page_size: int = 40,
+        game_type: str | None = "all",
     ) -> dict:
-        # empty_highlights keys must match _career_tables output:
-        # "sniper","zero_master","high_roller","all_in","jinxed","perfect_set",
-        # "hot_hand","biggest_bid","set_champion","set_disaster","comeback_king",
-        # "sweep","iron_wall","heartbreaker"
         games, all_rounds = await AnalyticsService._load_data(db, playground_id)
+        games = filter_games_by_type(games, game_type)
+        effective_insights = insights_blob
+        if game_type and game_type not in ("all", "kachuful"):
+            effective_insights = None
         if not games:
-            fallback_highlights = (insights_blob or {}).get("highlights", _build_empty_highlights())
+            if game_type and game_type != "all":
+                fallback_highlights = _build_empty_highlights()
+            else:
+                fallback_highlights = (effective_insights or {}).get(
+                    "highlights", _build_empty_highlights()
+                )
             return _build_stats_response(
                 [],
                 fallback_highlights,
-                insights_blob,
+                effective_insights,
                 offset=offset,
                 page_size=page_size,
             )
 
+        filtered_ids = {game.id for game in games}
+        all_rounds = [rnd for rnd in all_rounds if rnd.game_id in filtered_ids]
         rounds_by_game = AnalyticsService._group_rounds(all_rounds)
         game_history = AnalyticsService._calc_game_history(games, rounds_by_game)
-        highlights = _resolve_highlights(insights_blob, games, rounds_by_game)
+        highlights = _resolve_highlights(
+            effective_insights if (not game_type or game_type == "all") else None,
+            games,
+            rounds_by_game,
+        )
         return _build_stats_response(
             game_history,
             highlights,
-            insights_blob,
+            effective_insights,
             offset=offset,
             page_size=page_size,
         )
@@ -154,7 +167,7 @@ class AnalyticsService:
 
     @staticmethod
     def calc_last_game_awards(games, rounds_by_game) -> dict | None:
-        """Awards for the most recent finished game."""
+        """Awards for the most recent finished Judgement game (skip Scoresheet)."""
         sorted_games = sorted(
             games,
             key=lambda g: g.started_at or g.id,
@@ -163,6 +176,12 @@ class AnalyticsService:
             return None
 
         game = sorted_games[-1]
+        from app.services.packs.registry import AWARDS_GATE_JUDGEMENT_ML, get_pack_for_settings
+
+        pack = get_pack_for_settings(game.settings or {})
+        if pack.awards_gate != AWARDS_GATE_JUDGEMENT_ML:
+            return None
+
         game_rounds = rounds_by_game.get(game.id, [])
         if not game_rounds:
             return None
@@ -372,6 +391,7 @@ def _game_to_history(game, game_rounds):
             if idx < len(players):
                 game_totals[players[idx]] += score
 
+    settings = game.settings or {}
     return {
         "game_id": game.id,
         "date": game.started_at.isoformat() if game.started_at else None,
@@ -379,7 +399,9 @@ def _game_to_history(game, game_rounds):
         "scores": game_totals,
         "winner": determine_winner(players, game_rounds),
         "rounds_played": len(game_rounds),
-        "mode": game.settings.get("mode", "expert"),
+        "mode": settings.get("mode", "expert"),
+        "game_type": settings.get("game_type") or "kachuful",
+        "label": (settings.get("label") or "") if isinstance(settings.get("label"), str) else "",
     }
 
 

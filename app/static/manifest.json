@@ -4,8 +4,8 @@
   "description": "Score tracker for Kachuful (Judgement) card game",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#FAFAFA",
-  "theme_color": "#333333",
+  "background_color": "#F7F4EF",
+  "theme_color": "#0A5F6E",
   "orientation": "portrait",
   "icons": [
     {

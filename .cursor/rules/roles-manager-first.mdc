@@ -1,0 +1,18 @@
+---
+description: When user says use roles, start with manager to select applicable roles
+alwaysApply: true
+---
+
+# Role orchestration — manager first
+
+When the user says **use roles**, **role review**, or asks roles to decide/design/review:
+
+1. **Start with Manager** (primary agent acting as manager, or a manager subagent).
+   - Manager detects which roles apply from: task type, touched layers (UI/FE/BE/DB/infra/QA/security/legal/research), and active project roles.
+   - Manager outputs a short roster: role → why applicable (1 line each). Skip irrelevant roles.
+2. **Then** run only the selected roles (parallel when independent).
+3. Manager synthesizes verdicts; do not hardcode a fixed role list (architect/QA/infra only) unless Manager selected them.
+
+Examples of roles Manager may pick: architect, frontend, backend, UI/UX, QA, infrastructure, security, research, DBA, legal, production.
+
+Do not skip Manager detection when the user explicitly asks to use roles.

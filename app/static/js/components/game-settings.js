@@ -30,19 +30,74 @@ function renderCardsOptions(maxCards, selected) {
 }
 
 /**
+ * Lobby game-type tabs — Judgement vs Scoresheet (no dropdown).
+ *
+ * @param {'kachuful'|'scoresheet'|string} selected
+ * @returns {string} HTML string
+ */
+export function renderGameTypeTabs(selected = 'kachuful') {
+  const judgementActive = selected === 'kachuful' ? ' active' : '';
+  const scoresheetActive = selected === 'scoresheet' ? ' active' : '';
+  return `
+    <div class="lobby-game-tabs stats-tabs" role="tablist" aria-label="Game type">
+      <button type="button" role="tab" id="game-tab-kachuful" class="stats-tab${judgementActive}"
+        data-game-tab="kachuful" aria-selected="${selected === 'kachuful'}"
+        aria-controls="lobby-settings-host">Judgement</button>
+      <button type="button" role="tab" id="game-tab-scoresheet" class="stats-tab${scoresheetActive}"
+        data-game-tab="scoresheet" aria-selected="${selected === 'scoresheet'}"
+        aria-controls="lobby-settings-host">Scoresheet</button>
+    </div>
+  `;
+}
+
+/**
  * Render the full settings grid HTML.
  *
  * @param {Object} options
  * @param {string} options.prefix — ID prefix (e.g. 'setting', 'quick-setting')
  * @param {number} options.playerCount — number of players (for max cards calculation)
+ * @param {string} [options.gameType='kachuful'] — kachuful | scoresheet
  * @returns {string} HTML string
  */
-export function renderSettingsGrid({ prefix, playerCount }) {
+export function renderSettingsGrid({ prefix, playerCount, gameType = 'kachuful' }) {
+  if (gameType === 'scoresheet') {
+    return `
+    <div class="settings-grid" data-game-settings="scoresheet">
+      <label for="${prefix}-label">Label</label>
+      <input type="text" id="${prefix}-label" maxlength="80" placeholder="e.g. Declare" aria-label="Scoresheet label" />
+
+      <label for="${prefix}-winner">Winner</label>
+      <select id="${prefix}-winner" aria-label="Winner">
+        <option value="highest" selected>Highest total</option>
+        <option value="lowest">Lowest total</option>
+      </select>
+
+      <label>Show totals</label>
+      <label class="toggle">
+        <input type="checkbox" id="${prefix}-show-totals" checked>
+        <span class="toggle-label">On</span>
+      </label>
+
+      <label>Allow negatives</label>
+      <label class="toggle">
+        <input type="checkbox" id="${prefix}-allow-negatives">
+        <span class="toggle-label">Off</span>
+      </label>
+
+      <label>Appearance</label>
+      <select id="${prefix}-appearance">
+        <option value="interactive" selected>Navy (off-white)</option>
+        <option value="standard">Standard</option>
+      </select>
+    </div>
+  `;
+  }
+
   const maxCards = maxCardsForPlayers(playerCount);
   const defaultCards = Math.min(maxCards, 8);
 
   return `
-    <div class="settings-grid">
+    <div class="settings-grid" data-game-settings="kachuful">
       <label>Mode</label>
       <select id="${prefix}-mode">
         <option value="expert">Expert</option>
@@ -88,9 +143,28 @@ export function renderSettingsGrid({ prefix, playerCount }) {
  *
  * @param {HTMLElement} container — parent element containing the settings grid
  * @param {string} prefix — ID prefix used in renderSettingsGrid
+ * @param {string} [gameType] — when scoresheet, read Scoresheet fields
  * @returns {Object} Settings object ready for createGame
  */
-export function readSettings(container, prefix) {
+export function readSettings(container, prefix, gameType) {
+  const resolvedType =
+    gameType ||
+    container.querySelector('[data-game-settings]')?.getAttribute('data-game-settings') ||
+    'kachuful';
+
+  if (resolvedType === 'scoresheet') {
+    const showTotals = container.querySelector(`#${prefix}-show-totals`);
+    const allowNegatives = container.querySelector(`#${prefix}-allow-negatives`);
+    return {
+      game_type: 'scoresheet',
+      label: (container.querySelector(`#${prefix}-label`)?.value || '').trim(),
+      winner: container.querySelector(`#${prefix}-winner`)?.value || 'highest',
+      show_totals: showTotals ? showTotals.checked : true,
+      allow_negatives: allowNegatives ? allowNegatives.checked : false,
+      appearance: container.querySelector(`#${prefix}-appearance`)?.value || 'interactive',
+    };
+  }
+
   return {
     mode: container.querySelector(`#${prefix}-mode`).value,
     appearance: container.querySelector(`#${prefix}-appearance`).value,
@@ -115,3 +189,21 @@ export function updateCardsDropdown(container, prefix, playerCount) {
   const clampedValue = Math.min(currentValue, maxCards);
   select.innerHTML = renderCardsOptions(maxCards, clampedValue);
 }
+
+/**
+ * Keep On/Off toggle labels in sync with checkbox state.
+ * @param {HTMLElement} container
+ */
+export function bindToggleLabels(container) {
+  if (!container) return;
+  container.querySelectorAll('label.toggle input[type="checkbox"]').forEach((checkbox) => {
+    const label = checkbox.parentElement?.querySelector('.toggle-label');
+    if (!label) return;
+    const sync = () => {
+      label.textContent = checkbox.checked ? 'On' : 'Off';
+    };
+    sync();
+    checkbox.addEventListener('change', sync);
+  });
+}
+

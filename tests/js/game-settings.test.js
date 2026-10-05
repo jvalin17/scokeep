@@ -6,7 +6,12 @@
  * the cards-per-round dropdown when player count changes.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
-import { renderSettingsGrid, readSettings, updateCardsDropdown } from '../../app/static/js/components/game-settings.js';
+import {
+  renderSettingsGrid,
+  readSettings,
+  updateCardsDropdown,
+  bindToggleLabels,
+} from '../../app/static/js/components/game-settings.js';
 
 describe('renderSettingsGrid', () => {
   it('returns HTML with all 6 settings', () => {
@@ -37,7 +42,19 @@ describe('renderSettingsGrid', () => {
     const html = renderSettingsGrid({ prefix: 'x', playerCount: 0 });
     expect(html).toContain('value="26"'); // floor(52/2) = 26
   });
+
+  it('renders Scoresheet settings when gameType is scoresheet', () => {
+    const html = renderSettingsGrid({ prefix: 'ss', playerCount: 3, gameType: 'scoresheet' });
+    expect(html).toContain('data-game-settings="scoresheet"');
+    expect(html).toContain('id="ss-winner"');
+    expect(html).toContain('id="ss-show-totals"');
+    expect(html).toContain('id="ss-allow-negatives"');
+    expect(html).toContain('id="ss-label"');
+    expect(html).toContain('Navy (off-white)');
+    expect(html).not.toContain('id="ss-mode"');
+  });
 });
+
 
 describe('readSettings', () => {
   let container;
@@ -77,6 +94,47 @@ describe('readSettings', () => {
     expect(settings.num_sets).toBe(5);
     expect(settings.must_lose).toBe(false);
   });
+
+  it('reads Scoresheet settings from the DOM', () => {
+    container.innerHTML = renderSettingsGrid({
+      prefix: 'test',
+      playerCount: 3,
+      gameType: 'scoresheet',
+    });
+    container.querySelector('#test-label').value = 'Declare';
+    container.querySelector('#test-winner').value = 'lowest';
+    container.querySelector('#test-show-totals').checked = false;
+    container.querySelector('#test-allow-negatives').checked = true;
+
+    const settings = readSettings(container, 'test', 'scoresheet');
+    expect(settings.game_type).toBe('scoresheet');
+    expect(settings.label).toBe('Declare');
+    expect(settings.winner).toBe('lowest');
+    expect(settings.show_totals).toBe(false);
+    expect(settings.allow_negatives).toBe(true);
+  });
+});
+
+describe('bindToggleLabels', () => {
+  it('updates Allow negatives label from Off to On when checked', () => {
+    const container = document.createElement('div');
+    container.innerHTML = renderSettingsGrid({
+      prefix: 'test',
+      playerCount: 3,
+      gameType: 'scoresheet',
+    });
+    document.body.innerHTML = '';
+    document.body.appendChild(container);
+
+    bindToggleLabels(container);
+    const checkbox = container.querySelector('#test-allow-negatives');
+    const label = checkbox.parentElement.querySelector('.toggle-label');
+    expect(label.textContent).toBe('Off');
+
+    checkbox.checked = true;
+    checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(label.textContent).toBe('On');
+  });
 });
 
 describe('updateCardsDropdown', () => {
@@ -104,3 +162,11 @@ describe('updateCardsDropdown', () => {
     expect(container.querySelector('#up-cards').value).toBe('7');
   });
 });
+
+describe('scoresheet label field', () => {
+  it('caps label input at 80 characters', () => {
+    const html = renderSettingsGrid({ prefix: 'setting', playerCount: 2, gameType: 'scoresheet' });
+    expect(html).toMatch(/id="setting-label"[^>]*maxlength="80"/);
+  });
+});
+
