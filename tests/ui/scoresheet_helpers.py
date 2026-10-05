@@ -13,7 +13,7 @@ SEL_GAME_TYPE = '.lobby-game-tabs, [role="tablist"][aria-label="Game type"]'
 SEL_GAME_SCORESHEET = '[data-game-tab="scoresheet"]'
 SEL_DIALER_DISPLAY = "#score-display, .score-display, [data-dialer-display]"
 SEL_NEXT = '#btn-next, button:has-text("Next")'
-SEL_SIGN = '#btn-sign, [data-dialer-sign]'
+SEL_SIGN = "#btn-sign, [data-dialer-sign]"
 SEL_BACKSPACE = "[data-dialer-backspace]"
 SEL_REVIEW = "#scoresheet-review, .scoresheet-review, [data-scoresheet-review]"
 SEL_SCORE_ROUND = 'button:has-text("Score Round"), #btn-score-round'

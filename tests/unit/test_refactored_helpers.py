@@ -248,9 +248,7 @@ def test_validate_scores_passes_when_scores_match():
         hands_won={"0": 2, "1": 0},
         scores={"0": 20, "1": 10},
     )
-    game = _make_game_mock(
-        settings={"rounds_per_set": 8, "scoring_formula": "kachuful_standard"}
-    )
+    game = _make_game_mock(settings={"rounds_per_set": 8, "scoring_formula": "kachuful_standard"})
     get_pack("kachuful").validate_sync_round(game, body)
 
 
@@ -261,9 +259,7 @@ def test_validate_scores_raises_on_mismatched_scores():
         hands_won={"0": 3, "1": 2},
         scores={"0": 0, "1": 0},
     )
-    game = _make_game_mock(
-        settings={"rounds_per_set": 8, "scoring_formula": "kachuful_standard"}
-    )
+    game = _make_game_mock(settings={"rounds_per_set": 8, "scoring_formula": "kachuful_standard"})
     with pytest.raises(HTTPException) as exc_info:
         get_pack("kachuful").validate_sync_round(game, body)
     assert exc_info.value.status_code == 409
@@ -278,9 +274,7 @@ def test_validate_scores_raises_422_on_unknown_formula():
         scores={"0": 11, "1": 10},
         cards_dealt=8,
     )
-    game = _make_game_mock(
-        settings={"rounds_per_set": 8, "scoring_formula": "nonexistent_formula"}
-    )
+    game = _make_game_mock(settings={"rounds_per_set": 8, "scoring_formula": "nonexistent_formula"})
     with pytest.raises(HTTPException) as exc_info:
         get_pack("kachuful").validate_sync_round(game, body)
     assert exc_info.value.status_code == 422
@@ -293,9 +287,7 @@ def test_validate_scores_zeros_formula_bid_1_made_equals_10():
         hands_won={"0": 1, "1": 0},
         scores={"0": 10, "1": 10},
     )
-    game = _make_game_mock(
-        settings={"rounds_per_set": 8, "scoring_formula": "kachuful_zeros"}
-    )
+    game = _make_game_mock(settings={"rounds_per_set": 8, "scoring_formula": "kachuful_zeros"})
     get_pack("kachuful").validate_sync_round(game, body)
 
 
@@ -306,9 +298,7 @@ def test_validate_scores_standard_formula_bid_1_made_equals_11():
         hands_won={"0": 1, "1": 0},
         scores={"0": 11, "1": 10},
     )
-    game = _make_game_mock(
-        settings={"rounds_per_set": 8, "scoring_formula": "kachuful_standard"}
-    )
+    game = _make_game_mock(settings={"rounds_per_set": 8, "scoring_formula": "kachuful_standard"})
     get_pack("kachuful").validate_sync_round(game, body)
 
 

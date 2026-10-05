@@ -51,4 +51,3 @@ def test_apply_and_undo_negative_scores():
     after = apply_round(totals, round_scores)
     assert after == {"Alice": 5, "Bob": 12}
     assert undo_round(after, round_scores) == totals
-
