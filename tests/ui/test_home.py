@@ -57,3 +57,22 @@ def test_howto_includes_career_records_explanation(page, server):
 
     js = Path("app/static/js/screens/home.js").read_text()
     assert "Comeback King" in js or "Iron Wall" in js, "How To missing career record examples"
+
+
+def test_howto_includes_scoresheet_section(page, server):
+    """How To must explain Scoresheet settings and entry flow (multi-game)."""
+    from pathlib import Path
+
+    js = Path("app/static/js/screens/home.js").read_text()
+    assert "How to Use Scoresheet" in js, "How To missing Scoresheet heading"
+    for needle in (
+        "Show totals",
+        "Allow negatives",
+        "Highest",
+        "Lowest",
+        "dialer",
+        "Next Round",
+        "Finished",
+        "Undo Last Round",
+    ):
+        assert needle in js, f"How To Scoresheet missing: {needle}"

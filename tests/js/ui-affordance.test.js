@@ -60,6 +60,25 @@ describe('test_browse_close_label_is_plain_close', () => {
   });
 });
 
+describe('test_howto_includes_scoresheet_section', () => {
+  it('How To documents Scoresheet settings and entry flow', () => {
+    const home = readSource('app/static/js/screens/home.js');
+    expect(home).toContain('How to Use Scoresheet');
+    for (const needle of [
+      'Show totals',
+      'Allow negatives',
+      'Highest',
+      'Lowest',
+      'dialer',
+      'Next Round',
+      'Finished',
+      'Undo Last Round',
+    ]) {
+      expect(home, `missing: ${needle}`).toContain(needle);
+    }
+  });
+});
+
 describe('test_award_info_button_aria_label', () => {
   it('award info tip button uses a descriptive aria-label', () => {
     const awards = readSource('app/static/js/components/stats-awards.js');
