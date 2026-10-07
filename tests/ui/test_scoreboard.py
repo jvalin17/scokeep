@@ -81,6 +81,9 @@ def test_undo_round_navigates_to_bidding(page, server):
     page.wait_for_function("() => location.hash.includes('bid')", timeout=5000)
     url_hash = page.evaluate("() => location.hash")
     assert "bid" in url_hash, f"Expected hash to contain 'bid' after undo, got: {url_hash}"
+    # Wait for remount after undo navigate — hash can flip before keypad is live.
+    page.wait_for_selector(".bid-player-name", state="visible", timeout=10000)
+    page.wait_for_selector("#keypad-container .keypad-key", state="visible", timeout=10000)
 
     # Regression: undo used to delete round 1 without recreating it → "Round not found".
     # Re-entering bids proves the active round row exists and bidding works.
