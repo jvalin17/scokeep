@@ -5,7 +5,7 @@ Uses Playwright SYNC API. Selectors match the actual HTML in screens/*.js.
 
 import uuid
 
-from playwright.sync_api import Page
+from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError
 
 
 def unique_name(prefix: str) -> str:
@@ -64,21 +64,37 @@ def start_game(page: Page, settings: dict | None = None):
 
 
 def enter_bid(page: Page, value: int):
-    """Enter a bid via the keypad and wait for advance."""
-    # Capture current player name so we can detect screen advance
+    """Enter a bid via the keypad and wait for advance.
+
+    Retries the key tap: after undo/navigate, CI can click a keypad that is
+    about to remount, so the first tap never advances the player name.
+    """
     name_el = page.locator(".bid-player-name")
-    name_el.wait_for(state="attached", timeout=10000)
-    old_name = name_el.text_content() or ""
-    page.locator(f".keypad-key:has-text('{value}')").click()
-    # Wait until player name changes (next player) or disappears (confirm)
-    escaped = old_name.replace("'", "\\'")
-    page.wait_for_function(
-        "() => {"
-        "  const el = document.querySelector('.bid-player-name');"
-        f"  return !el || el.textContent !== '{escaped}';"
-        "}",
-        timeout=10000,
-    )
+    name_el.wait_for(state="visible", timeout=10000)
+    old_name = (name_el.text_content() or "").strip()
+    escaped = old_name.replace("\\", "\\\\").replace("'", "\\'")
+    # Prefer live collect keypad; fall back to any keypad key (round-end reuse).
+    key = page.locator(f"#keypad-container .keypad-key:text-is('{value}')").or_(
+        page.locator(f".keypad-key:text-is('{value}')")
+    ).first
+    last_error: Exception | None = None
+    for _attempt in range(3):
+        key.wait_for(state="visible", timeout=10000)
+        key.click()
+        try:
+            page.wait_for_function(
+                "() => {"
+                "  const el = document.querySelector('.bid-player-name');"
+                f"  return !el || (el.textContent || '').trim() !== '{escaped}';"
+                "}",
+                timeout=4000,
+            )
+            return
+        except PlaywrightTimeoutError as error:
+            last_error = error
+            continue
+    assert last_error is not None
+    raise last_error
 
 
 def enter_bids_for_all(page: Page, bids: list[int]):
