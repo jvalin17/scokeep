@@ -5,7 +5,8 @@ Uses Playwright SYNC API. Selectors match the actual HTML in screens/*.js.
 
 import uuid
 
-from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError
+from playwright.sync_api import Page
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 
 def unique_name(prefix: str) -> str:
@@ -74,9 +75,11 @@ def enter_bid(page: Page, value: int):
     old_name = (name_el.text_content() or "").strip()
     escaped = old_name.replace("\\", "\\\\").replace("'", "\\'")
     # Prefer live collect keypad; fall back to any keypad key (round-end reuse).
-    key = page.locator(f"#keypad-container .keypad-key:text-is('{value}')").or_(
-        page.locator(f".keypad-key:text-is('{value}')")
-    ).first
+    key = (
+        page.locator(f"#keypad-container .keypad-key:text-is('{value}')")
+        .or_(page.locator(f".keypad-key:text-is('{value}')"))
+        .first
+    )
     last_error: Exception | None = None
     for _attempt in range(3):
         key.wait_for(state="visible", timeout=10000)
