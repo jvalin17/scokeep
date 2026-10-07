@@ -25,6 +25,7 @@ export const reviewScreen = {
 
         document.body.setAttribute('data-phase', 'review');
         document.body.setAttribute('data-appearance', game.settings.appearance || 'standard');
+        document.body.setAttribute('data-game-type', game.settings.game_type || 'kachuful');
 
         async function finalizeGame() {
             try {
@@ -37,9 +38,10 @@ export const reviewScreen = {
         }
 
         function renderReview() {
+            const lowestWins = game.settings?.winner === 'lowest';
             const standings = players.map((name, index) => ({
                 name, score: totals[String(index)] || 0,
-            })).sort((a, b) => b.score - a.score);
+            })).sort((a, b) => (lowestWins ? a.score - b.score : b.score - a.score));
 
             container.innerHTML = `
                 <div class="review-screen">

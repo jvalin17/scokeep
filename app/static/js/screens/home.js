@@ -38,13 +38,24 @@ function _howtoHtml() {
             <h4>Scoring</h4>
             <table class="howto-table"><thead><tr><th>Bid</th><th>Made</th><th>Missed</th></tr></thead>
             <tbody><tr><td>0</td><td>+10</td><td>-10</td></tr><tr><td>1</td><td>+11</td><td>-11</td></tr><tr><td>2-8</td><td>+N x 10</td><td>-N x 10</td></tr></tbody></table>
+            <h3 style="margin-top:24px;">How to Use Scoresheet</h3>
+            <p>Scoresheet is for any names-and-scores game — Declare, mini golf, house rules — without Judgement bids or trump.</p>
+            <div class="howto-steps">
+                <div class="howto-step"><strong>1. Pick Scoresheet</strong><p>In the lobby, tap the Scoresheet tab. The same room players are used; no separate roster.</p></div>
+                <div class="howto-step"><strong>2. Set Options</strong><p>Optional label (e.g. Declare). Winner: Highest or Lowest total. Show totals after each round On/Off. Allow negatives On/Off (shows a ± key on the pad when On).</p></div>
+                <div class="howto-step"><strong>3. Enter Scores</strong><p>One player at a time. Use the dialer keypad (0–9, ⌫) — digits build a buffer; tap Next to commit and advance. Last player: tap Next again to open round review.</p></div>
+                <div class="howto-step"><strong>4. Review &amp; Lock</strong><p>Check the confirm strip, edit any row if needed, then score the round. Play as many open-ended rounds as you want.</p></div>
+                <div class="howto-step"><strong>5. Next Round or Finished</strong><p>Next Round starts another entry pass. Finished ends the game and shows ranking (by Highest or Lowest).</p></div>
+                <div class="howto-step"><strong>6. Fix Mistakes</strong><p>Undo Last Round or Edit any completed round — same trust as Judgement. Offline play syncs when a round is finished.</p></div>
+                <div class="howto-step"><strong>7. Stats</strong><p>Filter Stats by All / Judgement / Scoresheet. Judgement personality awards stay Judgement-only; Scoresheet uses lightweight game history.</p></div>
+            </div>
             <h3 style="margin-top:24px;">How to Use Scokeep</h3>
             <div class="howto-steps">
                 <div class="howto-step"><strong>1. Create a Room</strong><p>Give your group a name, a 4-digit PIN, and an optional PIN hint. Add player names and drag to set seating order. Rooms are reusable.</p></div>
                 <div class="howto-step"><strong>2. Find Your Room</strong><p>On the Join tab, tap Browse All Rooms. Type a player's name to filter. Forgot your PIN? Tap Forgot PIN? to see the hint.</p></div>
-                <div class="howto-step"><strong>3. Pick Settings</strong><p>Choose game mode, scoring type, number of sets, cards per round, appearance, and must-lose toggle.</p></div>
-                <div class="howto-step"><strong>4. Enter Bids</strong><p>Tap each player's bid on the keypad. Edit any bid on the confirm screen before starting the round.</p></div>
-                <div class="howto-step"><strong>5. Play & Score</strong><p>Tap how many tricks each player won. Edit Hands to re-enter and re-score. Undo Last Round to start over.</p></div>
+                <div class="howto-step"><strong>3. Pick Settings</strong><p>Choose Judgement or Scoresheet. For Judgement: mode, scoring type, sets, cards per round, appearance, must-lose. For Scoresheet: see How to Use Scoresheet above.</p></div>
+                <div class="howto-step"><strong>4. Enter Bids</strong><p>Judgement: tap each player's bid on the keypad. Edit any bid on the confirm screen before starting the round.</p></div>
+                <div class="howto-step"><strong>5. Play &amp; Score</strong><p>Judgement: tap how many tricks each player won. Edit Hands to re-enter and re-score. Undo Last Round to start over.</p></div>
                 <div class="howto-step"><strong>Takeover Anytime</strong><p>Anyone with the room name and PIN can take over scoring mid-game.</p></div>
                 <div class="howto-step"><strong>6. Extend or End</strong><p>Add 1-4 more sets or see final scores. Sets alternate direction. Game recoverable for 30 minutes.</p></div>
                 <div class="howto-step"><strong>7. Stats & Insights</strong><p>Career awards, game history, score charts. After first game, each player unlocks a Personality Card.</p></div>

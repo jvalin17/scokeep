@@ -94,7 +94,9 @@ function _makeRound(game, roundNum) {
 export async function createGame(players, settings) {
   const roundsPerSet = settings.rounds_per_set ?? 8;
   const numSets = settings.num_sets ?? 3;
-  const totalRounds = roundsPerSet * numSets;
+  const gameType = settings.game_type ?? 'kachuful';
+  const startPhase = gameType === 'scoresheet' ? 'entry' : 'bidding';
+  const totalRounds = gameType === 'scoresheet' ? 500 : roundsPerSet * numSets;
 
   const gameId = _generateId();
   const game = {
@@ -104,16 +106,25 @@ export async function createGame(players, settings) {
     sync_pending: settings.linked_room ? true : false,
     players,
     settings: {
+      game_type: gameType,
       mode: settings.mode ?? 'rookie',
       appearance: settings.appearance ?? 'interactive',
       scoring_formula: settings.scoring_formula ?? settings.formula ?? 'kachuful_standard',
       must_lose: settings.must_lose ?? false,
       rounds_per_set: roundsPerSet,
       num_sets: numSets,
+      ...(gameType === 'scoresheet'
+        ? {
+            label: settings.label ?? '',
+            winner: settings.winner ?? 'highest',
+            show_totals: settings.show_totals !== false,
+            allow_negatives: settings.allow_negatives === true,
+          }
+        : {}),
     },
     current_round: 1,
     total_rounds: totalRounds,
-    phase: 'bidding',
+    phase: startPhase,
     dealer_index: 0,
     status: 'active',
     started_at: new Date().toISOString(),
@@ -261,7 +272,57 @@ export async function endRound(gameId) {
   round.scores = calculateRoundScores(round.bids, round.hands_won, formula);
   round.status = 'complete';
 
-  game.phase = 'scoreboard';
+  // Review-phase rescore returns to review (parity with server _review_rescore).
+  if (game.settings?._review_rescore) {
+    game.settings = Object.fromEntries(
+      Object.entries(game.settings).filter(([key]) => key !== '_review_rescore'),
+    );
+    game.phase = 'review';
+  } else {
+    game.phase = 'scoreboard';
+  }
+
+  await saveRound(round);
+  await saveGame(game);
+  return round;
+}
+
+/**
+ * Lock a Scoresheet round: write direct scores, mark complete, show board or intermission.
+ * No network — callers sync after this returns.
+ *
+ * @param {string} gameId
+ * @param {Object.<string|number, number>} scoresByPlayerIndex
+ * @returns {Promise<Object>} Completed round.
+ */
+export async function lockScoresheetRound(gameId, scoresByPlayerIndex) {
+  const game = await _requireGame(gameId);
+  if ((game.settings?.game_type || 'kachuful') !== 'scoresheet') {
+    throw new Error('lockScoresheetRound is only for Scoresheet games');
+  }
+
+  let round = await getRound(game.id, game.current_round);
+  if (!round) {
+    round = _makeRound(game, game.current_round);
+  }
+
+  const scores = {};
+  for (const [key, value] of Object.entries(scoresByPlayerIndex)) {
+    scores[String(key)] = Number(value);
+  }
+  if (Object.keys(scores).length !== game.players.length) {
+    throw new Error('Scoresheet round requires a score for every player');
+  }
+
+  round.scores = scores;
+  round.bids = {};
+  round.hands_won = {};
+  round.cards_dealt = 1;
+  round.trump_suit = 'n/a';
+  round.status = 'complete';
+
+  const showTotals = game.settings?.show_totals !== false;
+  game.phase = showTotals ? 'scoreboard' : 'intermission';
 
   await saveRound(round);
   await saveGame(game);
@@ -276,6 +337,23 @@ export async function endRound(gameId) {
  */
 export async function nextRound(gameId) {
   const game = await _requireGame(gameId);
+  const isScoresheet = (game.settings?.game_type || 'kachuful') === 'scoresheet';
+
+  if (isScoresheet) {
+    if (game.current_round >= game.total_rounds - 1) {
+      game.total_rounds += 500;
+    }
+    game.current_round += 1;
+    game.dealer_index = (game.dealer_index + 1) % game.players.length;
+    game.phase = 'entry';
+    await saveGame(game);
+    const round = _makeRound(game, game.current_round);
+    round.cards_dealt = 1;
+    round.trump_suit = 'n/a';
+    await saveRound(round);
+    return game;
+  }
+
   const advanced = advanceRound(game);
 
   await saveGame(advanced);
@@ -370,21 +448,32 @@ export async function undoRound(gameId) {
   const roundToUndo = game.current_round;
 
   // Step back to the previous round (or stay at 1 if already round 1).
-  // Dealer advances only on nextRound — undoing round 1 must NOT rotate.
+  // Dealer advances only on nextRound — so undoing round 1 must NOT rotate
+  // (restart with the original dealer). Later undos reverse that advance.
   const wasAtRoundOne = game.current_round <= 1;
   if (game.current_round > 1) {
     game.current_round = game.current_round - 1;
     game.dealer_index =
       (game.dealer_index - 1 + game.players.length) % game.players.length;
   }
-  // Round 1 undo → back to bidding. Later rounds → scoreboard of previous round.
-  game.phase = wasAtRoundOne ? 'bidding' : 'scoreboard';
+  const isScoresheet = (game.settings?.game_type || 'kachuful') === 'scoresheet';
+  // Round 1 undo → back to entry/bidding. Later rounds → scoreboard of previous round.
+  if (wasAtRoundOne) {
+    game.phase = isScoresheet ? 'entry' : 'bidding';
+  } else {
+    game.phase = 'scoreboard';
+  }
 
   // Undoing round 1 deletes the only round row; recreate an empty active round
-  // so bidding can continue (otherwise submitBid → "Round not found").
-  const replacement = game.phase === 'bidding'
-    ? _makeRound(game, game.current_round)
-    : null;
+  // so entry/bidding can continue (otherwise submitBid → "Round not found").
+  const replacement =
+    game.phase === 'bidding' || game.phase === 'entry'
+      ? _makeRound(game, game.current_round)
+      : null;
+  if (replacement && isScoresheet) {
+    replacement.cards_dealt = 1;
+    replacement.trump_suit = 'n/a';
+  }
 
   // Single IDB transaction (waits for oncomplete) so navigate→getBids cannot
   // race a still-open delete/put.

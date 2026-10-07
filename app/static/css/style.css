@@ -5,21 +5,21 @@
 }
 
 :root {
-    --bg-page: #FAFAFA;
-    --bg-card: #FFFFFF;
-    --text-primary: #1A1A1A;
-    --text-secondary: #666666;
-    --text-muted: #6B6B6B;
-    --border: #E0E0E0;
-    --border-light: #F0F0F0;
-    --accent: #333333;
-    --accent-light: #555555;
+    --bg-page: #F7F4EF;
+    --bg-card: #FFFEFA;
+    --text-primary: #0A3F4A;
+    --text-secondary: #2F555F;
+    --text-muted: #4A6B75;
+    --border: #C5D5DD;
+    --border-light: #E0EBF0;
+    --accent: #0A5F6E;
+    --accent-light: #0E7A8A;
     --danger: #D32F2F;
     --success: #2E7D32;
     --radius: 12px;
     --radius-sm: 8px;
-    --shadow: 0 1px 3px rgba(0,0,0,0.08);
-    --shadow-lg: 0 4px 12px rgba(0,0,0,0.1);
+    --shadow: 0 1px 3px rgba(15, 70, 66, 0.08);
+    --shadow-lg: 0 4px 12px rgba(15, 70, 66, 0.12);
 }
 
 body {
@@ -30,13 +30,24 @@ body {
     -webkit-font-smoothing: antialiased;
 }
 
-/* Interactive appearance overrides */
+/* Interactive appearance overrides — Judgement phase tints (intentional; not global off-white) */
 [data-appearance="interactive"][data-phase="bidding"] { --bg-page: #FFF9C4; --accent: #E65100; }
 [data-appearance="interactive"][data-phase="playing"] { --bg-page: #FCE4EC; --accent: #C2185B; }
 [data-appearance="interactive"][data-phase="roundend"] { --bg-page: #BBDEFB; --accent: #1565C0; }
-[data-appearance="interactive"][data-phase="scoreboard"] { --bg-page: #E8EAF6; --accent: #283593; }
-[data-appearance="interactive"][data-phase="home"] { --bg-page: #F3E5F5; --accent: #6A1B9A; }
+[data-appearance="interactive"][data-phase="scoreboard"] { --bg-page: #EAF2F5; --accent: #0A5F6E; --accent-light: #0E7A8A; }
+[data-appearance="interactive"][data-phase="home"] { --bg-page: #F7F4EF; --accent: #0A5F6E; --accent-light: #0E7A8A; }
 [data-appearance="interactive"] { font-size: 1.1em; }
+
+/* Scoresheet — off-white page + navy accents (entry had no Judgement phase colors) */
+[data-game-type="scoresheet"] {
+    --bg-page: #F7F4EF;
+    --bg-card: #FFFEFA;
+    --accent: #0A5F6E;
+    --accent-light: #0E7A8A;
+    --border: #C5D5DD;
+    --text-primary: #0A3F4A;
+    --text-secondary: #2F555F;
+}
 
 #app {
     max-width: 420px;
@@ -50,7 +61,7 @@ h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.02em; }
 h2 { font-size: 1.4rem; font-weight: 600; }
 h3 { font-size: 1rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
 
-.logo { text-align: center; margin-top: 48px; font-size: 2.4rem; }
+.logo { text-align: center; margin-top: 48px; font-size: 2.4rem; color: var(--accent); }
 .tagline { text-align: center; color: var(--text-secondary); margin-top: 4px; margin-bottom: 32px; }
 
 /* Buttons */
@@ -362,6 +373,39 @@ input::placeholder { color: var(--text-muted); }
 .keypad-selected { background: var(--accent); color: #fff; transform: scale(1.05); box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
 .keypad-disabled { opacity: 0.25; cursor: not-allowed; }
 
+/* Scoresheet dialer display */
+.score-display {
+    font-size: 2.4rem;
+    font-weight: 700;
+    text-align: center;
+    min-height: 2.8rem;
+    letter-spacing: 0.04em;
+    margin: 8px auto 4px;
+    padding: 12px 16px;
+    max-width: 280px;
+    border-radius: var(--radius);
+    background: var(--bg-card);
+    border: 1.5px solid var(--border);
+    color: var(--text-primary);
+}
+.scoresheet-review {
+    margin: 12px 16px;
+    padding: 12px;
+    border-radius: var(--radius);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+}
+.scoresheet-review h3 { margin: 0 0 8px; font-size: 1rem; }
+.scoresheet-review .confirm-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-light);
+}
+.scoresheet-review .confirm-name { flex: 1; font-weight: 600; }
+.scoresheet-review .confirm-value { font-variant-numeric: tabular-nums; min-width: 2.5rem; text-align: right; }
+
 /* Review timer overlay — REMOVED, kept class for safety */
 .review-overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,0.7);
@@ -525,7 +569,7 @@ input::placeholder { color: var(--text-muted); }
 }
 .scoresheet thead th {
     position: sticky; top: 0; z-index: 1;
-    background: var(--bg-card, #fff);
+    background: var(--bg-card, #FFFEFA);
 }
 .scoresheet th { font-weight: 600; color: var(--text-secondary); text-transform: uppercase; font-size: 0.75rem; }
 .scoresheet th:first-child, .scoresheet td:first-child { text-align: left; width: 32px; }
@@ -621,9 +665,39 @@ input::placeholder { color: var(--text-muted); }
 .stats-tabs { display: flex; gap: 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
 .stats-tab {
     flex: 1; padding: 10px 4px; text-align: center; background: var(--bg-card);
-    border: none; font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); cursor: pointer;
+    border: none; font-size: 0.875rem; font-weight: 500; color: var(--text-secondary); cursor: pointer;
 }
 .stats-tab.active { background: var(--accent); color: #fff; }
+.stats-tab:focus-visible,
+.keypad-key:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+.lobby-game-tabs.stats-tabs {
+    margin-bottom: 12px;
+    border: none;
+    background: transparent;
+    padding: 0;
+    gap: 0;
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: none;
+}
+.lobby-game-tabs .stats-tab {
+    border-radius: 0;
+}
+.lobby-game-tabs .stats-tab:first-child {
+    border-radius: var(--radius) 0 0 var(--radius);
+}
+.lobby-game-tabs .stats-tab:last-child {
+    border-radius: 0 var(--radius) var(--radius) 0;
+}
+.lobby-game-tabs .stats-tab.active {
+    box-shadow: none;
+}
+.lobby-game-settings { margin-top: 4px; }
+.stats-game-type-tabs { margin: 0 0 12px; }
+
 .stats-section { display: flex; flex-direction: column; gap: 8px; min-width: 0; max-width: 100%; overflow-x: hidden; }
 
 /* Leaderboard cards */
@@ -938,8 +1012,8 @@ input::placeholder { color: var(--text-muted); }
 }
 
 .personality-back {
-    background: #fff;
-    color: var(--text-primary, #222);
+    background: var(--bg-card);
+    color: var(--text-primary);
     transform: rotateY(180deg);
     justify-content: flex-start;
     gap: 6px;

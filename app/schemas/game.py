@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 
 class GameSettings(BaseModel):
-    game_type: str = Field(default="kachuful", pattern=r"^kachuful$")
+    game_type: Literal["kachuful", "scoresheet"] = "kachuful"
     mode: str = Field(default="expert", pattern=r"^(expert|rookie|friendly)$")
     appearance: str = Field(default="standard", pattern=r"^(standard|interactive)$")
     timer_seconds: int = Field(default=0, ge=0, le=30)
@@ -17,6 +17,11 @@ class GameSettings(BaseModel):
     rounds_per_set: int = Field(default=8, ge=1, le=26)
     must_lose: bool = Field(default=False)
     trump_rotation: list[str] = Field(default=["spades", "diamonds", "clubs", "hearts"])
+    # Scoresheet-only (ignored by Judgement)
+    winner: Literal["highest", "lowest"] = "highest"
+    show_totals: bool = True
+    allow_negatives: bool = False
+    label: str = Field(default="", max_length=80)
 
 
 class GameCreate(BaseModel):

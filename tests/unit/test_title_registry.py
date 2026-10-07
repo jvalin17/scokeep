@@ -457,16 +457,17 @@ class TestPhase1Coverage:
     def test__phase1_coverage_fallback_on_no_exclusive(self):
         from app.services.title_selection import phase1_coverage
 
-        exclusive = [{"key": "t1", "player": "A", "score": 50.0}]
+        exclusive = [{"key": "t1", "player": "A", "score": 50.0, "title": "T1"}]
         all_cands = [
-            {"key": "t1", "player": "A", "score": 50.0},
-            {"key": "t2", "player": "B", "score": 30.0},
+            {"key": "t1", "player": "A", "score": 50.0, "title": "T1"},
+            {"key": "t2", "player": "B", "score": 30.0, "title": "T2"},
         ]
         used = set()
         result = phase1_coverage(["A", "B"], exclusive, all_cands, used)
         players = {c["player"] for c in result}
         assert "A" in players
         assert "B" in players  # fell back to all_cands
+        assert len({c.get("title") or c["key"] for c in result}) == len(result)
 
 
 class TestPerfectionistMetric:

@@ -4,6 +4,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.round import Round
+from app.services.packs.registry import get_pack_for_settings
 
 
 def compute_scoreboard(rounds: list[dict], player_count: int = 0) -> dict:
@@ -85,7 +86,11 @@ class ScoreboardService:
             delete(Round).where(Round.game_id == game.id, Round.round_num == round_to_undo)
         )
         game.current_round = 1 if round_to_undo == 1 else round_to_undo - 1
-        game.phase = "bidding" if round_to_undo == 1 else "scoreboard"
+        if round_to_undo == 1:
+            # Judgement → bidding; Scoresheet → entry (pack start_phase).
+            game.phase = get_pack_for_settings(game.settings or {}).start_phase
+        else:
+            game.phase = "scoreboard"
         if game.status == "finished":
             game.status = "active"
             game.finished_at = None

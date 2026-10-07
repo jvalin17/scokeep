@@ -88,7 +88,10 @@ async def extend_game(
             detail="Can only extend at scoreboard (between rounds)",
         )
 
-    await GameService.extend_game(db, game)
+    try:
+        await GameService.extend_game(db, game)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     return game
 
 

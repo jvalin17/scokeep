@@ -1,2 +1,3 @@
-/** TDD gate discovery for home.js — suite in tests/js/ui-affordance.test.js */
+/** TDD gate discovery for home.js */
+import './js/home.test.js';
 import './js/ui-affordance.test.js';

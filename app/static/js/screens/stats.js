@@ -27,7 +27,10 @@ async function patchScore(gameId, roundNum, playerIndex, score, adminKey) {
 export const statsScreen = {
     async mount(container, state, { navigate, params }) {
         const shareCode = params[0];
-        let stats;
+        const allowedGameTypes = new Set(['all', 'kachuful', 'scoresheet']);
+        let selectedGameType = allowedGameTypes.has(params[1]) ? params[1] : 'all';
+        let stats = { total_games: 0, game_history: [], highlights: null, insights: null };
+        let loadError = false;
         let editMode = false;
         const adminStorageKey = `scokeep_admin_key_${shareCode}`;
         const storedKey = sessionStorage.getItem(adminStorageKey);
@@ -40,38 +43,44 @@ export const statsScreen = {
             } catch { /* not valid */ }
             if (!editMode) sessionStorage.removeItem(adminStorageKey);
         }
-        try {
-            stats = await getPlaygroundStats(shareCode);
-        } catch {
-            container.innerHTML = `
-                <div class="stats">
-                    <div class="round-info"><span>Stats</span></div>
-                    <p class="stats-empty">No games played yet. Play some rounds first!</p>
-                    <button class="btn btn-primary btn-back">Back</button>
-                </div>
-            `;
-            container.querySelector('.btn-back').addEventListener('click', () => history.back());
-            return;
+
+        async function loadStats() {
+            loadError = false;
+            try {
+                stats = await getPlaygroundStats(shareCode, { gameType: selectedGameType });
+            } catch {
+                loadError = true;
+                stats = { total_games: 0, game_history: [], highlights: null, insights: null };
+            }
         }
 
-        if (stats.total_games === 0) {
-            container.innerHTML = `
-                <div class="stats">
-                    <div class="round-info"><span>Stats</span></div>
-                    <p class="stats-empty">No games played yet. Play some rounds first!</p>
-                    <button class="btn btn-primary btn-back">Back</button>
-                </div>
-            `;
-            container.querySelector('.btn-back').addEventListener('click', () => history.back());
-            return;
-        }
+        await loadStats();
 
-        let activeTab = 'insights';
+        let activeTab = selectedGameType === 'scoresheet' ? 'history' : 'insights';
         let expandedGameId = null;
         let expandedData = null;
 
+        function renderGameTypeFilter() {
+            const options = [
+                ['all', 'All'],
+                ['kachuful', 'Judgement'],
+                ['scoresheet', 'Scoresheet'],
+            ];
+            return `
+                <div class="stats-game-type-tabs lobby-game-tabs stats-tabs" role="tablist" aria-label="Stats game type">
+                    ${options.map(([value, label]) => `
+                        <button type="button" role="tab" class="stats-tab ${selectedGameType === value ? 'active' : ''}"
+                            data-game-type-filter="${value}"
+                            aria-selected="${selectedGameType === value}">${label}</button>
+                    `).join('')}
+                </div>
+            `;
+        }
+
         function render() {
             const modeClass = editMode ? 'edit-mode' : '';
+            const showInsights = selectedGameType !== 'scoresheet';
+            if (!showInsights && activeTab === 'insights') activeTab = 'history';
             container.innerHTML = `
                 <div class="stats ${modeClass}">
                     <div class="round-info">
@@ -79,6 +88,7 @@ export const statsScreen = {
                         <span>${stats.total_games} game${stats.total_games !== 1 ? 's' : ''}</span>
                         <button class="btn-settings" id="stats-gear" aria-label="Settings" title="Settings">⚙</button>
                     </div>
+                    ${renderGameTypeFilter()}
                     ${editMode ? '<div class="edit-mode-bar">✏️ Edit Mode — tap scores to correct</div>' : ''}
 
                     <div class="action-overlay hidden">
@@ -101,17 +111,23 @@ export const statsScreen = {
                         </div>
                     </div>
 
-                    <div class="stats-tabs">
-                        <button class="stats-tab ${activeTab === 'insights' ? 'active' : ''}" data-tab="insights">Insights</button>
+                    ${loadError || stats.total_games === 0 ? `
+                        <p class="stats-empty" data-stats-empty="1">${loadError
+                            ? 'Could not load stats. Check your connection.'
+                            : 'No games for this filter yet.'}</p>
+                    ` : `
+                    <div class="stats-tabs" role="tablist" aria-label="Stats sections">
+                        ${showInsights ? `<button class="stats-tab ${activeTab === 'insights' ? 'active' : ''}" data-tab="insights">Insights</button>` : ''}
                         <button class="stats-tab ${activeTab === 'highlights' ? 'active' : ''}" data-tab="highlights">Awards</button>
                         <button class="stats-tab ${activeTab === 'history' ? 'active' : ''}" data-tab="history">Games</button>
                     </div>
 
                     <div class="stats-content">
-                        ${activeTab === 'insights' ? renderInsights() : ''}
+                        ${activeTab === 'insights' && showInsights ? renderInsights() : ''}
                         ${activeTab === 'highlights' ? renderHighlights() : ''}
                         ${activeTab === 'history' ? renderHistory() : ''}
                     </div>
+                    `}
 
                     <button class="btn btn-primary btn-back" style="margin-top: 16px;">Back</button>
                 </div>
@@ -121,8 +137,17 @@ export const statsScreen = {
         }
 
         function bindListeners() {
+            container.querySelectorAll('[data-game-type-filter]').forEach((tab) => {
+                tab.addEventListener('click', () => {
+                    const next = tab.getAttribute('data-game-type-filter') || 'all';
+                    if (next === selectedGameType) return;
+                    // Hash remount loads the filtered stats (keeps URL in sync).
+                    navigate(`stats/${shareCode}/${next}`);
+                });
+            });
+
             // Tab switching
-            container.querySelectorAll('.stats-tab').forEach(tab => {
+            container.querySelectorAll('.stats-tab[data-tab]').forEach(tab => {
                 tab.addEventListener('click', () => { activeTab = tab.dataset.tab; render(); });
             });
 
@@ -219,7 +244,7 @@ export const statsScreen = {
                     try {
                         await clearPlaygroundStats(shareCode);
                         closeDialog();
-                        navigate(`stats/${shareCode}`);
+                        navigate(`stats/${shareCode}/${selectedGameType}`);
                     } catch {
                         closeDialog();
                         render();
@@ -257,6 +282,7 @@ export const statsScreen = {
                     try {
                         const moreStats = await getPlaygroundStats(shareCode, {
                             offset: stats.game_history.length,
+                            gameType: selectedGameType,
                         });
                         stats.game_history.push(...moreStats.game_history);
                         render();
@@ -284,7 +310,7 @@ export const statsScreen = {
                     try {
                         await patchScore(gameId, roundNum, playerIdx, parsed, adminKey);
                         expandedData = await getScoreboard(gameId);
-                        stats = await getPlaygroundStats(shareCode);
+                        stats = await getPlaygroundStats(shareCode, { gameType: selectedGameType });
                         render();
                     } catch (err) {
                         if (err.message.includes('Admin')) {
@@ -311,6 +337,14 @@ export const statsScreen = {
         function renderHighlights() {
             const highlights = stats.highlights;
             if (!highlights) return '<p class="stats-empty">No highlights yet.</p>';
+            if (selectedGameType === 'scoresheet') {
+                return `
+                    <div class="stats-section">
+                        <p class="stats-muted">Scoresheet uses lightweight awards — Judgement bid titles stay on the Judgement filter.</p>
+                        ${renderPodiumBoard(highlights.podium)}
+                    </div>
+                `;
+            }
             const { career } = highlights;
             return `
                 <div class="stats-section">
@@ -346,7 +380,9 @@ export const statsScreen = {
                             <div class="stats-game-header">
                                 <span class="stats-muted">${g.date ? new Date(g.date).toLocaleDateString() : '—'}</span>
                                 <span>${g.rounds_played} rounds</span>
-                                <span class="stats-mode">${g.mode}</span>
+                                <span class="stats-mode">${g.game_type === 'scoresheet'
+                                    ? escapeHtml(g.label || 'Scoresheet')
+                                    : escapeHtml(g.mode || 'Judgement')}</span>
                                 <span>${expandedGameId === g.game_id ? '▲' : '▼'}</span>
                             </div>
                             <div class="stats-game-scores">

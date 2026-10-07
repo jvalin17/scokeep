@@ -302,20 +302,16 @@ class TestEmptyHighlightsSchema:
     """empty_highlights must include all career table keys."""
 
     def test_empty_highlights_has_all_career_keys(self):
-        from app.services.analytics import AnalyticsService, _career_tables, _init_career
+        from app.services.analytics import _build_empty_highlights, _career_tables, _init_career
 
-        # Get the actual career table keys
         career = _init_career({"test"})
         tables = _career_tables(career)
         expected_keys = set(tables.keys())
 
-        # Get empty_highlights career keys (from the method's fallback)
-        # We need to check the hardcoded dict matches
-        import inspect
-
-        source = inspect.getsource(AnalyticsService.get_playground_stats)
+        empty_career = _build_empty_highlights()["career"]
+        assert set(empty_career.keys()) == expected_keys
         for key in expected_keys:
-            assert f'"{key}"' in source, f"empty_highlights missing career key: {key}"
+            assert empty_career[key] == [], f"empty career key {key} should be []"
 
 
 class TestCareerAccumulatesAcrossGames:

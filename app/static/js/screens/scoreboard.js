@@ -11,8 +11,12 @@ export const scoreboardScreen = {
         const api = await getApi(gameId);
         const game = await api.getGame(gameId);
         if (!game) { navigate(''); return; }
-        // Scoreboard accepts both 'scoreboard' and 'final' phases
-        if (game.phase !== 'scoreboard' && game.status !== 'finished') {
+        // Scoreboard accepts scoreboard, intermission (Scoresheet totals-off), and finished
+        const onBoard =
+            game.phase === 'scoreboard' ||
+            game.phase === 'intermission' ||
+            game.status === 'finished';
+        if (!onBoard) {
             await api.resyncGame(gameId);
             return;
         }
@@ -23,15 +27,22 @@ export const scoreboardScreen = {
         const totals = scoreboard.totals;
         const rounds = scoreboard.rounds;
 
+        const isScoresheet = (game.settings?.game_type || 'kachuful') === 'scoresheet';
+        const hideStandings = game.phase === 'intermission' || (isScoresheet && game.settings?.show_totals === false);
+
         // current_round = round just completed (not yet advanced by next-round)
         const roundsPerSet = game.settings.rounds_per_set || 8;
-        const isSetEnd = game.current_round % roundsPerSet === 0;
-        const isLastRound = game.current_round >= game.total_rounds;
+        const isSetEnd = !isScoresheet && game.current_round % roundsPerSet === 0;
+        const isLastRound = !isScoresheet && game.current_round >= game.total_rounds;
         const isGameOver = game.status === 'finished';
 
         const appearance = game.settings.appearance || 'standard';
         document.body.setAttribute('data-phase', 'scoreboard');
         document.body.setAttribute('data-appearance', appearance);
+        document.body.setAttribute(
+            'data-game-type',
+            game.settings.game_type || 'kachuful',
+        );
 
         // Build score display
         let scoreTableHtml = '';
@@ -40,9 +51,10 @@ export const scoreboardScreen = {
             scoreTableHtml = `<p style="text-align:center;color:var(--text-muted);padding:24px 0;">No rounds played</p>`;
         } else if (rounds.length > 0 && isGameOver) {
             // Winner celebration
+            const lowestWins = game.settings?.winner === 'lowest';
             const standings = players.map((name, index) => ({
                 name, score: totals[String(index)] || 0,
-            })).sort((a, b) => b.score - a.score);
+            })).sort((a, b) => (lowestWins ? a.score - b.score : b.score - a.score));
             const winner = standings[0];
             // Confetti particles
             const confettiPieces = Array.from({ length: 40 }, (_, i) => {
@@ -83,11 +95,11 @@ export const scoreboardScreen = {
                 ${renderScoresheetTable(players, rounds, totals)}
                 ${rankingsHtml}
             `;
-        } else if (rounds.length > 0) {
+        } else if (rounds.length > 0 && !hideStandings) {
             // Between rounds: round score only — no grand total
             const lastRound = rounds[rounds.length - 1];
             scoreTableHtml = `
-                <div class="score-table">
+                <div class="score-table" id="scoreboard-standings" data-standings="1">
                     <div class="score-header">
                         <span>Player</span>
                         <span>Round ${lastRound.round_num}</span>
@@ -104,6 +116,8 @@ export const scoreboardScreen = {
                     }).join('')}
                 </div>
             `;
+        } else if (hideStandings && !isGameOver) {
+            scoreTableHtml = `<p class="claimed-info" data-intermission="1" style="text-align:center;padding:16px;">Round locked — totals hidden</p>`;
         }
 
         container.innerHTML = `
@@ -121,11 +135,12 @@ export const scoreboardScreen = {
                     ${isGameOver ? `
                         <button class="btn btn-primary" data-nav="${state.playground ? `playground/${state.playground.share_code}` : ''}">🏠 Back to Room</button>
                     ` : `
-                        <button id="next-round" class="btn btn-primary">${isLastRound ? 'Finish Game' : 'Next Round'}</button>
-                        ${isLastRound ? '<button id="extend-set" class="btn" style="margin-top: 12px;">Add a Set</button>' : ''}
-                        <button id="edit-hands" class="btn-text" style="margin-top: 16px;">Edit Hands</button>
-                        <button id="end-game" class="btn-text" style="margin-top: 16px; color: var(--danger);">End Game</button>
-                        <button id="undo-round" class="btn-text">Undo Last Round</button>
+                        <button id="next-round" class="btn btn-primary">${isScoresheet ? 'Next Round' : (isLastRound ? 'Finish Game' : 'Next Round')}</button>
+                        ${!isScoresheet && isLastRound ? '<button id="extend-set" class="btn" style="margin-top: 12px;">Add a Set</button>' : ''}
+                        ${isScoresheet ? '' : '<button id="edit-hands" class="btn-text" style="margin-top: 16px;">Edit Hands</button>'}
+                        <button id="end-game" class="btn-text" style="margin-top: 16px; color: var(--danger);">${isScoresheet ? 'Finished' : 'End Game'}</button>
+                        <button id="undo-round" class="btn-text">${isScoresheet ? 'Undo Last Round' : 'Undo Last Round'}</button>
+                        ${isScoresheet ? '<button id="edit-round" class="btn-text" style="margin-top: 8px;">Edit Round</button>' : ''}
                     `}
                 </div>
                 <p id="scoreboard-error" class="error hidden"></p>
@@ -145,6 +160,9 @@ export const scoreboardScreen = {
                         const updated = await api.nextRound(gameId);
                         if (updated.phase === 'review') {
                             navigate(`review/${gameId}`);
+                        } else if (updated.phase === 'entry') {
+                            soundNextRound();
+                            navigate(`entry/${gameId}`);
                         } else {
                             soundNextRound();
                             navigate(`bid/${gameId}`);
@@ -201,12 +219,30 @@ export const scoreboardScreen = {
                         await api.undoRound(gameId);
                         soundUndo();
                         const updated = await api.getGame(gameId);
-                        if (updated.phase === 'bidding') {
+                        if (isScoresheet && updated.phase === 'entry') {
+                            navigate(`entry/${gameId}`);
+                        } else if (updated.phase === 'bidding') {
                             navigate(`bid/${gameId}`);
                         } else {
                             navigate(`scoreboard/${gameId}`);
                             window.dispatchEvent(new HashChangeEvent('hashchange'));
                         }
+                    } catch (error) {
+                        showError(error.message);
+                    }
+                });
+            }
+
+            const editRoundBtn = container.querySelector('#edit-round');
+            if (editRoundBtn) {
+                editRoundBtn.addEventListener('click', async () => {
+                    try {
+                        await api.undoRound(gameId);
+                        const updated = await api.getGame(gameId);
+                        if (updated.phase !== 'entry') {
+                            updated.phase = 'entry';
+                        }
+                        navigate(`entry/${gameId}`);
                     } catch (error) {
                         showError(error.message);
                     }

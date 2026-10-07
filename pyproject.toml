@@ -40,6 +40,10 @@ ignore = ["S101", "S105", "B008"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+    "scoresheet: Scoresheet / multi-game UI or helpers",
+    "judgement_smoke: Judgement regression smoke (must stay green on multi-game)",
+]
 
 [build-system]
 requires = ["setuptools>=68.0", "wheel"]

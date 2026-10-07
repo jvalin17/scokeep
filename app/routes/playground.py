@@ -1,6 +1,7 @@
 """Playground API routes — create, authenticate, get."""
 
 import logging
+from typing import Literal
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response
 from itsdangerous import BadSignature
@@ -160,6 +161,7 @@ async def get_playground_stats(
     share_code: str,
     offset: int = 0,
     limit: int = 40,
+    game_type: Literal["all", "kachuful", "scoresheet"] = "all",
     playground_id: int = Depends(_get_authenticated_playground_id),
     db: AsyncSession = Depends(get_db),
 ):
@@ -176,6 +178,7 @@ async def get_playground_stats(
         backfill_meta(playground.insights),
         offset=clamped_offset,
         page_size=clamped_limit,
+        game_type=game_type,
     )
 
 
