@@ -24,6 +24,13 @@ from http.cookiejar import CookieJar
 DEFAULT_BASE = "https://scokeep.com"
 USER_AGENT = "scokeep-prod-smoke/1.0"
 
+# Render free-tier services spin down when idle. The first request to a sleeping
+# service may get an "Application loading" interstitial instead of being held
+# through wake-up, which is not a prod regression — so wait it out, but bounded.
+RENDER_WAKE_MARKER = "Render - Application loading"
+HEALTH_WAKE_ATTEMPTS = 6
+HEALTH_WAKE_DELAY = 15.0
+
 
 class SmokeError(Exception):
     pass
@@ -67,8 +74,33 @@ def _request(
             return exc.code, raw
 
 
-def check_health(opener: urllib.request.OpenerDirector, base: str) -> None:
+def _is_render_waking(body: object) -> bool:
+    """True only for Render's cold-start interstitial, which arrives as HTML.
+
+    A real database outage also answers 503, but with JSON
+    (``{"status": "unhealthy", "database": "unavailable"}`` — app/main.py). That
+    must fail immediately, so never treat a parsed dict as a cold start.
+    """
+    return isinstance(body, str) and RENDER_WAKE_MARKER in body
+
+
+def _fetch_health_past_wake(opener: urllib.request.OpenerDirector, base: str) -> tuple[int, object]:
+    """GET /api/health, tolerating a bounded Render cold start."""
     status, body = _request(opener, base, "/api/health")
+    for attempt in range(1, HEALTH_WAKE_ATTEMPTS):
+        if not (status == 503 and _is_render_waking(body)):
+            break
+        print(
+            f"WARN health 503 Render cold start — retry "
+            f"{attempt}/{HEALTH_WAKE_ATTEMPTS - 1} in {HEALTH_WAKE_DELAY:.0f}s"
+        )
+        time.sleep(HEALTH_WAKE_DELAY)
+        status, body = _request(opener, base, "/api/health")
+    return status, body
+
+
+def check_health(opener: urllib.request.OpenerDirector, base: str) -> None:
+    status, body = _fetch_health_past_wake(opener, base)
     if status != 200:
         raise SmokeError(f"health HTTP {status}: {body}")
     if not isinstance(body, dict) or body.get("status") != "healthy":
