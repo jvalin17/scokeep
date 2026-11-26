@@ -307,7 +307,10 @@ input::placeholder { color: var(--text-muted); }
     margin-bottom: 12px;
 }
 .trump { font-size: 1.3rem; }
-.trump-red, .trump-red .trump-symbol, .trump-red .trump-name { color: #D32F2F; }
+.trump-red, .trump-red .trump-symbol, .trump-red .trump-name,
+.trump-red .trump-symbol-sm, .trump-red .trump-label { color: #D32F2F; }
+.trump-black, .trump-black .trump-symbol, .trump-black .trump-name,
+.trump-black .trump-symbol-sm, .trump-black .trump-label { color: #000; }
 
 /* Bidding */
 .bidding, .roundend { display: flex; flex-direction: column; gap: 12px; }

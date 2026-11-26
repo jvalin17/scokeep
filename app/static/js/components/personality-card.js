@@ -1,7 +1,7 @@
 // Personality card component — flippable cards with avatar, insights, accuracy chart
 // Personality metadata served from API (Python is single source of truth)
 
-import { escapeHtml } from './game-utils.js';
+import { escapeHtml, suitColorClass } from './game-utils.js';
 
 const FALLBACK_META = { name: 'Unknown', tagline: '', color: '#37474F', icon: '❓' };
 const VALID_COLOR_RE = /^#[0-9a-fA-F]{3,6}$/;
@@ -196,10 +196,7 @@ function renderStatsTable(extras) {
 
     // Best suit
     if (extras.best_trump) {
-        const isRed = extras.best_trump === '♦' || extras.best_trump === '♥';
-        const suitHtml = isRed
-            ? `<span style="color:#D32F2F;">${escapeHtml(extras.best_trump)}</span>`
-            : `<span>${escapeHtml(extras.best_trump)}</span>`;
+        const suitHtml = `<span class="${suitColorClass(extras.best_trump)}">${escapeHtml(extras.best_trump)}</span>`;
         rows.push(['Best suit', `${suitHtml} ${extras.best_trump_pct}%`]);
     }
 

@@ -16,12 +16,22 @@ export function getRoundCards(roundNum, roundsPerSet = 8) {
     }
 }
 
+const RED_SUITS = ['♦', '♥'];
+
+/**
+ * CSS class carrying a suit's ink color. Black suits need an explicit class
+ * because the page text color is teal, not black.
+ */
+export function suitColorClass(symbol) {
+    return RED_SUITS.includes(symbol) ? 'trump-red' : 'trump-black';
+}
+
 export function getTrump(roundNum) {
     const suits = ['♠', '♦', '♣', '♥'];
     const names = ['Spades', 'Diamonds', 'Clubs', 'Hearts'];
     const index = (roundNum - 1) % 4;
-    const isRed = index === 1 || index === 3;
-    return { symbol: suits[index], name: names[index], isRed };
+    const symbol = suits[index];
+    return { symbol, name: names[index], colorClass: suitColorClass(symbol) };
 }
 
 export function escapeHtml(str) {
