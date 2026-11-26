@@ -78,14 +78,14 @@ export function renderTrumpDisplay(roundNum, mode, size = 'small') {
     const trump = getTrump(roundNum);
     if (size === 'large') {
         return `
-            <div class="trump-display ${trump.isRed ? 'trump-red' : ''}">
+            <div class="trump-display ${trump.colorClass}">
                 <span class="trump-symbol">${trump.symbol}</span>
                 <span class="trump-name">${trump.name}</span>
             </div>
         `;
     }
     return `
-        <div class="trump-below ${trump.isRed ? 'trump-red' : ''}">
+        <div class="trump-below ${trump.colorClass}">
             <span class="trump-symbol-sm">${trump.symbol}</span>
             <span class="trump-label">${trump.name}</span>
         </div>
@@ -145,7 +145,7 @@ export function renderScoresheetTable(players, rounds, totals, { rowAttrs } = {}
                         const trump = getTrump(round.round_num);
                         const extraAttrs = rowAttrs ? rowAttrs(round) : '';
                         return `<tr ${extraAttrs}>
-                            <td>${round.cards_dealt}<span class="${trump.isRed ? 'trump-red' : ''}" style="font-size:0.7em;">${trump.symbol}</span></td>
+                            <td>${round.cards_dealt}<span class="${trump.colorClass}" style="font-size:0.7em;">${trump.symbol}</span></td>
                             ${players.map((_, idx) => {
                                 const roundScore = round.scores[String(idx)] || 0;
                                 return `<td class="${roundScore < 0 ? 'score-negative' : ''}">
